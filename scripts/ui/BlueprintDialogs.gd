@@ -2,6 +2,71 @@ class_name BlueprintDialogs
 extends Node
 
 # -------------------------------------------------------------
+# Modal Wrapper with centered dialog and full-screen backdrop
+# -------------------------------------------------------------
+class ModalWrapper extends Control:
+	var center_container: CenterContainer
+	var content_node: Control
+
+	func _init(content: Control) -> void:
+		content_node = content
+		name = "BlueprintModalWrapper"
+		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		mouse_filter = Control.MOUSE_FILTER_STOP
+
+		# Semi-transparent dark background (blocks clicks through to the board)
+		var backdrop := ColorRect.new()
+		backdrop.name = "Backdrop"
+		backdrop.color = Color(0.04, 0.06, 0.09, 0.65)
+		backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+		add_child(backdrop)
+
+		# CenterContainer guarantees dead-center positioning in browser and all resolutions
+		center_container = CenterContainer.new()
+		center_container.name = "CenterContainer"
+		center_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		center_container.mouse_filter = Control.MOUSE_FILTER_PASS
+		add_child(center_container)
+
+		center_container.add_child(content)
+
+	func _unhandled_input(event: InputEvent) -> void:
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.keycode == KEY_ESCAPE:
+				close()
+				get_viewport().set_input_as_handled()
+
+	func close() -> void:
+		queue_free()
+
+static func show_save_dialog(parent: Node, has_selection: bool, on_confirmed: Callable) -> ModalWrapper:
+	var dlg := SaveDialog.new(has_selection)
+	var modal := ModalWrapper.new(dlg)
+	dlg.confirmed.connect(func(machine_name: String, only_sel: bool):
+		on_confirmed.call(machine_name, only_sel)
+		modal.close()
+	)
+	dlg.cancelled.connect(func():
+		modal.close()
+	)
+	parent.add_child(modal)
+	return modal
+
+static func show_load_dialog(parent: Node, on_selected: Callable) -> ModalWrapper:
+	var dlg := LoadDialog.new()
+	var modal := ModalWrapper.new(dlg)
+	dlg.blueprint_selected.connect(func(machine_name: String):
+		on_selected.call(machine_name)
+		modal.close()
+	)
+	dlg.cancelled.connect(func():
+		modal.close()
+	)
+	parent.add_child(modal)
+	return modal
+
+# -------------------------------------------------------------
 # Blueprint Save Dialog
 # -------------------------------------------------------------
 class SaveDialog extends PanelContainer:
@@ -58,7 +123,6 @@ class SaveDialog extends PanelContainer:
 		cancel_btn.text = "取消"
 		cancel_btn.pressed.connect(func():
 			cancelled.emit()
-			queue_free()
 		)
 		btn_hbox.add_child(cancel_btn)
 
@@ -69,7 +133,6 @@ class SaveDialog extends PanelContainer:
 			if name_str.is_empty():
 				name_str = "未命名图纸"
 			confirmed.emit(name_str, check_box.button_pressed)
-			queue_free()
 		)
 		btn_hbox.add_child(ok_btn)
 
@@ -128,7 +191,6 @@ class LoadDialog extends PanelContainer:
 		cancel_btn.text = "关闭"
 		cancel_btn.pressed.connect(func():
 			cancelled.emit()
-			queue_free()
 		)
 		btn_hbox.add_child(cancel_btn)
 
@@ -149,7 +211,6 @@ class LoadDialog extends PanelContainer:
 			return
 		var name_str := item_list.get_item_text(selected[0])
 		blueprint_selected.emit(name_str)
-		queue_free()
 
 	func _on_delete() -> void:
 		var selected := item_list.get_selected_items()

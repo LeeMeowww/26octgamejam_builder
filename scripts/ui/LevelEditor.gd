@@ -10,6 +10,7 @@ var sim_engine: SimulationEngine
 var camera: CameraController
 var grid_view: GridView
 var toolbar: Toolbar
+var ui_layer: CanvasLayer
 
 # Top Bar controls
 var level_name_lbl: Label
@@ -100,7 +101,7 @@ func _build_ui() -> void:
 	canvas_node.add_child(camera)
 
 	# UI Layer (Keeps UI pinned to screen, unaffected by Camera2D)
-	var ui_layer := CanvasLayer.new()
+	ui_layer = CanvasLayer.new()
 	ui_layer.name = "UILayer"
 	add_child(ui_layer)
 
@@ -390,6 +391,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
+	if event is InputEventKey and event.pressed and not event.echo:
+		var code: int = event.keycode if event.keycode != 0 else event.physical_keycode
+		if code == KEY_R:
+			reset_simulation()
+			get_viewport().set_input_as_handled()
+			return
+
 	# Number keys: 1..9, 0 for all blocks
 	# 1: Basic, 2: Inhibitor, 3: Pusher, 4: Replicator, 5: Destroyer, 6: Rotator, 7: Hard, 8: Wanderer, 9: Treasure, 0: Pollution
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -662,9 +670,8 @@ func clear_all_blocks() -> void:
 
 func _on_save_machine() -> void:
 	var has_sel := not selected_blocks.is_empty()
-	var dlg := BlueprintDialogs.SaveDialog.new(has_sel)
-	dlg.set_anchors_preset(PRESET_CENTER)
-	dlg.confirmed.connect(func(m_name: String, only_selected: bool):
+	var target_parent: Node = ui_layer if ui_layer != null else self
+	BlueprintDialogs.show_save_dialog(target_parent, has_sel, func(m_name: String, only_selected: bool):
 		var target_blocks: Array[BlockData] = []
 		if only_selected and not selected_blocks.is_empty():
 			target_blocks = selected_blocks.duplicate()
@@ -672,12 +679,10 @@ func _on_save_machine() -> void:
 			target_blocks = world.get_all_blocks().duplicate()
 		SaveManager.save_machine(m_name, target_blocks)
 	)
-	add_child(dlg)
 
 func _on_load_machine() -> void:
-	var dlg := BlueprintDialogs.LoadDialog.new()
-	dlg.set_anchors_preset(PRESET_CENTER)
-	dlg.blueprint_selected.connect(func(m_name: String):
+	var target_parent: Node = ui_layer if ui_layer != null else self
+	BlueprintDialogs.show_load_dialog(target_parent, func(m_name: String):
 		var blocks := SaveManager.load_machine(m_name)
 		var center_grid := grid_view.world_to_grid(camera.position)
 		for b in blocks:
@@ -686,7 +691,6 @@ func _on_load_machine() -> void:
 			world.add_block(b)
 		initial_snapshot = world.clone()
 	)
-	add_child(dlg)
 
 # -------------------------------------------------------------
 # Toolbar signal handlers

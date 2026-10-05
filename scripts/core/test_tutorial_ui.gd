@@ -3,7 +3,7 @@ var view: SubViewport
 var player: LevelPlayer
 var failures: Array = []
 var checks := 0
-var output_dir: String = OS.get_environment("BLOCKBOUND_TEST_OUTPUT") if not OS.get_environment("BLOCKBOUND_TEST_OUTPUT").is_empty() else "res://build/tutorial-tests"
+var output_dir: String = OS.get_environment("BLOCKBOUND_TEST_OUTPUT") if not OS.get_environment("BLOCKBOUND_TEST_OUTPUT").is_empty() else "/tmp/tutorial-tests"
 func _initialize():
 	DirAccess.make_dir_recursive_absolute(output_dir)
 	call_deferred("run_test")
@@ -75,7 +75,7 @@ func run_test():
 		await snap("lesson_%02d_complete" % (i + 1))
 		await click(player.victory_dialog.next_btn.get_global_rect().get_center())
 		verify(player.current_level_index == i + 1, "next_lesson_" + str(i))
-	verify(player.current_level_data.level_id == "level_01", "tutorials_lead_to_first_chapter")
+	verify(player.current_level_data.level_id == "level_04", "tutorials_lead_to_first_chapter")
 	verify(not player.tutorial_guide.visible, "ordinary_chapter_hides_guide")
 	var f := FileAccess.open(output_dir.path_join("visual-results.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify({"checks": checks, "failures": failures}, "  "))

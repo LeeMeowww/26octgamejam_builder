@@ -33,8 +33,10 @@ var level_title_label: Label
 # Simulation running state
 var is_simulating: bool = false
 var is_animating_tick: bool = false
+var has_simulated: bool = false
 var sim_speed_multiplier: float = 1.0 # 0.2x ~ 2.0x
 var base_tick_duration: float = 0.35 # seconds
+var ui_layer: CanvasLayer
 
 # Selection & Editing state
 var selected_blocks: Array[BlockData] = []
@@ -106,6 +108,7 @@ func load_level_data(lvl_data: LevelData) -> void:
 
 	is_simulating = false
 	is_animating_tick = false
+	has_simulated = false
 	if tutorial_guide != null:
 		tutorial_guide.configure(lvl_data.tutorial)
 	_refresh_tutorial()
@@ -127,7 +130,7 @@ func _build_ui_layout() -> void:
 	canvas_node.add_child(camera)
 
 	# 2. UI Layer (Keeps UI pinned to screen, unaffected by Camera2D)
-	var ui_layer := CanvasLayer.new()
+	ui_layer = CanvasLayer.new()
 	ui_layer.name = "UILayer"
 	add_child(ui_layer)
 
@@ -227,9 +230,10 @@ func _build_ui_layout() -> void:
 	row2_hbox.add_child(step_btn)
 
 	reset_btn = Button.new()
-	reset_btn.text = "重置"
+	reset_btn.text = "重置 [R]"
 	reset_btn.focus_mode = Control.FOCUS_NONE
-	reset_btn.custom_minimum_size = Vector2(56, 32)
+	reset_btn.custom_minimum_size = Vector2(64, 32)
+	reset_btn.tooltip_text = "重置关卡到初始状态 (快捷键: R)"
 	reset_btn.pressed.connect(reset_simulation)
 	row2_hbox.add_child(reset_btn)
 
@@ -326,6 +330,7 @@ func start_simulation() -> void:
 	if is_simulating:
 		return
 	is_simulating = true
+	has_simulated = true
 	_update_sim_buttons()
 	_run_sim_loop()
 
@@ -337,11 +342,14 @@ func step_single_tick() -> void:
 	if not _tutorial_can_run(): return
 	if is_animating_tick:
 		return
+	has_simulated = true
+	_update_sim_buttons()
 	_execute_tick()
 
 func reset_simulation() -> void:
 	is_simulating = false
 	is_animating_tick = false
+	has_simulated = false
 	victory_dialog.visible = false
 
 	# Restore from initial snapshot
@@ -353,6 +361,7 @@ func reset_simulation() -> void:
 
 	_update_sim_buttons()
 	_update_goal_display()
+	_refresh_tutorial()
 
 func _run_sim_loop() -> void:
 	if not is_simulating:
@@ -405,14 +414,15 @@ func _on_next_level_pressed() -> void:
 
 func _update_sim_buttons() -> void:
 	if play_btn != null:
-		play_btn.text = "暂停 [空格]" if is_simulating else "开始 [空格]"
+		play_btn.text = "暂停 [空格]" if is_simulating else ("继续 [空格]" if has_simulated else "开始 [空格]")
+	if reset_btn != null:
+		reset_btn.text = "重置 [R]"
 
 func _update_goal_display() -> void:
 	if goal_label != null and sim_engine != null:
 		var p := sim_engine.get_remaining_pollution()
 		var tr := sim_engine.get_remaining_treasure()
 		goal_label.text = "目标: 污染源剩余: %d | 待回收宝藏: %d" % [p, tr]
-
 # -------------------------------------------------------------
 # Input & Placement Handling
 # -------------------------------------------------------------
@@ -422,7 +432,7 @@ func _process(_delta: float) -> void:
 	if grid_view != null and toolbar != null:
 		var mouse_world := grid_view.get_global_mouse_position()
 		var grid_pos := grid_view.world_to_grid(mouse_world)
-		if toolbar.is_placing and not is_simulating:
+		if toolbar.is_placing and not is_simulating and not has_simulated:
 			grid_view.update_preview(
 				true,
 				toolbar.current_type,
@@ -440,6 +450,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle_simulation()
 		get_viewport().set_input_as_handled()
 		return
+
+	# R: Reset simulation
+	if event is InputEventKey and event.pressed and not event.echo:
+		var code: int = event.keycode if event.keycode != 0 else event.physical_keycode
+		if code == KEY_R:
+			reset_simulation()
+			get_viewport().set_input_as_handled()
+			return
 
 	# Number keys: 1..6 for player blocks (1: Basic, 2: Inhibitor, 3: Pusher, 4: Replicator, 5: Destroyer, 6: Rotator)
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -507,8 +525,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
 				if toolbar.is_placing:
-					is_mouse_placing = true
-					_try_place_block(grid_pos)
+					if not is_simulating and not has_simulated:
+						is_mouse_placing = true
+						_try_place_block(grid_pos)
 				else:
 					# Selection tool
 					if not Input.is_key_pressed(KEY_SHIFT):
@@ -545,14 +564,16 @@ func _unhandled_input(event: InputEvent) -> void:
 							is_on_selection = true
 
 				if is_on_selection:
-					is_right_dragging_selection = true
-					right_drag_start_grid = grid_pos
-					right_drag_orig_positions.clear()
-					for b in selected_blocks:
-						right_drag_orig_positions[b] = b.grid_pos
+					if not is_simulating and not has_simulated:
+						is_right_dragging_selection = true
+						right_drag_start_grid = grid_pos
+						right_drag_orig_positions.clear()
+						for b in selected_blocks:
+							right_drag_orig_positions[b] = b.grid_pos
 				else:
-					is_mouse_erasing = true
-					_try_erase_block(grid_pos)
+					if not is_simulating and not has_simulated:
+						is_mouse_erasing = true
+						_try_erase_block(grid_pos)
 			else:
 				if is_right_dragging_selection:
 					is_right_dragging_selection = false
@@ -591,7 +612,7 @@ func _unhandled_input(event: InputEvent) -> void:
 # Block Placement & Erasure
 # -------------------------------------------------------------
 func _try_place_block(grid_pos: Vector2i) -> void:
-	if is_simulating:
+	if is_simulating or has_simulated:
 		return
 	if not grid_view.is_in_build_area(grid_pos):
 		return
@@ -612,7 +633,7 @@ func _try_place_block(grid_pos: Vector2i) -> void:
 	_update_initial_snapshot()
 
 func _try_erase_block(grid_pos: Vector2i) -> void:
-	if is_simulating:
+	if is_simulating or has_simulated:
 		return
 	var b := world.get_block(grid_pos)
 	if b != null:
@@ -622,7 +643,8 @@ func _try_erase_block(grid_pos: Vector2i) -> void:
 		_update_initial_snapshot()
 
 func _update_initial_snapshot() -> void:
-	initial_snapshot = world.clone()
+	if not is_simulating and not has_simulated:
+		initial_snapshot = world.clone()
 
 # -------------------------------------------------------------
 # Selection & Grouping
@@ -666,6 +688,8 @@ func _finish_box_select() -> void:
 					v.queue_redraw()
 
 func group_selected_blocks() -> void:
+	if is_simulating or has_simulated:
+		return
 	if selected_blocks.is_empty():
 		return
 	world.group_blocks(selected_blocks)
@@ -676,6 +700,8 @@ func group_selected_blocks() -> void:
 	_update_initial_snapshot()
 
 func delete_selected_blocks() -> void:
+	if is_simulating or has_simulated:
+		return
 	for b in selected_blocks:
 		if not b.is_world_block:
 			world.remove_block_at(b.grid_pos)
@@ -695,6 +721,8 @@ func _get_selection_bounds() -> Rect2i:
 	return Rect2i(min_p.x, min_p.y, max_p.x - min_p.x + 1, max_p.y - min_p.y + 1)
 
 func _apply_selection_drag(delta: Vector2i) -> void:
+	if is_simulating or has_simulated:
+		return
 	if selected_blocks.is_empty() or delta == Vector2i.ZERO:
 		return
 
@@ -752,6 +780,10 @@ func _apply_selection_drag(delta: Vector2i) -> void:
 	_update_initial_snapshot()
 
 func clear_player_blocks() -> void:
+	if is_simulating:
+		return
+	if has_simulated:
+		reset_simulation()
 	var all_b := world.get_all_blocks()
 	for b in all_b:
 		if not b.is_world_block:
@@ -763,28 +795,32 @@ func clear_player_blocks() -> void:
 # Blueprint Save / Load Modals
 # -------------------------------------------------------------
 func _on_save_machine_pressed() -> void:
+	if is_simulating:
+		return
 	var has_sel := not selected_blocks.is_empty()
-	var dlg := BlueprintDialogs.SaveDialog.new(has_sel)
-	dlg.set_anchors_preset(PRESET_CENTER)
-	dlg.confirmed.connect(func(m_name: String, only_selected: bool):
+	var target_parent: Node = ui_layer if ui_layer != null else self
+	BlueprintDialogs.show_save_dialog(target_parent, has_sel, func(m_name: String, only_selected: bool):
 		var target_blocks: Array[BlockData] = []
 		if only_selected and not selected_blocks.is_empty():
 			for b in selected_blocks:
 				if not b.is_world_block:
 					target_blocks.append(b)
 		else:
-			for b in world.get_all_blocks():
+			var source_blocks = initial_snapshot.get_all_blocks() if has_simulated else world.get_all_blocks()
+			for b in source_blocks:
 				if not b.is_world_block:
 					target_blocks.append(b)
 
 		SaveManager.save_machine(m_name, target_blocks)
 	)
-	add_child(dlg)
 
 func _on_load_machine_pressed() -> void:
-	var dlg := BlueprintDialogs.LoadDialog.new()
-	dlg.set_anchors_preset(PRESET_CENTER)
-	dlg.blueprint_selected.connect(func(m_name: String):
+	if is_simulating:
+		return
+	var target_parent: Node = ui_layer if ui_layer != null else self
+	BlueprintDialogs.show_load_dialog(target_parent, func(m_name: String):
+		if has_simulated:
+			reset_simulation()
 		var blocks := SaveManager.load_machine(m_name)
 		if blocks.is_empty():
 			return
@@ -797,7 +833,6 @@ func _on_load_machine_pressed() -> void:
 			world.add_block(b)
 		_update_initial_snapshot()
 	)
-	add_child(dlg)
 
 # -------------------------------------------------------------
 # Toolbar signal handlers
