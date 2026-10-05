@@ -1,0 +1,91 @@
+{
+  "level_id": "tutorial_05",
+  "level_name": "教学 05：关闭硬壳",
+  "description": "母巢导师：硬壳挡住了预设机械。抑制器感知前方的方块，让身后一格暂时失去能力。",
+  "author": "母巢导师",
+  "cg_theme": "cyan_core",
+  "order_index": -10,
+  "player_build_area": {
+    "x": -1,
+    "y": -2,
+    "w": 3,
+    "h": 3
+  },
+  "blocks": [
+    {
+      "id": 1081,
+      "type": 2,
+      "dir": 0,
+      "pos_x": -2,
+      "pos_y": 1,
+      "structure_id": 0,
+      "sub_mode": 0,
+      "hp": 2,
+      "max_hp": 2,
+      "is_world_block": true,
+      "texture_variant": 0
+    },
+    {
+      "id": 1091,
+      "type": 4,
+      "dir": 0,
+      "pos_x": -1,
+      "pos_y": 1,
+      "structure_id": 0,
+      "sub_mode": 0,
+      "hp": 2,
+      "max_hp": 2,
+      "is_world_block": true,
+      "texture_variant": 0
+    },
+    {
+      "id": 1101,
+      "type": 6,
+      "dir": 0,
+      "pos_x": 0,
+      "pos_y": 1,
+      "structure_id": 0,
+      "sub_mode": 0,
+      "hp": 2,
+      "max_hp": 2,
+      "is_world_block": true,
+      "texture_variant": 0
+    },
+    {
+      "id": 1121,
+      "type": 9,
+      "dir": 0,
+      "pos_x": 2,
+      "pos_y": 1,
+      "structure_id": 0,
+      "sub_mode": 0,
+      "hp": 2,
+      "max_hp": 2,
+      "is_world_block": true,
+      "texture_variant": 0
+    }
+  ],
+  "tutorial": {
+    "title": "05 / 05 · 抑制器",
+    "intro": "母巢导师：硬壳挡住了预设机械。抑制器感知前方的方块，让身后一格暂时失去能力。",
+    "steps": [
+      {
+        "marker": "A",
+        "x": 0,
+        "y": -1,
+        "type": 0,
+        "text": "按 1，在上方 A 格放普通方块，作为抑制器的感知目标。"
+      },
+      {
+        "marker": "B",
+        "x": 0,
+        "y": 0,
+        "type": 1,
+        "text": "按 2，在 B 格放抑制器，箭头向上 ↑：感知上面的普通方块，抑制下面的硬壳。",
+        "dir": 3
+      }
+    ],
+    "run_text": "连续点击「单步」。硬壳失去免疫性后，预设机械就能开路并清理右侧污染源。",
+    "success": "抑制器：感知前方，关闭后方。\n六种基础方块都认识了！下一关开始自由构装。"
+  }
+}

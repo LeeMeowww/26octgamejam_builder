@@ -1,0 +1,59 @@
+{
+  "level_id": "tutorial_04",
+  "level_name": "教学 04：改变朝向",
+  "description": "母巢导师：眼前的摧毁器朝下，够不到右侧目标。用转向器给它转个身吧。",
+  "author": "母巢导师",
+  "cg_theme": "cyan_core",
+  "order_index": -20,
+  "player_build_area": {
+    "x": -1,
+    "y": -1,
+    "w": 2,
+    "h": 3
+  },
+  "blocks": [
+    {
+      "id": 1110,
+      "type": 4,
+      "dir": 1,
+      "pos_x": 1,
+      "pos_y": 0,
+      "structure_id": 0,
+      "sub_mode": 0,
+      "hp": 2,
+      "max_hp": 2,
+      "is_world_block": true,
+      "texture_variant": 0
+    },
+    {
+      "id": 1120,
+      "type": 9,
+      "dir": 0,
+      "pos_x": 2,
+      "pos_y": 0,
+      "structure_id": 0,
+      "sub_mode": 0,
+      "hp": 2,
+      "max_hp": 2,
+      "is_world_block": true,
+      "texture_variant": 0
+    }
+  ],
+  "tutorial": {
+    "title": "04 / 05 · 转向器",
+    "intro": "母巢导师：眼前的摧毁器朝下，够不到右侧目标。用转向器给它转个身吧。",
+    "steps": [
+      {
+        "marker": "A",
+        "x": 0,
+        "y": 0,
+        "type": 5,
+        "text": "按 6，在 A 格放转向器，箭头朝右 →。按 F 切到 CCW（逆时针）模式后再放置。",
+        "dir": 0,
+        "sub_mode": 1
+      }
+    ],
+    "run_text": "点击「单步」。逆时针旋转让摧毁器从向下 ↓ 变成向右 →，清除污染源。",
+    "success": "转向器改变它前方方块的朝向。\nF 切换 CW 顺时针 / CCW 逆时针。"
+  }
+}

@@ -7,6 +7,7 @@ var description: String = "完成关卡任务：摧毁所有污染源，将所�
 var author: String = "格式塔工匠"
 var cg_theme: String = "cyan_core"
 var order_index: int = 0
+var tutorial: Dictionary = {} # Optional guided lesson; preserved by the level editor.
 
 # Allowed player build area (Rect2i). If size is ZERO, anywhere is allowed.
 var player_build_area: Rect2i = Rect2i(0, 0, 0, 0)
@@ -26,6 +27,7 @@ func to_dict() -> Dictionary:
 		"author": author,
 		"cg_theme": cg_theme,
 		"order_index": order_index,
+		"tutorial": tutorial.duplicate(true),
 		"player_build_area": {
 			"x": player_build_area.position.x,
 			"y": player_build_area.position.y,
@@ -44,6 +46,9 @@ static func from_dict(dict: Dictionary) -> LevelData:
 	lvl.author = str(dict.get("author", ""))
 	lvl.cg_theme = str(dict.get("cg_theme", "cyan_core"))
 	lvl.order_index = int(dict.get("order_index", 0))
+	var lesson = dict.get("tutorial", {})
+	if lesson is Dictionary:
+		lvl.tutorial = lesson.duplicate(true)
 
 	var area_dict = dict.get("player_build_area", {})
 	if area_dict is Dictionary and not area_dict.is_empty():

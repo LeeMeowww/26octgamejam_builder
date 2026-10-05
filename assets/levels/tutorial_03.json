@@ -1,0 +1,53 @@
+{
+  "level_id": "tutorial_03",
+  "level_name": "教学 03：复制一个帮手",
+  "description": "母巢导师：复制器读取身后一格，在身前的空格生成副本。副本保留原来的箭头方向。",
+  "author": "母巢导师",
+  "cg_theme": "cyan_core",
+  "order_index": -30,
+  "player_build_area": {
+    "x": -2,
+    "y": 0,
+    "w": 4,
+    "h": 2
+  },
+  "blocks": [
+    {
+      "id": 1109,
+      "type": 9,
+      "dir": 0,
+      "pos_x": 1,
+      "pos_y": -1,
+      "structure_id": 0,
+      "sub_mode": 0,
+      "hp": 2,
+      "max_hp": 2,
+      "is_world_block": true,
+      "texture_variant": 0
+    }
+  ],
+  "tutorial": {
+    "title": "03 / 05 · 复制器",
+    "intro": "母巢导师：复制器读取身后一格，在身前的空格生成副本。副本保留原来的箭头方向。",
+    "steps": [
+      {
+        "marker": "A",
+        "x": -1,
+        "y": 0,
+        "type": 4,
+        "text": "按 5，在 A 格放置摧毁器。按 Q / E 把箭头转为向上 ↑。",
+        "dir": 3
+      },
+      {
+        "marker": "B",
+        "x": 0,
+        "y": 0,
+        "type": 3,
+        "text": "按 4，在 B 格放置复制器，箭头朝右 →；它会把左边的摧毁器复制到右边。",
+        "dir": 0
+      }
+    ],
+    "run_text": "点击「单步」生成副本，再点一次。朝上的副本将清除它上方的污染源。",
+    "success": "复制器：后方是样本，前方必须为空。\n新副本保留样本朝向，并在之后的周期行动。"
+  }
+}
