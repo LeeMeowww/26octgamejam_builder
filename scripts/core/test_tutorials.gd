@@ -14,7 +14,7 @@ func verify(value: bool, message: String) -> void:
 
 func run_tests() -> void:
 	var levels := SaveManager.get_all_levels()
-	verify(levels.size() >= 9, "Five lessons and four original levels must be available")
+	verify(levels.size() >= 6, "Five lessons and available levels must be available")
 	for i in range(5):
 		var id := "tutorial_%02d" % (i + 1)
 		verify(levels[i].level_id == id, "Tutorial order: " + id)
@@ -58,7 +58,7 @@ func run_tests() -> void:
 		player.tutorial_guide.restart_requested.emit()
 		verify(not player._tutorial_can_run(), "Restart lesson clears player construction: " + id)
 		verify(player.tutorial_guide.active_step == 0, "Restart returns guide to first step: " + id)
-		player.load_level_data(SaveManager.load_level("level_01"))
+		player.load_level_data(SaveManager.load_level("level_04"))
 		verify(not player.tutorial_guide.visible and player._tutorial_can_run(), "Original levels remain unrestricted")
 		verify(player.grid_view.tutorial_target.is_empty(), "Original levels have no target marker")
 		player.free()

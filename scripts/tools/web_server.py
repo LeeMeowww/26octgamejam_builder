@@ -10,6 +10,8 @@ Provides an HTTP/HTTPS server with:
 
 import sys
 import os
+import re
+import json
 import argparse
 import socket
 import ssl
@@ -17,9 +19,148 @@ import subprocess
 import webbrowser
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+LEVELS_DIR = os.path.join(PROJECT_ROOT, "assets", "levels")
+
 class GodotWebHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, directory=None, **kwargs):
         super().__init__(*args, directory=directory, **kwargs)
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
+    def do_GET(self):
+        if self.path == "/api/levels":
+            self.handle_get_levels()
+            return
+        super().do_GET()
+
+    def do_POST(self):
+        if self.path in ("/api/levels/save", "/api/save_level"):
+            self.handle_save_level()
+        elif self.path in ("/api/levels/delete", "/api/delete_level"):
+            self.handle_delete_level()
+        elif self.path in ("/api/levels/reorder", "/api/reorder_levels"):
+            self.handle_reorder_levels()
+        else:
+            self.send_error(404, f"API endpoint not found: {self.path}")
+
+    def _read_json_body(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0:
+                return None
+            body = self.rfile.read(length).decode("utf-8")
+            return json.loads(body)
+        except Exception as e:
+            sys.stderr.write(f"[DevServer] JSON parse error: {e}\n")
+            return None
+
+    def _send_json_response(self, data, status=200):
+        response_bytes = json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(response_bytes)))
+        self.end_headers()
+        self.wfile.write(response_bytes)
+
+    def handle_get_levels(self):
+        levels = []
+        if os.path.exists(LEVELS_DIR):
+            for fname in sorted(os.listdir(LEVELS_DIR)):
+                if fname.endswith(".json"):
+                    fpath = os.path.join(LEVELS_DIR, fname)
+                    try:
+                        with open(fpath, "r", encoding="utf-8") as f:
+                            levels.append(json.load(f))
+                    except Exception:
+                        pass
+        self._send_json_response({"levels": levels})
+
+    def handle_save_level(self):
+        payload = self._read_json_body()
+        if not payload or not isinstance(payload, dict):
+            self._send_json_response({"error": "Invalid JSON body"}, status=400)
+            return
+
+        level_id = payload.get("level_id")
+        level_data = payload.get("data", payload)
+        if not level_id and isinstance(level_data, dict):
+            level_id = level_data.get("level_id")
+
+        if not level_id or not re.match(r"^[a-zA-Z0-9_\-]+$", str(level_id)):
+            self._send_json_response({"error": "Missing or invalid level_id"}, status=400)
+            return
+
+        os.makedirs(LEVELS_DIR, exist_ok=True)
+        file_path = os.path.join(LEVELS_DIR, f"{level_id}.json")
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(level_data, f, indent=2, ensure_ascii=False)
+            print(f"  [DevServer] Saved level file: {file_path}")
+            self._send_json_response({"status": "ok", "saved": level_id, "path": file_path})
+        except Exception as e:
+            sys.stderr.write(f"[DevServer] Failed to write level: {e}\n")
+            self._send_json_response({"error": str(e)}, status=500)
+
+    def handle_delete_level(self):
+        payload = self._read_json_body()
+        if not payload or not isinstance(payload, dict):
+            self._send_json_response({"error": "Invalid JSON body"}, status=400)
+            return
+
+        level_id = payload.get("level_id")
+        if not level_id or not re.match(r"^[a-zA-Z0-9_\-]+$", str(level_id)):
+            self._send_json_response({"error": "Missing or invalid level_id"}, status=400)
+            return
+
+        file_path = os.path.join(LEVELS_DIR, f"{level_id}.json")
+        deleted = False
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                deleted = True
+                print(f"  [DevServer] Deleted level file: {file_path}")
+            except Exception as e:
+                sys.stderr.write(f"[DevServer] Failed to delete level: {e}\n")
+                self._send_json_response({"error": str(e)}, status=500)
+                return
+
+        self._send_json_response({"status": "ok", "deleted": deleted, "level_id": level_id})
+
+    def handle_reorder_levels(self):
+        payload = self._read_json_body()
+        if not payload or not isinstance(payload, dict):
+            self._send_json_response({"error": "Invalid JSON body"}, status=400)
+            return
+
+        order = payload.get("order", [])
+        if not isinstance(order, list):
+            self._send_json_response({"error": "Order must be a list of level IDs"}, status=400)
+            return
+
+        updated_count = 0
+        for idx, lid in enumerate(order):
+            if not lid or not re.match(r"^[a-zA-Z0-9_\-]+$", str(lid)):
+                continue
+            fpath = os.path.join(LEVELS_DIR, f"{lid}.json")
+            if os.path.exists(fpath):
+                try:
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    data["order_index"] = idx
+                    with open(fpath, "w", encoding="utf-8") as f:
+                        json.dump(data, f, indent=2, ensure_ascii=False)
+                    updated_count += 1
+                except Exception as e:
+                    sys.stderr.write(f"[DevServer] Error updating order for {lid}: {e}\n")
+
+        print(f"  [DevServer] Reordered {updated_count} levels.")
+        self._send_json_response({"status": "ok", "reordered": updated_count})
 
     def end_headers(self):
         # Critical headers for Godot 4 Web (SharedArrayBuffer and WASM threading / isolation)

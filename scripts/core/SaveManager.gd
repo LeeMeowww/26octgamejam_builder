@@ -4,51 +4,68 @@ extends RefCounted
 const USER_LEVELS_DIR = "user://levels"
 const USER_MACHINES_DIR = "user://machines"
 const RES_LEVELS_DIR = "res://assets/levels"
+const DELETED_LEVELS_PATH = "user://deleted_levels.json"
 
 static func init_directories() -> void:
 	if not DirAccess.dir_exists_absolute(USER_LEVELS_DIR):
 		DirAccess.make_dir_recursive_absolute(USER_LEVELS_DIR)
 	if not DirAccess.dir_exists_absolute(USER_MACHINES_DIR):
 		DirAccess.make_dir_recursive_absolute(USER_MACHINES_DIR)
-	ensure_default_levels()
+
+	var migration_flag := "user://.migrated_v2"
+	if not FileAccess.file_exists(migration_flag):
+		for legacy_id in ["level_01", "level_02", "level_03"]:
+			var p := "%s/%s.json" % [USER_LEVELS_DIR, legacy_id]
+			if FileAccess.file_exists(p):
+				DirAccess.remove_absolute(p)
+			_add_deleted_level_id(legacy_id)
+		var mf := FileAccess.open(migration_flag, FileAccess.WRITE)
+		if mf != null:
+			mf.store_string("v2")
+			mf.close()
 
 # -------------------------------------------------------------
-# Levels Management
+# Levels Management (Equal Status for All Levels)
 # -------------------------------------------------------------
 
 static func get_all_levels() -> Array[LevelData]:
 	init_directories()
 	var levels_dict: Dictionary = {} # level_id -> LevelData
+	var deleted_ids: Dictionary = _get_deleted_level_ids()
 
-	# 1. Load built-in levels
+	# 1. Load built-in levels (skipping tombstoned/deleted ones)
 	var res_dir := DirAccess.open(RES_LEVELS_DIR)
 	if res_dir:
 		res_dir.list_dir_begin()
 		var file_name := res_dir.get_next()
 		while not file_name.is_empty():
 			if not res_dir.current_is_dir() and file_name.ends_with(".json"):
-				var lvl := load_level_from_path(RES_LEVELS_DIR + "/" + file_name)
-				if lvl != null:
-					levels_dict[lvl.level_id] = lvl
+				var lvl_id := file_name.get_basename()
+				if not deleted_ids.has(lvl_id):
+					var lvl := load_level_from_path(RES_LEVELS_DIR + "/" + file_name)
+					if lvl != null and not deleted_ids.has(lvl.level_id):
+						levels_dict[lvl.level_id] = lvl
 			file_name = res_dir.get_next()
 
-	# 2. Load user levels (overrides or adds)
+	# 2. Load user levels (overrides or adds, skipping deleted ones)
 	var user_dir := DirAccess.open(USER_LEVELS_DIR)
 	if user_dir:
 		user_dir.list_dir_begin()
 		var file_name := user_dir.get_next()
 		while not file_name.is_empty():
 			if not user_dir.current_is_dir() and file_name.ends_with(".json"):
-				var lvl := load_level_from_path(USER_LEVELS_DIR + "/" + file_name)
-				if lvl != null:
-					levels_dict[lvl.level_id] = lvl
+				var lvl_id := file_name.get_basename()
+				if not deleted_ids.has(lvl_id):
+					var lvl := load_level_from_path(USER_LEVELS_DIR + "/" + file_name)
+					if lvl != null and not deleted_ids.has(lvl.level_id):
+						levels_dict[lvl.level_id] = lvl
 			file_name = user_dir.get_next()
 
 	var result: Array[LevelData] = []
 	for lvl in levels_dict.values():
 		result.append(lvl)
 
-	# Sort by order_index
+	# Sort by order_index, then level_name
 	result.sort_custom(func(a: LevelData, b: LevelData):
 		if a.order_index != b.order_index:
 			return a.order_index < b.order_index
@@ -59,18 +76,42 @@ static func get_all_levels() -> Array[LevelData]:
 
 static func save_level(level_data: LevelData) -> bool:
 	init_directories()
-	var path := "%s/%s.json" % [USER_LEVELS_DIR, level_data.level_id]
-	var file := FileAccess.open(path, FileAccess.WRITE)
+	var level_id := level_data.level_id
+	var dict_data := level_data.to_dict()
+
+	# 1. Un-tombstone if it was previously marked deleted
+	_remove_deleted_level_id(level_id)
+
+	# 2. Save to user://levels
+	var user_path := "%s/%s.json" % [USER_LEVELS_DIR, level_id]
+	var file := FileAccess.open(user_path, FileAccess.WRITE)
 	if file == null:
-		push_error("Failed to open level file for writing: " + path)
+		push_error("Failed to open level file for writing: " + user_path)
 		return false
-	var json_str := JSON.stringify(level_data.to_dict(), "\t")
-	file.store_string(json_str)
+	file.store_string(JSON.stringify(dict_data, "\t"))
 	file.close()
+
+	# 3. Synchronize to source disk (local PC direct write or Dev Server API)
+	if OS.has_feature("web"):
+		_send_dev_server_request("/api/levels/save", {
+			"level_id": level_id,
+			"data": dict_data
+		})
+	else:
+		# Local Godot development: write directly to res://assets/levels/
+		var res_path := "%s/%s.json" % [RES_LEVELS_DIR, level_id]
+		var rf := FileAccess.open(res_path, FileAccess.WRITE)
+		if rf != null:
+			rf.store_string(JSON.stringify(dict_data, "\t"))
+			rf.close()
+
 	return true
 
 static func load_level(level_id: String) -> LevelData:
 	init_directories()
+	var deleted_ids: Dictionary = _get_deleted_level_ids()
+	if deleted_ids.has(level_id):
+		return null
 	var user_path := "%s/%s.json" % [USER_LEVELS_DIR, level_id]
 	if FileAccess.file_exists(user_path):
 		return load_level_from_path(user_path)
@@ -91,11 +132,33 @@ static func load_level_from_path(path: String) -> LevelData:
 	return null
 
 static func delete_level(level_id: String) -> bool:
+	init_directories()
+	var deleted_something := false
+
+	# 1. Mark in tombstone so it won't be resurrected by res://
+	_add_deleted_level_id(level_id)
+
+	# 2. Delete from user://levels
 	var user_path := "%s/%s.json" % [USER_LEVELS_DIR, level_id]
 	if FileAccess.file_exists(user_path):
 		var err := DirAccess.remove_absolute(user_path)
-		return err == OK
-	return false
+		if err == OK:
+			deleted_something = true
+
+	# 3. Synchronize deletion to source disk (local PC or Dev Server)
+	if OS.has_feature("web"):
+		_send_dev_server_request("/api/levels/delete", {
+			"level_id": level_id
+		})
+		deleted_something = true
+	else:
+		var res_path := "%s/%s.json" % [RES_LEVELS_DIR, level_id]
+		if FileAccess.file_exists(res_path):
+			var err := DirAccess.remove_absolute(res_path)
+			if err == OK:
+				deleted_something = true
+
+	return deleted_something or true
 
 static func reorder_levels(level_ids: Array) -> void:
 	for idx in range(level_ids.size()):
@@ -104,6 +167,80 @@ static func reorder_levels(level_ids: Array) -> void:
 		if lvl != null:
 			lvl.order_index = idx
 			save_level(lvl)
+
+	if OS.has_feature("web"):
+		_send_dev_server_request("/api/levels/reorder", {
+			"order": level_ids
+		})
+
+# -------------------------------------------------------------
+# Tombstone Helpers (Client Deletion Persistence)
+# -------------------------------------------------------------
+
+static func _get_deleted_level_ids() -> Dictionary:
+	if not FileAccess.file_exists(DELETED_LEVELS_PATH):
+		return {}
+	var file := FileAccess.open(DELETED_LEVELS_PATH, FileAccess.READ)
+	if file == null:
+		return {}
+	var text := file.get_as_text()
+	file.close()
+	var parsed = JSON.parse_string(text)
+	var result: Dictionary = {}
+	if parsed is Array:
+		for item in parsed:
+			result[str(item)] = true
+	elif parsed is Dictionary:
+		result = parsed
+	return result
+
+static func _add_deleted_level_id(level_id: String) -> void:
+	var ids := _get_deleted_level_ids()
+	ids[level_id] = true
+	var file := FileAccess.open(DELETED_LEVELS_PATH, FileAccess.WRITE)
+	if file != null:
+		file.store_string(JSON.stringify(ids.keys(), "\t"))
+		file.close()
+
+static func _remove_deleted_level_id(level_id: String) -> void:
+	var ids := _get_deleted_level_ids()
+	if ids.has(level_id):
+		ids.erase(level_id)
+		var file := FileAccess.open(DELETED_LEVELS_PATH, FileAccess.WRITE)
+		if file != null:
+			file.store_string(JSON.stringify(ids.keys(), "\t"))
+			file.close()
+
+# -------------------------------------------------------------
+# Dev Server Synchronization (Option 2)
+# -------------------------------------------------------------
+
+static func _send_dev_server_request(endpoint: String, payload_dict: Dictionary) -> void:
+	if OS.has_feature("web"):
+		var payload_json := JSON.stringify(payload_dict)
+		var js_code := """
+		(function() {
+			try {
+				fetch('%s', {
+					method: 'POST',
+					headers: {'Content-Type': 'application/json'},
+					body: %s
+				}).then(function(res) {
+					if (res.ok) {
+						console.log('[DevServer] Sync ok:', '%s');
+					} else {
+						console.warn('[DevServer] Sync non-200:', res.status);
+					}
+				}).catch(function(err) {
+					// Harmless when offline / static release hosting
+					console.warn('[DevServer] Sync failed (expected if offline/production):', err);
+				});
+			} catch(e) {
+				console.warn('[DevServer] Sync exception:', e);
+			}
+		})();
+		""" % [endpoint, JSON.stringify(payload_json), endpoint]
+		JavaScriptBridge.eval(js_code)
 
 # -------------------------------------------------------------
 # Machine Blueprint Management (Player Saved Creations)
@@ -177,101 +314,3 @@ static func delete_machine(name: String) -> bool:
 	if FileAccess.file_exists(path):
 		return DirAccess.remove_absolute(path) == OK
 	return false
-
-# -------------------------------------------------------------
-# Default Built-In Level Generator
-# -------------------------------------------------------------
-
-static func ensure_default_levels() -> void:
-	if not DirAccess.dir_exists_absolute(RES_LEVELS_DIR):
-		DirAccess.make_dir_recursive_absolute(RES_LEVELS_DIR)
-
-	var lvl1_path := RES_LEVELS_DIR + "/level_01.json"
-	if not FileAccess.file_exists(lvl1_path):
-		var lvl1 := LevelData.new("level_01", "第一章：初生吞噬")
-		lvl1.description = "基础构造：在建造区放置【推动器】与【摧毁器】，让机械向前行进并消灭远处的污染源！"
-		lvl1.author = "母巢核心"
-		lvl1.order_index = 0
-		lvl1.cg_theme = "cyan_core"
-		lvl1.player_build_area = Rect2i(-6, -4, 6, 8)
-		# Place target pollution at (6, 0)
-		var p1 := BlockData.new(BlockData.Type.POLLUTION, Vector2i(6, 0))
-		p1.is_world_block = true
-		lvl1.blocks_data.append(p1.to_dict())
-		# Decorative boundary
-		for y in range(-5, 6):
-			var wall_top := BlockData.new(BlockData.Type.HARD, Vector2i(-7, y))
-			wall_top.is_world_block = true
-			lvl1.blocks_data.append(wall_top.to_dict())
-			var wall_bot := BlockData.new(BlockData.Type.HARD, Vector2i(8, y))
-			wall_bot.is_world_block = true
-			lvl1.blocks_data.append(wall_bot.to_dict())
-		var f := FileAccess.open(lvl1_path, FileAccess.WRITE)
-		f.store_string(JSON.stringify(lvl1.to_dict(), "\t"))
-		f.close()
-
-	var lvl2_path := RES_LEVELS_DIR + "/level_02.json"
-	if not FileAccess.file_exists(lvl2_path):
-		var lvl2 := LevelData.new("level_02", "第二章：抑制破壁")
-		lvl2.description = "高级机制：坚硬方块挡住了通路。使用【抑制器】对准其后方使其失效，再用【摧毁器】将其清除！"
-		lvl2.author = "母巢核心"
-		lvl2.order_index = 1
-		lvl2.cg_theme = "purple_synapse"
-		lvl2.player_build_area = Rect2i(-7, -4, 6, 8)
-		# Hard block at (3, 0)
-		var h := BlockData.new(BlockData.Type.HARD, Vector2i(3, 0))
-		h.is_world_block = true
-		lvl2.blocks_data.append(h.to_dict())
-		# Pollution behind it at (5, 0)
-		var p2 := BlockData.new(BlockData.Type.POLLUTION, Vector2i(5, 0))
-		p2.is_world_block = true
-		lvl2.blocks_data.append(p2.to_dict())
-		var f2 := FileAccess.open(lvl2_path, FileAccess.WRITE)
-		f2.store_string(JSON.stringify(lvl2.to_dict(), "\t"))
-		f2.close()
-
-	var lvl3_path := RES_LEVELS_DIR + "/level_03.json"
-	if not FileAccess.file_exists(lvl3_path):
-		var lvl3 := LevelData.new("level_03", "第三章：转向器与宝藏回收")
-		lvl3.description = "转向与回收：将拐角处的【宝藏】推动并回收至左侧玩家建造区！利用【转向器】与【推动器】协调运作！"
-		lvl3.author = "母巢核心"
-		lvl3.order_index = 2
-		lvl3.cg_theme = "azure_cilia"
-		lvl3.player_build_area = Rect2i(-6, -5, 5, 10)
-		# Treasure at (4, 4)
-		var tr := BlockData.new(BlockData.Type.TREASURE, Vector2i(4, 4))
-		tr.is_world_block = true
-		lvl3.blocks_data.append(tr.to_dict())
-		# Obstacle wall at (2, -2) to (2, 2)
-		for y in range(-2, 3):
-			var obs := BlockData.new(BlockData.Type.HARD, Vector2i(2, y))
-			obs.is_world_block = true
-			lvl3.blocks_data.append(obs.to_dict())
-		var f3 := FileAccess.open(lvl3_path, FileAccess.WRITE)
-		f3.store_string(JSON.stringify(lvl3.to_dict(), "\t"))
-		f3.close()
-
-	var lvl4_path := RES_LEVELS_DIR + "/level_04.json"
-	if not FileAccess.file_exists(lvl4_path):
-		var lvl4 := LevelData.new("level_04", "第四章：游荡怪物")
-		lvl4.description = "怪物对抗：一只游荡怪物正在巡逻。摧毁它并消除后方的污染源！"
-		lvl4.author = "母巢核心"
-		lvl4.order_index = 3
-		lvl4.cg_theme = "toxic_magenta"
-		lvl4.player_build_area = Rect2i(-8, -4, 5, 8)
-		# Floor for wanderer
-		for x in range(0, 7):
-			var fl := BlockData.new(BlockData.Type.HARD, Vector2i(x, 2))
-			fl.is_world_block = true
-			lvl4.blocks_data.append(fl.to_dict())
-		# Wanderer at (2, 1)
-		var wand := BlockData.new(BlockData.Type.WANDERER, Vector2i(2, 1), BlockData.Direction.RIGHT)
-		wand.is_world_block = true
-		lvl4.blocks_data.append(wand.to_dict())
-		# Pollution at (6, 1)
-		var pol := BlockData.new(BlockData.Type.POLLUTION, Vector2i(6, 1))
-		pol.is_world_block = true
-		lvl4.blocks_data.append(pol.to_dict())
-		var f4 := FileAccess.open(lvl4_path, FileAccess.WRITE)
-		f4.store_string(JSON.stringify(lvl4.to_dict(), "\t"))
-		f4.close()
