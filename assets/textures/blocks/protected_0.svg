@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect x="12" y="12" width="104" height="104" rx="14" fill="#0d2329" stroke="#1b4952" stroke-width="3"/>
+  <!-- Protective Hexagonal Shell -->
+  <polygon points="64,22 100,42 100,86 64,106 28,86 28,42" fill="#13363d" stroke="#06d6a0" stroke-width="3"/>
+  <!-- Inner Stasis Pod Capsule -->
+  <rect x="46" y="36" width="36" height="56" rx="18" fill="#1c4e57" stroke="#06d6a0" stroke-width="2"/>
+  <!-- Glowing Vital Embryo Core -->
+  <ellipse cx="64" cy="64" rx="10" ry="14" fill="#06d6a0"/>
+  <ellipse cx="64" cy="62" rx="5" ry="8" fill="#ffffff"/>
+  <!-- Shield Energy Nodes -->
+  <circle cx="28" cy="42" r="3.5" fill="#06d6a0"/>
+  <circle cx="100" cy="42" r="3.5" fill="#06d6a0"/>
+  <circle cx="28" cy="86" r="3.5" fill="#06d6a0"/>
+  <circle cx="100" cy="86" r="3.5" fill="#06d6a0"/>
+  <line x1="64" y1="22" x2="64" y2="36" stroke="#06d6a0" stroke-width="2.5"/>
+  <line x1="64" y1="92" x2="64" y2="106" stroke="#06d6a0" stroke-width="2.5"/>
+</svg>

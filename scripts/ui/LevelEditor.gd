@@ -410,6 +410,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			toolbar.select_type(BlockData.Type.POLLUTION)
 			get_viewport().set_input_as_handled()
 			return
+		elif code == KEY_MINUS:
+			toolbar.select_type(BlockData.Type.PROTECTED)
+			get_viewport().set_input_as_handled()
+			return
 		elif code == KEY_V:
 			toolbar.pointer_btn.button_pressed = true
 			toolbar.is_placing = false

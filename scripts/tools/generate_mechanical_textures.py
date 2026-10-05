@@ -225,4 +225,25 @@ for i, accent in enumerate(["#d90429", "#ef233c", "#9b5de5"]):
 </svg>'''
     write_svg(f"pollution_{i}.svg", svg)
 
+# 11. PROTECTED (受保护方块) - Cryo-Stasis Chamber / Bio-Embryo Core
+for i, accent in enumerate(["#06d6a0", "#118ab2", "#48cae4"]):
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect x="12" y="12" width="104" height="104" rx="14" fill="#0d2329" stroke="#1b4952" stroke-width="3"/>
+  <!-- Protective Hexagonal Shell -->
+  <polygon points="64,22 100,42 100,86 64,106 28,86 28,42" fill="#13363d" stroke="{accent}" stroke-width="3"/>
+  <!-- Inner Stasis Pod Capsule -->
+  <rect x="46" y="36" width="36" height="56" rx="18" fill="#1c4e57" stroke="{accent}" stroke-width="2"/>
+  <!-- Glowing Vital Embryo Core -->
+  <ellipse cx="64" cy="64" rx="10" ry="14" fill="{accent}"/>
+  <ellipse cx="64" cy="62" rx="5" ry="8" fill="#ffffff"/>
+  <!-- Shield Energy Nodes -->
+  <circle cx="28" cy="42" r="3.5" fill="{accent}"/>
+  <circle cx="100" cy="42" r="3.5" fill="{accent}"/>
+  <circle cx="28" cy="86" r="3.5" fill="{accent}"/>
+  <circle cx="100" cy="86" r="3.5" fill="{accent}"/>
+  <line x1="64" y1="22" x2="64" y2="36" stroke="{accent}" stroke-width="2.5"/>
+  <line x1="64" y1="92" x2="64" y2="106" stroke="{accent}" stroke-width="2.5"/>
+</svg>'''
+    write_svg(f"protected_{i}.svg", svg)
+
 print("Generated all mechanical block SVGs successfully!")

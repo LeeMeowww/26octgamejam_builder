@@ -58,10 +58,10 @@ func test_level_manager_scene() -> void:
 	scene._ready()
 	assert(scene.level_item_list != null, "ItemList should exist")
 	assert(scene.level_item_list.item_count >= 4, "Should display levels in list")
-	# Select second level
+	# Select fourth chapter level
 	for i in range(scene.levels.size()):
-		if scene.levels[i].level_id == "level_02": scene._select_level(i)
-	assert(scene.name_edit.text.contains("第二章"), "Should load level 2 data into form")
+		if scene.levels[i].level_id == "level_04": scene._select_level(i)
+	assert(scene.name_edit.text.contains("第四章"), "Should load level 4 data into form")
 	scene.queue_free()
 	print("   LevelManager scene initialized successfully.")
 
@@ -72,7 +72,7 @@ func test_level_editor_scene() -> void:
 	scene._ready()
 	assert(scene.grid_view != null, "GridView should exist")
 	assert(scene.toolbar != null, "Toolbar should exist")
-	assert(scene.toolbar.type_buttons.size() == 10, "Editor toolbar should have all 10 block types")
+	assert(scene.toolbar.type_buttons.size() == 11, "Editor toolbar should have all 11 block types")
 	
 	# Place a block and test erase
 	scene._place_block_editor(Vector2i(0, 0))
@@ -101,20 +101,21 @@ func test_level_player_scene() -> void:
 	var scene: LevelPlayer = load("res://scenes/ui/LevelPlayer.tscn").instantiate()
 	root.add_child(scene)
 	scene._ready()
-	scene.load_level_data(SaveManager.load_level("level_01"))
+	scene.load_level_data(SaveManager.load_level("level_04"))
 	assert(scene.current_level_data != null, "Level should be loaded")
 	assert(scene.sim_engine != null, "Sim engine should be active")
 	
 	# Place a player pusher and destroyer
 	scene.toolbar.select_type(BlockData.Type.PUSHER)
 	scene.toolbar.rotate_direction(0) # RIGHT
-	scene._try_place_block(Vector2i(-2, 0))
+	scene._try_place_block(Vector2i(-6, 0))
 	scene.toolbar.select_type(BlockData.Type.DESTROYER)
-	scene._try_place_block(Vector2i(-1, 0))
+	scene._try_place_block(Vector2i(-5, 0))
 	
 	# Group them into a structure
-	var b1 = scene.world.get_block(Vector2i(-2, 0))
-	var b2 = scene.world.get_block(Vector2i(-1, 0))
+	var b1 = scene.world.get_block(Vector2i(-6, 0))
+	var b2 = scene.world.get_block(Vector2i(-5, 0))
+	assert(b1 != null and b2 != null, "Blocks should be placed")
 	scene.selected_blocks = [b1, b2]
 	scene.group_selected_blocks()
 	assert(b1.structure_id > 0 and b1.structure_id == b2.structure_id, "Blocks should share same structure ID!")
@@ -126,14 +127,14 @@ func test_level_player_scene() -> void:
 	
 	# Test step simulation
 	scene.step_single_tick()
-	# Pusher and Destroyer should have moved forward to (-1, 0) and (0, 0)
-	assert(b1.grid_pos == Vector2i(-1, 0), "Pusher should move to (-1, 0), got %s" % [b1.grid_pos])
-	assert(b2.grid_pos == Vector2i(0, 0), "Destroyer should move to (0, 0), got %s" % [b2.grid_pos])
+	# Pusher and Destroyer should have moved forward to (-5, 0) and (-4, 0)
+	assert(b1.grid_pos == Vector2i(-5, 0), "Pusher should move to (-5, 0), got %s" % [b1.grid_pos])
+	assert(b2.grid_pos == Vector2i(-4, 0), "Destroyer should move to (-4, 0), got %s" % [b2.grid_pos])
 	
 	# Test Reset simulation
 	scene.reset_simulation()
-	var b1_reset = scene.world.get_block(Vector2i(-2, 0))
-	assert(b1_reset != null, "Reset should restore player machine to original location (-2, 0)")
+	var b1_reset = scene.world.get_block(Vector2i(-6, 0))
+	assert(b1_reset != null, "Reset should restore player machine to original location (-6, 0)")
 	
 	scene.queue_free()
 	print("   LevelPlayer mechanics, structure grouping, borders, and simulation verified.")

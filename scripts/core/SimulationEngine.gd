@@ -27,7 +27,11 @@ var rng: RandomNumberGenerator
 var step_count: int = 0
 var initial_pollution_count: int = 0
 var initial_treasure_count: int = 0
+var initial_protected_count: int = 0
+var initial_treasure_origin_ids: Dictionary = {} # origin_id -> true
+var collected_treasure_origins: Dictionary = {} # origin_id -> true
 var collected_treasure_ids: Dictionary = {} # id -> true
+var destroyed_protected_count: int = 0
 
 func _init(p_world: GridWorld, p_build_area: Rect2i = Rect2i()) -> void:
 	world = p_world
@@ -39,12 +43,22 @@ func _init(p_world: GridWorld, p_build_area: Rect2i = Rect2i()) -> void:
 func recount_goals() -> void:
 	initial_pollution_count = 0
 	initial_treasure_count = 0
+	initial_protected_count = 0
+	initial_treasure_origin_ids.clear()
+	collected_treasure_origins.clear()
 	collected_treasure_ids.clear()
+	destroyed_protected_count = 0
+
 	for b in world.get_all_blocks():
 		if b.block_type == BlockData.Type.POLLUTION:
 			initial_pollution_count += 1
 		elif b.block_type == BlockData.Type.TREASURE:
+			if b.origin_id == 0:
+				b.origin_id = b.block_id
+			initial_treasure_origin_ids[b.origin_id] = true
 			initial_treasure_count += 1
+		elif b.block_type == BlockData.Type.PROTECTED:
+			initial_protected_count += 1
 
 func get_remaining_pollution() -> int:
 	var count := 0
@@ -59,6 +73,31 @@ func get_remaining_treasure() -> int:
 		if b.block_type == BlockData.Type.TREASURE:
 			count += 1
 	return count
+
+func get_remaining_protected() -> int:
+	var count := 0
+	for b in world.get_all_blocks():
+		if b.block_type == BlockData.Type.PROTECTED:
+			count += 1
+	return count
+
+func get_collected_treasure_lineage_count() -> int:
+	var count := 0
+	for o_id in initial_treasure_origin_ids.keys():
+		if collected_treasure_origins.has(o_id):
+			count += 1
+	return count
+
+func get_total_treasure_lineages() -> int:
+	return initial_treasure_origin_ids.size()
+
+func has_collected_all_treasures() -> bool:
+	if initial_treasure_origin_ids.is_empty():
+		return true
+	for o_id in initial_treasure_origin_ids.keys():
+		if not collected_treasure_origins.has(o_id):
+			return false
+	return true
 
 # Performs one discrete simulation tick
 func step_tick() -> TickResult:
@@ -530,6 +569,8 @@ func _simulate_wanderers(snap: GridWorld, result: TickResult, pusher_destination
 				"new_hp": target_world.hp
 			})
 			if target_world.hp <= 0:
+				if target_world.block_type == BlockData.Type.PROTECTED:
+					destroyed_protected_count += 1
 				world.remove_block_at(target_world.grid_pos)
 				result.destroyed_blocks.append(target_world)
 
@@ -577,6 +618,9 @@ func _simulate_replicators(snap: GridWorld, result: TickResult) -> void:
 				if src_block.is_immune():
 					# 坚硬方块未被抑制无法被复制
 					continue
+				if src_block.block_type == BlockData.Type.PROTECTED:
+					# 受保护方块直接不允许复制
+					continue
 
 				# Replicator's current location in world (in case it was pushed)
 				var rep_curr_pos := snap_b.grid_pos
@@ -605,6 +649,7 @@ func _simulate_replicators(snap: GridWorld, result: TickResult) -> void:
 		replica.structure_id = 0 # Does NOT inherit structure
 		replica.hp = replica.max_hp
 		replica.is_inhibited = false
+		replica.origin_id = chosen_src.origin_id if chosen_src.origin_id != 0 else chosen_src.block_id
 		world.add_block(replica)
 		result.spawned_blocks.append(replica)
 
@@ -667,6 +712,8 @@ func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacke
 	for tid in to_destroy.keys():
 		for wb in world.get_all_blocks():
 			if wb.block_id == tid:
+				if wb.block_type == BlockData.Type.PROTECTED:
+					destroyed_protected_count += 1
 				world.remove_block_at(wb.grid_pos)
 				result.destroyed_blocks.append(wb)
 				break
@@ -697,18 +744,29 @@ func _check_treasure_collection(result: TickResult) -> void:
 					treasures_to_collect.append(b)
 
 	for tr in treasures_to_collect:
+		var o_id: int = tr.origin_id if tr.origin_id != 0 else tr.block_id
+		collected_treasure_origins[o_id] = true
 		collected_treasure_ids[tr.block_id] = true
 		world.remove_block_at(tr.grid_pos)
 		result.collected_treasures.append(tr)
 
 func _check_victory() -> bool:
-	# Victory condition:
-	# 1. All POLLUTION blocks destroyed
-	# 2. All TREASURE blocks collected
-	var remaining_pollution := get_remaining_pollution()
-	var remaining_treasure := get_remaining_treasure()
+	# 胜利判定规则：
+	# 1. 关卡目标：取回所有宝藏且摧毁所有污染源，同时不能摧毁被保护的方块
+	# 2. 一开始的每个宝藏是区分的；被复制出来的宝藏/污染是不区分的。
+	#    判定集齐了所有宝藏，可以是靠复制或取回，但不能是同一个宝藏复制很多份代替其他宝藏。
+	# 3. 污染源要求最后绝对数量为0。
+	# 4. 被保护方块不能被摧毁（无论是被怪物还是自己摧毁）。
+	if initial_protected_count > 0:
+		if destroyed_protected_count > 0 or get_remaining_protected() < initial_protected_count:
+			return false
 
-	if remaining_pollution == 0 and remaining_treasure == 0:
-		# Only declare victory if there was at least 1 goal initially, or if board is clear
-		return true
-	return false
+	if get_remaining_pollution() > 0:
+		return false
+
+	if not has_collected_all_treasures():
+		return false
+
+	# 必须有至少一个初始目标（污染源、宝藏或保护方块）才判定胜利
+	var has_any_objective: bool = (initial_pollution_count > 0 or initial_treasure_origin_ids.size() > 0 or initial_protected_count > 0)
+	return has_any_objective

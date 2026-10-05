@@ -420,9 +420,29 @@ func _update_sim_buttons() -> void:
 
 func _update_goal_display() -> void:
 	if goal_label != null and sim_engine != null:
+		var parts: Array[String] = []
 		var p := sim_engine.get_remaining_pollution()
-		var tr := sim_engine.get_remaining_treasure()
-		goal_label.text = "目标: 污染源剩余: %d | 待回收宝藏: %d" % [p, tr]
+		var tr_col := sim_engine.get_collected_treasure_lineage_count()
+		var tr_total := sim_engine.get_total_treasure_lineages()
+		var prot_cur := sim_engine.get_remaining_protected()
+		var prot_init := sim_engine.initial_protected_count
+
+		if sim_engine.initial_pollution_count > 0 or p > 0:
+			parts.append("污染源: %d" % p)
+		if tr_total > 0:
+			parts.append("宝藏回收: %d/%d" % [tr_col, tr_total])
+		if prot_init > 0:
+			var prot_lost := prot_init - prot_cur
+			if prot_lost > 0 or sim_engine.destroyed_protected_count > 0:
+				parts.append("保护目标: 失败(已损毁)")
+			else:
+				parts.append("保护目标: 完好(%d/%d)" % [prot_cur, prot_init])
+
+		if parts.is_empty():
+			goal_label.text = "目标: 自由实验"
+		else:
+			goal_label.text = "目标: " + " | ".join(parts)
+
 # -------------------------------------------------------------
 # Input & Placement Handling
 # -------------------------------------------------------------

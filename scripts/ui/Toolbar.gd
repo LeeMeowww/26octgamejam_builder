@@ -61,9 +61,9 @@ func _build_ui() -> void:
 
 	# Block buttons:
 	# In player mode: 0..5 (Basic [1] to Rotator [6])
-	# In editor mode: 0..9 (Basic [1] to Pollution [0])
-	var max_type := BlockData.Type.POLLUTION if is_editor_mode else BlockData.Type.ROTATOR
-	var shortcuts_labels := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+	# In editor mode: 0..10 (Basic [1] to Protected [-])
+	var max_type := BlockData.Type.PROTECTED if is_editor_mode else BlockData.Type.ROTATOR
+	var shortcuts_labels := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-"]
 
 	for t in range(0, max_type + 1):
 		var btn := Button.new()

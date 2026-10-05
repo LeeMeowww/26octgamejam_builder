@@ -11,7 +11,8 @@ enum Type {
 	HARD = 6,        # 坚硬方块 / 几丁质重甲
 	WANDERER = 7,    # 游荡怪物 / 异化游荡体
 	TREASURE = 8,    # 宝藏 / 高能营养核
-	POLLUTION = 9    # 污染源 / 坏疽病原体
+	POLLUTION = 9,   # 污染源 / 坏疽病原体
+	PROTECTED = 10   # 受保护方块 / 晶胚核心
 }
 
 enum Direction {
@@ -38,7 +39,8 @@ const TYPE_NAMES: Dictionary = {
 	Type.HARD: "坚硬方块",
 	Type.WANDERER: "游荡怪物",
 	Type.TREASURE: "宝藏",
-	Type.POLLUTION: "污染源"
+	Type.POLLUTION: "污染源",
+	Type.PROTECTED: "受保护方块"
 }
 
 const SHORT_NAMES: Dictionary = {
@@ -51,7 +53,8 @@ const SHORT_NAMES: Dictionary = {
 	Type.HARD: "坚硬",
 	Type.WANDERER: "怪物",
 	Type.TREASURE: "宝藏",
-	Type.POLLUTION: "污染"
+	Type.POLLUTION: "污染",
+	Type.PROTECTED: "保护"
 }
 
 var block_id: int = 0
@@ -65,6 +68,7 @@ var hp: int = 2
 var max_hp: int = 2
 var is_inhibited: bool = false
 var is_world_block: bool = false # Level placed vs player placed
+var origin_id: int = 0 # Initial block lineage ID for treasures
 
 static var _id_counter: int = 1
 
@@ -83,6 +87,7 @@ func _init(p_type: int = Type.BASIC, p_pos: Vector2i = Vector2i.ZERO, p_dir: int
 	direction = posmod(p_dir, 4)
 	hp = 2
 	max_hp = 2
+	origin_id = block_id
 
 func get_forward_vec() -> Vector2i:
 	return DIR_VECTORS[posmod(direction, 4)]
@@ -119,6 +124,7 @@ func duplicate_block(new_id: bool = true) -> BlockData:
 	copy.max_hp = max_hp
 	copy.is_inhibited = is_inhibited
 	copy.is_world_block = is_world_block
+	copy.origin_id = origin_id if origin_id != 0 else block_id
 	return copy
 
 func to_dict() -> Dictionary:
@@ -133,7 +139,8 @@ func to_dict() -> Dictionary:
 		"texture_variant": texture_variant,
 		"hp": hp,
 		"max_hp": max_hp,
-		"is_world_block": is_world_block
+		"is_world_block": is_world_block,
+		"origin_id": origin_id if origin_id != 0 else block_id
 	}
 
 static func from_dict(data: Dictionary) -> BlockData:
@@ -151,4 +158,5 @@ static func from_dict(data: Dictionary) -> BlockData:
 	b.hp = int(data.get("hp", 2))
 	b.max_hp = int(data.get("max_hp", 2))
 	b.is_world_block = bool(data.get("is_world_block", false))
+	b.origin_id = int(data.get("origin_id", b.block_id))
 	return b

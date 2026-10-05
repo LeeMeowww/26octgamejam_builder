@@ -99,6 +99,8 @@ func _get_texture_path() -> String:
 			return "res://assets/textures/blocks/treasure_%d.svg" % var_idx
 		BlockData.Type.POLLUTION:
 			return "res://assets/textures/blocks/pollution_%d.svg" % var_idx
+		BlockData.Type.PROTECTED:
+			return "res://assets/textures/blocks/protected_%d.svg" % var_idx
 		_:
 			return "res://assets/textures/blocks/basic_0.svg"
 

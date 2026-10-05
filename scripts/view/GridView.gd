@@ -209,6 +209,7 @@ func _get_preview_texture_path(btype: int, var_idx: int, sub_mode: int) -> Strin
 		BlockData.Type.WANDERER: return "res://assets/textures/blocks/wanderer_%d.svg" % v
 		BlockData.Type.TREASURE: return "res://assets/textures/blocks/treasure_%d.svg" % v
 		BlockData.Type.POLLUTION: return "res://assets/textures/blocks/pollution_%d.svg" % v
+		BlockData.Type.PROTECTED: return "res://assets/textures/blocks/protected_%d.svg" % v
 		_: return "res://assets/textures/blocks/basic_0.svg"
 
 # -------------------------------------------------------------
