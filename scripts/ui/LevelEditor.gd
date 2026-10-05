@@ -43,6 +43,8 @@ var right_drag_start_grid: Vector2i = Vector2i.ZERO
 var right_drag_orig_positions: Dictionary = {} # BlockData -> Vector2i
 
 func _ready() -> void:
+	# Let board clicks reach _unhandled_input; UI panels still consume theirs.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_ui()
 	if current_level_data == null:
 		var new_lvl := LevelData.new("custom_01", "新自定关卡")
