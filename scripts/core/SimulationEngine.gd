@@ -83,12 +83,12 @@ func step_tick() -> TickResult:
 	# -------------------------------------------------------------
 	# 3. Pushers (推动器) & Structure Movement
 	# -------------------------------------------------------------
-	_simulate_pushers(snap, result)
+	var pusher_destinations := _simulate_pushers(snap, result)
 
 	# -------------------------------------------------------------
 	# 4. Wanderers (游荡怪物)
 	# -------------------------------------------------------------
-	_simulate_wanderers(snap, result)
+	var wanderers_attacked := _simulate_wanderers(snap, result, pusher_destinations)
 
 	# -------------------------------------------------------------
 	# 5. Replicators (复制器)
@@ -96,9 +96,9 @@ func step_tick() -> TickResult:
 	_simulate_replicators(snap, result)
 
 	# -------------------------------------------------------------
-	# 6. Destroyers (摧毁器)
+	# 6. Destroyers (摧毁器) & Simultaneous Clash Resolution
 	# -------------------------------------------------------------
-	_simulate_destroyers(snap, result)
+	_simulate_destroyers(snap, result, wanderers_attacked)
 
 	# -------------------------------------------------------------
 	# 7. Check Treasure Collection & Victory
@@ -260,7 +260,7 @@ func _simulate_rotators(snap: GridWorld, result: TickResult) -> void:
 # -----------------------------------------------------------------
 # Pusher & Structure Movement Resolution
 # -----------------------------------------------------------------
-func _simulate_pushers(snap: GridWorld, result: TickResult) -> void:
+func _simulate_pushers(snap: GridWorld, result: TickResult) -> Dictionary:
 	# Group current blocks into entities:
 	# - Structure (structure_id > 0)
 	# - Single block (structure_id == 0)
@@ -369,15 +369,18 @@ func _simulate_pushers(snap: GridWorld, result: TickResult) -> void:
 
 	# Apply valid movements
 	# To prevent overwriting when swapping cells, sort or remove from grid first then re-insert
+	var pusher_destinations: Dictionary = {} # Vector2i -> BlockData
 	var moved_entries: Array[Dictionary] = []
 	for ent in entities:
 		var delta: Vector2i = entity_deltas[ent]
 		if delta != Vector2i.ZERO:
 			for b: BlockData in ent:
+				var new_p := b.grid_pos + delta
+				pusher_destinations[new_p] = b
 				moved_entries.append({
 					"block": b,
 					"old_pos": b.grid_pos,
-					"new_pos": b.grid_pos + delta
+					"new_pos": new_p
 				})
 
 	if not moved_entries.is_empty():
@@ -389,6 +392,8 @@ func _simulate_pushers(snap: GridWorld, result: TickResult) -> void:
 				"old_pos": entry["old_pos"],
 				"new_pos": entry["new_pos"]
 			})
+
+	return pusher_destinations
 
 func _apply_force_to_entity(force_dict: Dictionary, dir_vec: Vector2i) -> void:
 	if dir_vec.x > 0:
@@ -402,9 +407,13 @@ func _apply_force_to_entity(force_dict: Dictionary, dir_vec: Vector2i) -> void:
 		force_dict.y_neg = true
 
 # -----------------------------------------------------------------
-# Wanderer (游荡怪物) Simulation
+# Wanderer (游荡怪物) Simulation with Conflict Resolution
 # -----------------------------------------------------------------
-func _simulate_wanderers(snap: GridWorld, result: TickResult) -> void:
+func _simulate_wanderers(snap: GridWorld, result: TickResult, pusher_destinations: Dictionary = {}) -> Dictionary:
+	var wanderers_attacked: Dictionary = {} # int -> bool
+	var wanderer_obstacle_actions: Array[Dictionary] = []
+	var desired_walks: Array[Dictionary] = [] # { "wanderer": b, "from": Vector2i, "to": Vector2i }
+
 	for snap_b in snap.get_all_blocks():
 		if snap_b.block_type != BlockData.Type.WANDERER or snap_b.is_inhibited:
 			continue
@@ -423,66 +432,131 @@ func _simulate_wanderers(snap: GridWorld, result: TickResult) -> void:
 		var target_snap := snap.get_block(forward_pos)
 
 		if target_snap != null:
-			# Contact damage
-			var target_world := world.get_block(forward_pos)
-			if target_world != null and not target_world.is_immune():
-				var old_hp := target_world.hp
-				target_world.hp = maxi(0, target_world.hp - 1)
-				result.damaged_blocks.append({
-					"id": target_world.block_id,
-					"old_hp": old_hp,
-					"new_hp": target_world.hp
-				})
-				if target_world.hp <= 0:
-					world.remove_block_at(target_world.grid_pos)
-					result.destroyed_blocks.append(target_world)
-
-			# Try to jump up 1 block:
-			# Needs above current (snap_b.grid_pos + UP) to be empty, and above target (forward_pos + UP) to be empty
-			var up_vec := Vector2i(0, -1)
-			var head_pos := snap_b.grid_pos + up_vec
-			var jump_pos := forward_pos + up_vec
-
-			if not world.has_block(head_pos) and not world.has_block(jump_pos):
-				# Jump up onto the step!
-				var old_pos := b.grid_pos
-				world.move_block(old_pos, jump_pos)
-				result.moved_blocks.append({
-					"id": b.block_id,
-					"old_pos": old_pos,
-					"new_pos": jump_pos
-				})
-			else:
-				# Cannot jump, turn around!
-				var old_dir := b.direction
-				b.direction = BlockData.Direction.LEFT if horiz_dir == Vector2i.RIGHT else BlockData.Direction.RIGHT
-				result.rotated_blocks.append({
-					"id": b.block_id,
-					"old_dir": old_dir,
-					"new_dir": b.direction
-				})
+			wanderer_obstacle_actions.append({
+				"wanderer": b,
+				"snap_wanderer": snap_b,
+				"horiz_dir": horiz_dir,
+				"forward_pos": forward_pos
+			})
 		else:
-			# Forward is empty: check if there is floor or if falling
-			var ground_pos := forward_pos + Vector2i(0, 1)
-			if world.has_block(ground_pos):
+			# Forward is empty: check floor directly in front (ground_1)
+			var ground_1 := forward_pos + Vector2i(0, 1)
+			if snap.has_block(ground_1):
 				# Normal step forward
-				var old_pos := b.grid_pos
-				world.move_block(old_pos, forward_pos)
-				result.moved_blocks.append({
-					"id": b.block_id,
-					"old_pos": old_pos,
-					"new_pos": forward_pos
+				desired_walks.append({
+					"wanderer": b,
+					"from": b.grid_pos,
+					"to": forward_pos
 				})
 			else:
-				# Drop down (fall 1 step forward and down)
-				var drop_pos := forward_pos + Vector2i(0, 1)
-				var old_pos := b.grid_pos
-				world.move_block(old_pos, drop_pos)
-				result.moved_blocks.append({
-					"id": b.block_id,
-					"old_pos": old_pos,
-					"new_pos": drop_pos
-				})
+				# ground_1 is empty (no floor directly ahead).
+				# Check if there is floor 1 block lower (ground_2).
+				var ground_2 := forward_pos + Vector2i(0, 2)
+				if snap.has_block(ground_2):
+					# 1-block descent: step down to ground_1
+					desired_walks.append({
+						"wanderer": b,
+						"from": b.grid_pos,
+						"to": ground_1
+					})
+				else:
+					# Higher than 1 block (ground_1 and ground_2 both empty):
+					# "怪物不会走下高于一格的台子:若前方一格且向下一格为空(无地面 且再往下一格也为空 应当掉头)"
+					var old_dir := b.direction
+					b.direction = BlockData.Direction.LEFT if horiz_dir == Vector2i.RIGHT else BlockData.Direction.RIGHT
+					result.rotated_blocks.append({
+						"id": b.block_id,
+						"old_dir": old_dir,
+						"new_dir": b.direction
+					})
+
+	# Conflict Resolution:
+	# 1. Yield if pusher entity is moving into target_pos ("当怪物与其他东西冲突时 怪物退让(不动作)")
+	# 2. Yield if destination is occupied by an unmoving block
+	# 3. When two monsters conflict on same cell: randomly one yields ("两个怪物冲突时 随机一方退让")
+	var valid_moves: Array[Dictionary] = []
+	var target_to_moves: Dictionary = {} # Vector2i -> Array[Dictionary]
+
+	for move in desired_walks:
+		var target_pos: Vector2i = move["to"]
+		if pusher_destinations.has(target_pos):
+			continue # Yield! (怪物退让，不动作)
+
+		var occ := world.get_block(target_pos)
+		if occ != null:
+			continue # Blocked by unmoving block
+
+		if not target_to_moves.has(target_pos):
+			target_to_moves[target_pos] = []
+		target_to_moves[target_pos].append(move)
+
+	# Rule 2: Random yield when multiple monsters target same cell
+	for target_pos in target_to_moves.keys():
+		var group: Array = target_to_moves[target_pos]
+		if group.size() == 1:
+			valid_moves.append(group[0])
+		else:
+			var winner_idx := rng.randi_range(0, group.size() - 1)
+			valid_moves.append(group[winner_idx])
+
+	# Apply valid wanderer movements
+	for move in valid_moves:
+		var wb: BlockData = move["wanderer"]
+		var old_p: Vector2i = move["from"]
+		var new_p: Vector2i = move["to"]
+		world.move_block(old_p, new_p)
+		result.moved_blocks.append({
+			"id": wb.block_id,
+			"old_pos": old_p,
+			"new_pos": new_p
+		})
+
+	# Handle Wanderers that faced an obstacle at t0
+	for item in wanderer_obstacle_actions:
+		var wb: BlockData = item["wanderer"]
+		var snap_w: BlockData = item["snap_wanderer"]
+		var horiz_dir: Vector2i = item["horiz_dir"]
+		var forward_pos: Vector2i = item["forward_pos"]
+
+		# Contact damage to obstacle
+		var target_world := world.get_block(forward_pos)
+		if target_world != null and not target_world.is_immune():
+			wanderers_attacked[wb.block_id] = true
+			var old_hp := target_world.hp
+			target_world.hp = maxi(0, target_world.hp - 1)
+			result.damaged_blocks.append({
+				"id": target_world.block_id,
+				"old_hp": old_hp,
+				"new_hp": target_world.hp
+			})
+			if target_world.hp <= 0:
+				world.remove_block_at(target_world.grid_pos)
+				result.destroyed_blocks.append(target_world)
+
+		# Try jump
+		var up_vec := Vector2i(0, -1)
+		var head_pos := snap_w.grid_pos + up_vec
+		var jump_pos := forward_pos + up_vec
+
+		if not world.has_block(head_pos) and not world.has_block(jump_pos) and not pusher_destinations.has(jump_pos):
+			var old_pos := wb.grid_pos
+			world.move_block(old_pos, jump_pos)
+			result.moved_blocks.append({
+				"id": wb.block_id,
+				"old_pos": old_pos,
+				"new_pos": jump_pos
+			})
+		else:
+			# Turn around
+			var old_dir := wb.direction
+			wb.direction = BlockData.Direction.LEFT if horiz_dir == Vector2i.RIGHT else BlockData.Direction.RIGHT
+			result.rotated_blocks.append({
+				"id": wb.block_id,
+				"old_dir": old_dir,
+				"new_dir": wb.direction
+			})
+
+	return wanderers_attacked
 
 # -----------------------------------------------------------------
 # Replicator (复制器) Simulation
@@ -537,26 +611,58 @@ func _simulate_replicators(snap: GridWorld, result: TickResult) -> void:
 # -----------------------------------------------------------------
 # Destroyer (摧毁器) Simulation
 # -----------------------------------------------------------------
-func _simulate_destroyers(snap: GridWorld, result: TickResult) -> void:
+func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacked: Dictionary = {}) -> void:
 	var to_destroy: Dictionary = {} # block_id -> BlockData
+	var destroyers_hit_by_wanderer: Dictionary = {} # destroyer_id -> bool
 
 	for snap_b in snap.get_all_blocks():
 		if snap_b.block_type == BlockData.Type.DESTROYER and not snap_b.is_inhibited:
+			var cur_d: BlockData = null
+			for wb in world.get_all_blocks():
+				if wb.block_id == snap_b.block_id:
+					cur_d = wb
+					break
+			if cur_d == null:
+				continue
+
 			var target_pos := snap_b.grid_pos + snap_b.get_forward_vec()
 			var target_snap := snap.get_block(target_pos)
 			if target_snap != null and not target_snap.is_immune():
 				to_destroy[target_snap.block_id] = target_snap
 
 			# Also check current front position if destroyer moved
-			var cur_pos := snap_b.grid_pos
-			for wb in world.get_all_blocks():
-				if wb.block_id == snap_b.block_id:
-					cur_pos = wb.grid_pos
-					break
-			var cur_front := cur_pos + snap_b.get_forward_vec()
+			var cur_front := cur_d.grid_pos + cur_d.get_forward_vec()
 			var cur_target := world.get_block(cur_front)
-			if cur_target != null and not cur_target.is_immune() and cur_target.block_id != snap_b.block_id:
+			if cur_target != null and not cur_target.is_immune() and cur_target.block_id != cur_d.block_id:
 				to_destroy[cur_target.block_id] = cur_target
+
+			# Mutual facing clash with Wanderer:
+			var candidates: Array[BlockData] = []
+			if cur_target != null and cur_target.block_type == BlockData.Type.WANDERER:
+				candidates.append(cur_target)
+			if target_snap != null and target_snap.block_type == BlockData.Type.WANDERER and target_snap != cur_target:
+				candidates.append(target_snap)
+
+			for w in candidates:
+				var cur_w: BlockData = w
+				for wb in world.get_all_blocks():
+					if wb.block_id == w.block_id:
+						cur_w = wb
+						break
+				var w_horiz := Vector2i.RIGHT if (cur_w.direction == BlockData.Direction.RIGHT or cur_w.direction == BlockData.Direction.DOWN) else Vector2i.LEFT
+				if cur_w.grid_pos + w_horiz == cur_d.grid_pos:
+					# Head-on clash!
+					if not wanderers_attacked.has(cur_w.block_id) and not destroyers_hit_by_wanderer.has(cur_d.block_id):
+						destroyers_hit_by_wanderer[cur_d.block_id] = true
+						var old_hp := cur_d.hp
+						cur_d.hp = maxi(0, cur_d.hp - 1)
+						result.damaged_blocks.append({
+							"id": cur_d.block_id,
+							"old_hp": old_hp,
+							"new_hp": cur_d.hp
+						})
+						if cur_d.hp <= 0:
+							to_destroy[cur_d.block_id] = cur_d
 
 	for tid in to_destroy.keys():
 		for wb in world.get_all_blocks():
