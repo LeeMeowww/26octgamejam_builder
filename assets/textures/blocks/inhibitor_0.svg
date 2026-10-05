@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect x="12" y="12" width="104" height="104" rx="14" fill="#20142e" stroke="#48256e" stroke-width="3"/>
+  <!-- Rear Suppression Pylon (Left) -->
+  <path d="M 32 36 L 24 64 L 32 92 Z" fill="#9013fe" opacity="0.8"/>
+  <line x1="24" y1="64" x2="48" y2="64" stroke="#9013fe" stroke-width="5" stroke-dasharray="4,3"/>
+  <!-- Central Resonator Coil -->
+  <circle cx="64" cy="64" r="26" fill="#130b1c" stroke="#9013fe" stroke-width="3"/>
+  <circle cx="64" cy="64" r="16" fill="#9013fe" opacity="0.5"/>
+  <polygon points="64,52 74,64 64,76 54,64" fill="#ffffff"/>
+  <!-- Forward Detector Prism (Right) -->
+  <polygon points="86,48 112,64 86,80" fill="none" stroke="#9013fe" stroke-width="3.5"/>
+  <circle cx="98" cy="64" r="4" fill="#ffffff"/>
+  <!-- Wave Field -->
+  <path d="M 104 46 Q 116 64 104 82" fill="none" stroke="#9013fe" stroke-width="2.5" opacity="0.7"/>
+</svg>

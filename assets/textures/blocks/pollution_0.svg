@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect x="12" y="12" width="104" height="104" rx="14" fill="#240c12" stroke="#571624" stroke-width="3"/>
+  <!-- Radiation Warning Triangle -->
+  <polygon points="64,24 104,96 24,96" fill="#3d141e" stroke="#d90429" stroke-width="3"/>
+  <!-- Trefoil Hazardous Core -->
+  <circle cx="64" cy="68" r="10" fill="#d90429"/>
+  <circle cx="64" cy="50" r="7" fill="#d90429"/>
+  <circle cx="50" cy="74" r="7" fill="#d90429"/>
+  <circle cx="78" cy="74" r="7" fill="#d90429"/>
+  <circle cx="64" cy="68" r="4" fill="#240c12"/>
+  <!-- Biohazard Spikes -->
+  <path d="M 64 16 L 64 24 M 108 100 L 100 94 M 20 100 L 28 94" stroke="#d90429" stroke-width="3" stroke-linecap="round"/>
+</svg>

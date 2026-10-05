@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect x="12" y="12" width="104" height="104" rx="14" fill="#0d2825" stroke="#1c554e" stroke-width="3"/>
+  <!-- Source Reader Funnel (Left) -->
+  <path d="M 22 40 L 46 54 L 46 74 L 22 88 Z" fill="none" stroke="#06d6a0" stroke-width="3"/>
+  <line x1="28" y1="64" x2="44" y2="64" stroke="#06d6a0" stroke-width="3" stroke-dasharray="3,3"/>
+  <!-- Central Synthesis Core -->
+  <rect x="52" y="40" width="24" height="48" rx="6" fill="#143d37" stroke="#06d6a0" stroke-width="2.5"/>
+  <circle cx="64" cy="64" r="8" fill="#06d6a0"/>
+  <!-- Dual Forward Projector Arms (Right) -->
+  <path d="M 76 46 L 102 36 L 96 56" fill="none" stroke="#06d6a0" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M 76 82 L 102 92 L 96 72" fill="none" stroke="#06d6a0" stroke-width="3.5" stroke-linejoin="round"/>
+  <!-- Holographic Target Cross -->
+  <circle cx="106" cy="64" r="8" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="4,2"/>
+  <circle cx="106" cy="64" r="3" fill="#ffffff"/>
+</svg>

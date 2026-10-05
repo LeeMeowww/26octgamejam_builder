@@ -1,0 +1,41 @@
+# ==============================================================================
+# Godot 4 Git Ignore Rules
+# ==============================================================================
+
+# Godot 4 internal cache and imported binary files (DO NOT COMMIT)
+.godot/
+
+# Export builds & compiled packages
+build/
+bin/
+*.pck
+*.wasm
+*.apk
+*.aab
+*.exe
+*.zip
+*.tar.gz
+
+# Runtime user save data (levels & blueprints created in-game)
+user_levels/
+user_machines/
+
+# Test image outputs & debug screenshots
+screenshot_*
+test_*.png
+crop.png
+*.log
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS & Editor temporary files
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+*~
+.idea/
+.vscode/

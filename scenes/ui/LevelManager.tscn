@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cb5k83j2hsqla"]
+
+[ext_resource type="Script" path="res://scripts/ui/LevelManager.gd" id="1_lm"]
+
+[node name="LevelManager" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lm")

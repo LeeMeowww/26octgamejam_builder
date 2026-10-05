@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect x="12" y="12" width="104" height="104" rx="14" fill="#2d1010" stroke="#5a2020" stroke-width="3"/>
+  <!-- Heavy Laser Chamber (Left) -->
+  <rect x="22" y="38" width="36" height="52" rx="6" fill="#421616" stroke="#e02020" stroke-width="2"/>
+  <line x1="28" y1="50" x2="52" y2="50" stroke="#e02020" stroke-width="3"/>
+  <line x1="28" y1="64" x2="52" y2="64" stroke="#e02020" stroke-width="3"/>
+  <line x1="28" y1="78" x2="52" y2="78" stroke="#e02020" stroke-width="3"/>
+  <!-- Focusing Lens Ring -->
+  <ellipse cx="64" cy="64" rx="10" ry="24" fill="#1f0909" stroke="#e02020" stroke-width="3"/>
+  <!-- High-Energy Plasma Spike (Right) -->
+  <polygon points="70,44 114,64 70,84" fill="#e02020"/>
+  <polygon points="78,54 110,64 78,74" fill="#ffffff"/>
+  <!-- Warning Hazard Lines -->
+  <path d="M 30 26 L 42 38 M 50 26 L 62 38" stroke="#f5a623" stroke-width="2.5"/>
+</svg>

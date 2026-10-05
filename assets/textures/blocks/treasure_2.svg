@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect x="12" y="12" width="104" height="104" rx="14" fill="#292211" stroke="#614e20" stroke-width="3"/>
+  <!-- Outer Crystalline Octagon -->
+  <polygon points="64,20 96,36 108,68 92,100 64,108 36,100 20,68 32,36" fill="#382e17" stroke="#e9c46a" stroke-width="3"/>
+  <!-- Radiant Core -->
+  <polygon points="64,34 88,64 64,94 40,64" fill="#e9c46a"/>
+  <polygon points="64,46 76,64 64,82 52,64" fill="#ffffff"/>
+  <!-- Energy Sparkles -->
+  <circle cx="64" cy="64" r="5" fill="#ffffff"/>
+  <circle cx="34" cy="34" r="3" fill="#e9c46a"/>
+  <circle cx="94" cy="34" r="3" fill="#e9c46a"/>
+  <circle cx="34" cy="94" r="3" fill="#e9c46a"/>
+  <circle cx="94" cy="94" r="3" fill="#e9c46a"/>
+</svg>

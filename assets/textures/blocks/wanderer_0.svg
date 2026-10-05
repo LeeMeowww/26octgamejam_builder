@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect x="12" y="12" width="104" height="104" rx="14" fill="#231924" stroke="#4a2e4d" stroke-width="3"/>
+  <!-- Chassis Base & Treads (Bottom) -->
+  <rect x="24" y="86" width="80" height="20" rx="8" fill="#161017" stroke="#ff595e" stroke-width="2"/>
+  <circle cx="36" cy="96" r="6" fill="#ff595e"/>
+  <circle cx="64" cy="96" r="6" fill="#ff595e"/>
+  <circle cx="92" cy="96" r="6" fill="#ff595e"/>
+  <!-- Robotic Drone Body -->
+  <rect x="34" y="44" width="60" height="38" rx="8" fill="#38213b" stroke="#ff595e" stroke-width="2.5"/>
+  <!-- Scanner Eye & Laser Vizor (Forward Right) -->
+  <rect x="54" y="52" width="34" height="14" rx="4" fill="#110712"/>
+  <line x1="56" y1="59" x2="86" y2="59" stroke="#ff595e" stroke-width="4"/>
+  <circle cx="82" cy="59" r="4" fill="#ffffff"/>
+  <!-- Sensor Antenna -->
+  <line x1="48" y1="44" x2="42" y2="26" stroke="#ff595e" stroke-width="3"/>
+  <circle cx="42" cy="26" r="4" fill="#ff595e"/>
+  <line x1="94" y1="59" x2="114" y2="59" stroke="#ff595e" stroke-width="2" stroke-dasharray="3,2"/>
+</svg>

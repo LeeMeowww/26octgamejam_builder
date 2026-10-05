@@ -1,0 +1,133 @@
+{
+	"author": "异生实验室",
+	"blocks": [
+		{
+			"dir": 0,
+			"hp": 2,
+			"id": 32,
+			"is_world_block": true,
+			"max_hp": 2,
+			"pos_x": 0,
+			"pos_y": 2,
+			"structure_id": 0,
+			"sub_mode": 0,
+			"texture_variant": 0,
+			"type": 6
+		},
+		{
+			"dir": 0,
+			"hp": 2,
+			"id": 33,
+			"is_world_block": true,
+			"max_hp": 2,
+			"pos_x": 1,
+			"pos_y": 2,
+			"structure_id": 0,
+			"sub_mode": 0,
+			"texture_variant": 0,
+			"type": 6
+		},
+		{
+			"dir": 0,
+			"hp": 2,
+			"id": 34,
+			"is_world_block": true,
+			"max_hp": 2,
+			"pos_x": 2,
+			"pos_y": 2,
+			"structure_id": 0,
+			"sub_mode": 0,
+			"texture_variant": 0,
+			"type": 6
+		},
+		{
+			"dir": 0,
+			"hp": 2,
+			"id": 35,
+			"is_world_block": true,
+			"max_hp": 2,
+			"pos_x": 3,
+			"pos_y": 2,
+			"structure_id": 0,
+			"sub_mode": 0,
+			"texture_variant": 0,
+			"type": 6
+		},
+		{
+			"dir": 0,
+			"hp": 2,
+			"id": 36,
+			"is_world_block": true,
+			"max_hp": 2,
+			"pos_x": 4,
+			"pos_y": 2,
+			"structure_id": 0,
+			"sub_mode": 0,
+			"texture_variant": 0,
+			"type": 6
+		},
+		{
+			"dir": 0,
+			"hp": 2,
+			"id": 37,
+			"is_world_block": true,
+			"max_hp": 2,
+			"pos_x": 5,
+			"pos_y": 2,
+			"structure_id": 0,
+			"sub_mode": 0,
+			"texture_variant": 0,
+			"type": 6
+		},
+		{
+			"dir": 0,
+			"hp": 2,
+			"id": 38,
+			"is_world_block": true,
+			"max_hp": 2,
+			"pos_x": 6,
+			"pos_y": 2,
+			"structure_id": 0,
+			"sub_mode": 0,
+			"texture_variant": 0,
+			"type": 6
+		},
+		{
+			"dir": 0,
+			"hp": 2,
+			"id": 39,
+			"is_world_block": true,
+			"max_hp": 2,
+			"pos_x": 2,
+			"pos_y": 1,
+			"structure_id": 0,
+			"sub_mode": 0,
+			"texture_variant": 0,
+			"type": 7
+		},
+		{
+			"dir": 0,
+			"hp": 2,
+			"id": 40,
+			"is_world_block": true,
+			"max_hp": 2,
+			"pos_x": 6,
+			"pos_y": 1,
+			"structure_id": 0,
+			"sub_mode": 0,
+			"texture_variant": 0,
+			"type": 9
+		}
+	],
+	"cg_theme": "toxic_magenta",
+	"description": "怪物对抗：一只游荡怪物正在巡逻。摧毁它并消除后方的污染源！",
+	"level_id": "level_04",
+	"level_name": "第四章：游荡怪物",
+	"order_index": 3,
+	"player_build_area": {
+		"h": 8,
+		"w": 5,
+		"x": -8,
+		"y": -4
+	}
+}
