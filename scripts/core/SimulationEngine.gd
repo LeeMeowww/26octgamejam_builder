@@ -116,31 +116,115 @@ func step_tick() -> TickResult:
 func _simulate_inhibitors(snap: GridWorld, result: TickResult) -> void:
 	for b in world.get_all_blocks():
 		b.is_inhibited = false
+	for sb in snap.get_all_blocks():
+		sb.is_inhibited = false
 
-	# Any uninhibited INHIBITOR:
-	# "若方块朝向一侧检测到方块, 则反向的一格方块(暂时)失去功能."
-	var newly_inhibited: Dictionary = {} # block_id -> BlockData
-	for snap_b in snap.get_all_blocks():
-		if snap_b.block_type == BlockData.Type.INHIBITOR:
-			var front_pos := snap_b.grid_pos + snap_b.get_forward_vec()
+	var all_snap_blocks := snap.get_all_blocks()
+	var block_by_id: Dictionary = {} # int -> BlockData
+	for sb in all_snap_blocks:
+		block_by_id[sb.block_id] = sb
+
+	# Key: inhibitor block_id -> target block_id (if front has block and rear has block)
+	# Key: block_id -> Array[int] (ids of sensing inhibitors pointing to this block)
+	var inhibitor_targets: Dictionary = {} # int -> int
+	var incoming_inhibitors: Dictionary = {} # int -> Array[int]
+
+	for sb in all_snap_blocks:
+		incoming_inhibitors[sb.block_id] = []
+
+	for sb in all_snap_blocks:
+		if sb.block_type == BlockData.Type.INHIBITOR:
+			var front_pos := sb.grid_pos + sb.get_forward_vec()
+			# Does this inhibitor detect any block in front at t0?
 			if snap.has_block(front_pos):
-				# Front block detected at t0! Suppress rear block
-				var rear_pos := snap_b.grid_pos + snap_b.get_backward_vec()
-				var rear_snap_b := snap.get_block(rear_pos)
-				if rear_snap_b != null:
-					for wb in world.get_all_blocks():
-						if wb.block_id == rear_snap_b.block_id:
-							newly_inhibited[wb.block_id] = wb
-							break
+				var rear_pos := sb.grid_pos + sb.get_backward_vec()
+				var target_b := snap.get_block(rear_pos)
+				if target_b != null:
+					inhibitor_targets[sb.block_id] = target_b.block_id
+					if incoming_inhibitors.has(target_b.block_id):
+						incoming_inhibitors[target_b.block_id].append(sb.block_id)
 
-	for block in newly_inhibited.values():
-		block.is_inhibited = true
-		result.inhibited_blocks.append(block.block_id)
-		# Update in snap as well so other phases at t0 know it's inhibited
-		for sb in snap.get_all_blocks():
-			if sb.block_id == block.block_id:
-				sb.is_inhibited = true
-				break
+	# State resolution:
+	# settled_inhibited: block_id -> bool
+	# settled_active: inh_id -> bool (true if this inhibitor is active and fires inhibition)
+	# settled_inactive: inh_id -> bool (true if this inhibitor cannot fire inhibition)
+	var settled_inhibited: Dictionary = {} # int -> bool
+	var settled_active: Dictionary = {} # int -> bool
+	var settled_inactive: Dictionary = {} # int -> bool
+
+	var unsettled_ids: Dictionary = {} # int -> bool
+	for sb in all_snap_blocks:
+		unsettled_ids[sb.block_id] = true
+
+	var changed := true
+	while changed:
+		changed = false
+		for b_id in unsettled_ids.keys():
+			var incoming: Array = incoming_inhibitors.get(b_id, [])
+
+			var has_active_inhibition := false
+			var all_incoming_inactive := true
+
+			for inc_id in incoming:
+				if settled_active.get(inc_id, false):
+					has_active_inhibition = true
+					break
+				if not settled_inactive.get(inc_id, false):
+					all_incoming_inactive = false
+
+			if has_active_inhibition:
+				# Reached by an active inhibitor -> definitively INHIBITED
+				settled_inhibited[b_id] = true
+				settled_inactive[b_id] = true # Inhibited blocks lose ability to inhibit
+				unsettled_ids.erase(b_id)
+				changed = true
+			elif all_incoming_inactive:
+				# All potential inhibitors targeting this block are inactive (or none exist)
+				# -> definitively NOT INHIBITED
+				settled_inhibited[b_id] = false
+				var sb: BlockData = block_by_id[b_id]
+				if sb.block_type == BlockData.Type.INHIBITOR:
+					if inhibitor_targets.has(b_id):
+						settled_active[b_id] = true
+					else:
+						settled_inactive[b_id] = true
+				else:
+					settled_inactive[b_id] = true
+				unsettled_ids.erase(b_id)
+				changed = true
+
+		# Handle mutual cycle deadlock fallback (if graph contains mutual inhibition loops)
+		if not changed and not unsettled_ids.is_empty():
+			var cycle_fired := false
+			var nodes_to_settle: Array[int] = []
+			for b_id in unsettled_ids.keys():
+				var sb: BlockData = block_by_id[b_id]
+				if sb.block_type == BlockData.Type.INHIBITOR and inhibitor_targets.has(b_id):
+					nodes_to_settle.append(b_id)
+					nodes_to_settle.append(inhibitor_targets[b_id])
+					cycle_fired = true
+
+			for nid in nodes_to_settle:
+				settled_inhibited[nid] = true
+				settled_inactive[nid] = true
+				unsettled_ids.erase(nid)
+
+			if cycle_fired:
+				changed = true
+			else:
+				for b_id in unsettled_ids.keys():
+					settled_inhibited[b_id] = false
+				unsettled_ids.clear()
+
+	# Apply final inhibition states to world and snap
+	for sb in all_snap_blocks:
+		if settled_inhibited.get(sb.block_id, false):
+			sb.is_inhibited = true
+			result.inhibited_blocks.append(sb.block_id)
+			for wb in world.get_all_blocks():
+				if wb.block_id == sb.block_id:
+					wb.is_inhibited = true
+					break
 
 func _simulate_rotators(snap: GridWorld, result: TickResult) -> void:
 	# "本身有顺时针逆时针两种模式, 会将前方(指向)的方块按方向旋转90°."
