@@ -48,7 +48,7 @@ func _build_ui() -> void:
 	title_vbox.add_child(title_lbl)
 
 	var sub_lbl := Label.new()
-	sub_lbl.text = "进入机械构装空间，运用离散机械逻辑清除污染源并将宝藏回收至建造区。"
+	sub_lbl.text = "初次构装？先完成前 5 个教学关，认识六种基础方块，再挑战正式章节。"
 	sub_lbl.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
 	title_vbox.add_child(sub_lbl)
 

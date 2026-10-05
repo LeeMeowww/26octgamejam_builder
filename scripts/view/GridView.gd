@@ -7,6 +7,7 @@ const HALF_CELL: float = CELL_SIZE * 0.5
 var grid_world: GridWorld
 var player_build_area: Rect2i = Rect2i(0, 0, 0, 0)
 var is_level_editor_mode: bool = false # If true, can place anywhere regardless of build area
+var tutorial_target: Dictionary = {}
 
 # BlockView mapping: block_id -> BlockView
 var _views: Dictionary = {}
@@ -153,6 +154,14 @@ func _draw() -> void:
 		draw_rect(area_rect, Color(0.0, 0.9, 0.6, 0.6), false, 2.5)
 
 	# Draw Drag Selection Box
+	if not tutorial_target.is_empty():
+		var target_pos := Vector2i(int(tutorial_target.x), int(tutorial_target.y))
+		var target_rect := Rect2(Vector2(target_pos) * CELL_SIZE, Vector2.ONE * CELL_SIZE)
+		draw_rect(target_rect.grow(-3), Color(0.4, 1.0, 0.8, 0.2), true)
+		draw_rect(target_rect.grow(-3), Color("#80ffd7"), false, 3.0)
+		draw_string(ThemeDB.fallback_font, target_rect.position + Vector2(8, -8),
+			str(tutorial_target.get("marker", "A")), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("#80ffd7"))
+
 	if is_box_selecting:
 		var r := Rect2(box_select_start, box_select_current - box_select_start).abs()
 		draw_rect(r, Color(0.2, 0.6, 1.0, 0.2), true)

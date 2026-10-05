@@ -1,0 +1,58 @@
+{
+  "level_id": "tutorial_02",
+  "level_name": "教学 02：让骨架前进",
+  "description": "母巢导师：推动器让自己和紧邻的前方方块一起前进。右边的摧毁器已经准备好了。",
+  "author": "母巢导师",
+  "cg_theme": "cyan_core",
+  "order_index": -40,
+  "player_build_area": {
+    "x": -1,
+    "y": -1,
+    "w": 2,
+    "h": 3
+  },
+  "blocks": [
+    {
+      "id": 1120,
+      "type": 4,
+      "dir": 0,
+      "pos_x": 1,
+      "pos_y": 0,
+      "structure_id": 0,
+      "sub_mode": 0,
+      "hp": 2,
+      "max_hp": 2,
+      "is_world_block": true,
+      "texture_variant": 0
+    },
+    {
+      "id": 1150,
+      "type": 9,
+      "dir": 0,
+      "pos_x": 4,
+      "pos_y": 0,
+      "structure_id": 0,
+      "sub_mode": 0,
+      "hp": 2,
+      "max_hp": 2,
+      "is_world_block": true,
+      "texture_variant": 0
+    }
+  ],
+  "tutorial": {
+    "title": "02 / 05 · 推动器",
+    "intro": "母巢导师：推动器让自己和紧邻的前方方块一起前进。右边的摧毁器已经准备好了。",
+    "steps": [
+      {
+        "marker": "A",
+        "x": 0,
+        "y": 0,
+        "type": 2,
+        "text": "按 3，在 A 格放置推动器，箭头朝右 →，紧贴预设的摧毁器。",
+        "dir": 0
+      }
+    ],
+    "run_text": "连续点击「单步」，看推动器与摧毁器一起向右前进，直到污染源被清除。",
+    "success": "推动器让自身和紧邻的前方方块一起前进。\n把推动器接在摧毁器后面，就能清理远处目标。"
+  }
+}

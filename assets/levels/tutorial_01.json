@@ -1,0 +1,52 @@
+{
+  "level_id": "tutorial_01",
+  "level_name": "教学 01：第一次清理",
+  "description": "母巢导师：欢迎，小小构装师。普通方块是不会主动行动的骨架；摧毁器会清除箭头前方的一格。",
+  "author": "母巢导师",
+  "cg_theme": "cyan_core",
+  "order_index": -50,
+  "player_build_area": {
+    "x": -2,
+    "y": -1,
+    "w": 4,
+    "h": 3
+  },
+  "blocks": [
+    {
+      "id": 1120,
+      "type": 9,
+      "dir": 0,
+      "pos_x": 2,
+      "pos_y": 0,
+      "structure_id": 0,
+      "sub_mode": 0,
+      "hp": 2,
+      "max_hp": 2,
+      "is_world_block": true,
+      "texture_variant": 0
+    }
+  ],
+  "tutorial": {
+    "title": "01 / 05 · 普通与摧毁",
+    "intro": "母巢导师：欢迎，小小构装师。普通方块是不会主动行动的骨架；摧毁器会清除箭头前方的一格。",
+    "steps": [
+      {
+        "marker": "A",
+        "x": -1,
+        "y": 0,
+        "type": 0,
+        "text": "按 1 选择普通方块，在亮起的 A 格放一个。"
+      },
+      {
+        "marker": "B",
+        "x": 1,
+        "y": 0,
+        "type": 4,
+        "text": "按 5 选择摧毁器，在 B 格放置，箭头朝右 →。用 Q / E 调整方向。",
+        "dir": 0
+      }
+    ],
+    "run_text": "点击上方「单步」。观察右侧污染源被清除，而普通方块留在原地。",
+    "success": "普通方块提供骨架，不会自己行动。\n摧毁器只清除箭头前方的一格。"
+  }
+}

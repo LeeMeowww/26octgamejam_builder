@@ -59,7 +59,8 @@ func test_level_manager_scene() -> void:
 	assert(scene.level_item_list != null, "ItemList should exist")
 	assert(scene.level_item_list.item_count >= 4, "Should display levels in list")
 	# Select second level
-	scene._select_level(1)
+	for i in range(scene.levels.size()):
+		if scene.levels[i].level_id == "level_02": scene._select_level(i)
 	assert(scene.name_edit.text.contains("第二章"), "Should load level 2 data into form")
 	scene.queue_free()
 	print("   LevelManager scene initialized successfully.")
@@ -100,7 +101,7 @@ func test_level_player_scene() -> void:
 	var scene: LevelPlayer = load("res://scenes/ui/LevelPlayer.tscn").instantiate()
 	root.add_child(scene)
 	scene._ready()
-	scene.load_level_by_index(0)
+	scene.load_level_data(SaveManager.load_level("level_01"))
 	assert(scene.current_level_data != null, "Level should be loaded")
 	assert(scene.sim_engine != null, "Sim engine should be active")
 	

@@ -1,6 +1,9 @@
 class_name LevelPlayer
 extends Control
 
+const TutorialGuideScript = preload("res://scripts/ui/TutorialGuide.gd")
+var tutorial_guide: TutorialGuideScript
+
 signal back_to_menu_requested()
 
 # Current level data & state
@@ -44,6 +47,8 @@ var right_drag_start_grid: Vector2i = Vector2i.ZERO
 var right_drag_orig_positions: Dictionary = {} # BlockData -> Vector2i
 
 func _ready() -> void:
+	# Let board clicks reach _unhandled_input; UI panels still consume theirs.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	SaveManager.init_directories()
 	all_levels = SaveManager.get_all_levels()
 
@@ -63,6 +68,8 @@ func load_level_by_index(idx: int) -> void:
 		load_level_data(all_levels[idx])
 
 func load_level_data(lvl_data: LevelData) -> void:
+	selected_blocks.clear()
+	if victory_dialog != null: victory_dialog.hide()
 	current_level_data = lvl_data
 	if level_title_label != null:
 		level_title_label.text = "【%s】 %s" % [lvl_data.level_id, lvl_data.level_name]
@@ -92,9 +99,16 @@ func load_level_data(lvl_data: LevelData) -> void:
 		var bounds := world.get_bounds()
 		var center := Vector2(bounds.position.x + bounds.size.x * 0.5, bounds.position.y + bounds.size.y * 0.5) * 64.0
 		camera.position = center
+		if not lvl_data.tutorial.is_empty():
+			# Keep the small teaching board to the left of the guide panel.
+			camera.position = center + Vector2(160, 0)
+			camera.zoom = Vector2.ONE
 
 	is_simulating = false
 	is_animating_tick = false
+	if tutorial_guide != null:
+		tutorial_guide.configure(lvl_data.tutorial)
+	_refresh_tutorial()
 	_update_sim_buttons()
 	_update_goal_display()
 
@@ -274,11 +288,24 @@ func _build_ui_layout() -> void:
 	toolbar.direction_changed.connect(_on_toolbar_direction_changed)
 	toolbar.group_pressed.connect(group_selected_blocks)
 
+	# Optional teaching panel; ordinary levels have no lesson data.
+	tutorial_guide = TutorialGuideScript.new()
+	ui_layer.add_child(tutorial_guide)
+	tutorial_guide.set_anchors_and_offsets_preset(PRESET_TOP_RIGHT)
+	tutorial_guide.offset_left = -336
+	tutorial_guide.offset_right = -16
+	tutorial_guide.offset_top = 108
+	tutorial_guide.offset_bottom = 108
+	tutorial_guide.restart_requested.connect(func():
+		if not is_animating_tick: load_level_data(current_level_data)
+	)
+
 	# 4. Victory Dialog (Hidden initially)
 	victory_dialog = VictoryDialog.new()
 	victory_dialog.visible = false
 	ui_layer.add_child(victory_dialog)
 	victory_dialog.set_anchors_and_offsets_preset(PRESET_CENTER)
+	victory_dialog.resized.connect(_center_victory_dialog)
 	victory_dialog.next_level_pressed.connect(_on_next_level_pressed)
 	victory_dialog.replay_pressed.connect(reset_simulation)
 	victory_dialog.level_select_pressed.connect(func():
@@ -295,6 +322,7 @@ func toggle_simulation() -> void:
 		start_simulation()
 
 func start_simulation() -> void:
+	if not _tutorial_can_run(): return
 	if is_simulating:
 		return
 	is_simulating = true
@@ -306,6 +334,7 @@ func pause_simulation() -> void:
 	_update_sim_buttons()
 
 func step_single_tick() -> void:
+	if not _tutorial_can_run(): return
 	if is_animating_tick:
 		return
 	_execute_tick()
@@ -350,6 +379,25 @@ func _on_level_won() -> void:
 	pause_simulation()
 	var has_next := (current_level_index + 1 < all_levels.size())
 	victory_dialog.show_victory(sim_engine.step_count, has_next)
+	if not current_level_data.tutorial.is_empty():
+		victory_dialog.details_label.text = str(current_level_data.tutorial.get("success", "学会了！继续下一课吧。"))
+	_center_victory_dialog.call_deferred()
+
+func _center_victory_dialog() -> void:
+	victory_dialog.position = (get_viewport_rect().size - victory_dialog.size) * 0.5
+
+func _tutorial_can_run() -> bool:
+	return tutorial_guide == null or tutorial_guide.can_run(world, sim_engine.step_count)
+
+func _refresh_tutorial() -> void:
+	if tutorial_guide == null or world == null or sim_engine == null: return
+	var target: Dictionary = tutorial_guide.refresh(world, sim_engine.step_count, is_animating_tick)
+	if grid_view.tutorial_target != target:
+		grid_view.tutorial_target = target
+		grid_view.queue_redraw()
+	var ready := _tutorial_can_run()
+	play_btn.disabled = not ready
+	step_btn.disabled = not ready
 
 func _on_next_level_pressed() -> void:
 	if current_level_index + 1 < all_levels.size():
@@ -369,6 +417,7 @@ func _update_goal_display() -> void:
 # Input & Placement Handling
 # -------------------------------------------------------------
 func _process(_delta: float) -> void:
+	_refresh_tutorial()
 	# Update ghost preview under mouse
 	if grid_view != null and toolbar != null:
 		var mouse_world := grid_view.get_global_mouse_position()
