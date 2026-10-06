@@ -290,9 +290,20 @@ static func load_machine(name: String) -> Array[BlockData]:
 	var parsed = JSON.parse_string(text)
 	var result: Array[BlockData] = []
 	if parsed is Dictionary and parsed.has("blocks"):
+		var structure_id_map: Dictionary = {}
 		for item in parsed["blocks"]:
 			if item is Dictionary:
-				result.append(BlockData.from_dict(item))
+				var b := BlockData.from_dict(item)
+				# 重新生成全局唯一新 ID，防止与关卡现有方块 ID 冲突
+				b.block_id = BlockData.generate_new_id()
+				b.origin_id = b.block_id
+				# 结构组 ID 重映射，保持图纸内部成组关系的同时避免与关卡现有结构冲突
+				var old_sid := b.structure_id
+				if old_sid > 0:
+					if not structure_id_map.has(old_sid):
+						structure_id_map[old_sid] = BlockData.generate_new_id()
+					b.structure_id = structure_id_map[old_sid]
+				result.append(b)
 	return result
 
 static func get_saved_machines() -> Array[String]:

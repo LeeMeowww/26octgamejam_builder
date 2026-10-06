@@ -8,6 +8,7 @@ var grid_world: GridWorld
 var player_build_area: Rect2i = Rect2i(0, 0, 0, 0)
 var is_level_editor_mode: bool = false # If true, can place anywhere regardless of build area
 var tutorial_target: Dictionary = {}
+var blocks_outside_build_area: Array[Vector2i] = []
 
 # BlockView mapping: block_id -> BlockView
 var _views: Dictionary = {}
@@ -153,6 +154,13 @@ func _draw() -> void:
 		draw_rect(area_rect, Color(0.0, 0.8, 0.5, 0.08), true)
 		draw_rect(area_rect, Color(0.0, 0.9, 0.6, 0.6), false, 2.5)
 
+	# Draw warning highlight for player blocks outside build area
+	if not blocks_outside_build_area.is_empty():
+		for pos in blocks_outside_build_area:
+			var r := Rect2(Vector2(pos) * CELL_SIZE, Vector2.ONE * CELL_SIZE)
+			draw_rect(r, Color(1.0, 0.2, 0.2, 0.18), true)
+			draw_rect(r.grow(-2), Color(1.0, 0.3, 0.3, 0.85), false, 2.5)
+
 	# Draw Drag Selection Box
 	if not tutorial_target.is_empty():
 		var target_pos := Vector2i(int(tutorial_target.x), int(tutorial_target.y))
@@ -191,8 +199,15 @@ func update_preview(active: bool, btype: int, dir: int, variant: int, sub_mode: 
 		var scale_factor := (CELL_SIZE - 4.0) / tex.get_width()
 		preview_sprite.scale = Vector2(scale_factor, scale_factor)
 
-	var can_build := is_in_build_area(grid_pos)
-	preview_sprite.modulate = Color(1.0, 1.0, 1.0, 0.6) if can_build else Color(1.0, 0.3, 0.3, 0.6)
+	var existing := grid_world.get_block(grid_pos) if grid_world != null else null
+	if existing != null and existing.is_world_block and not is_level_editor_mode:
+		# Protected world block: red
+		preview_sprite.modulate = Color(1.0, 0.25, 0.25, 0.6)
+	elif not is_in_build_area(grid_pos):
+		# Outside build area (allowed to place, but will require moving before sim): amber
+		preview_sprite.modulate = Color(1.0, 0.82, 0.3, 0.6)
+	else:
+		preview_sprite.modulate = Color(1.0, 1.0, 1.0, 0.6)
 
 func _get_preview_texture_path(btype: int, var_idx: int, sub_mode: int) -> String:
 	var v := posmod(var_idx, 3)

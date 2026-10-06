@@ -688,10 +688,34 @@ func _on_load_machine() -> void:
 	var target_parent: Node = ui_layer if ui_layer != null else self
 	BlueprintDialogs.show_load_dialog(target_parent, func(m_name: String):
 		var blocks := SaveManager.load_machine(m_name)
-		var center_grid := grid_view.world_to_grid(camera.position)
+		if blocks.is_empty():
+			return
+
+		var shift := Vector2i.ZERO
+		var b_area := current_level_data.player_build_area if current_level_data else Rect2i()
+		var sum_pos := Vector2.ZERO
 		for b in blocks:
-			b.grid_pos = center_grid + b.grid_pos
+			sum_pos += Vector2(b.grid_pos) + Vector2(0.5, 0.5)
+		var machine_center := sum_pos / float(blocks.size())
+
+		if b_area.size != Vector2i.ZERO:
+			var area_center := Vector2(b_area.position) + Vector2(b_area.size) * 0.5
+			shift = Vector2i(round(area_center.x - machine_center.x), round(area_center.y - machine_center.y))
+		else:
+			var center_grid := grid_view.world_to_grid(camera.position)
+			var cam_center := Vector2(center_grid) + Vector2(0.5, 0.5)
+			shift = Vector2i(round(cam_center.x - machine_center.x), round(cam_center.y - machine_center.y))
+
+		for b in blocks:
+			var target_pos := b.grid_pos + shift
+			var existing := world.get_block(target_pos)
+			if existing != null:
+				world.remove_block_at(target_pos)
+			b.grid_pos = target_pos
 			b.is_world_block = true
+			if b.block_id <= 0 or world.get_all_blocks().any(func(ob): return ob.block_id == b.block_id):
+				b.block_id = BlockData.generate_new_id()
+				b.origin_id = b.block_id
 			world.add_block(b)
 		initial_snapshot = world.clone()
 	)

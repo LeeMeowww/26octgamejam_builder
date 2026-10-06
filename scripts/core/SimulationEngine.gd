@@ -372,39 +372,94 @@ func _simulate_pushers(snap: GridWorld, result: TickResult) -> Dictionary:
 
 		entity_deltas[ent] = Vector2i(dx, dy)
 
-	# Collision & Blockage Check:
+	# Collision & Blockage Check with Destination Conflict Resolution:
 	# If any entity cannot move, its delta becomes (0,0).
-	# Cascading: run until no more entities are stopped.
-	var changed := true
-	while changed:
-		changed = false
+	# When multiple entities compete for the same destination cell, randomly one succeeds
+	# and the other contenders fail (delta becomes (0,0)), using the true PRNG (rng).
+	var resolving := true
+	while resolving:
+		resolving = false
+
+		# 1. Cascade blockage & obstacle checks until stable
+		var blockage_changed := true
+		while blockage_changed:
+			blockage_changed = false
+			for ent in entities:
+				var delta: Vector2i = entity_deltas[ent]
+				if delta == Vector2i.ZERO:
+					continue
+
+				var can_move := true
+				for b: BlockData in ent:
+					var next_pos := b.grid_pos + delta
+					var occupant := world.get_block(next_pos)
+					if occupant != null and occupant not in ent:
+						# If occupant is HARD and uninhibited, cannot move!
+						if occupant.is_immune():
+							can_move = false
+							break
+						# If occupant is stopped or moving in conflicting direction, blocked!
+						var occ_ent = block_to_entity.get(occupant, null)
+						var occ_delta: Vector2i = entity_deltas.get(occ_ent, Vector2i.ZERO)
+						if occ_delta != delta:
+							can_move = false
+							break
+
+				if not can_move:
+					entity_deltas[ent] = Vector2i.ZERO
+					blockage_changed = true
+					resolving = true
+
+		# 2. Check destination cell competition among actively moving entities
+		var dest_to_entities: Dictionary = {} # Vector2i -> Array[Array]
 		for ent in entities:
 			var delta: Vector2i = entity_deltas[ent]
 			if delta == Vector2i.ZERO:
 				continue
-
-			# Check if moving this entity creates an invalid collision
-			var can_move := true
 			for b: BlockData in ent:
-				var next_pos := b.grid_pos + delta
-				var occupant := world.get_block(next_pos)
-				if occupant != null and occupant not in ent:
-					# Hit another block outside entity
-					# If occupant is HARD and uninhibited, absolutely cannot move!
-					if occupant.is_immune():
-						can_move = false
-						break
-					# If occupant is moving in the exact same direction, it might be fine,
-					# but if occupant is stopped or moving in conflicting direction, blocked!
-					var occ_ent = block_to_entity.get(occupant, null)
-					var occ_delta: Vector2i = entity_deltas.get(occ_ent, Vector2i.ZERO)
-					if occ_delta != delta:
-						can_move = false
-						break
+				var dest_p := b.grid_pos + delta
+				if not dest_to_entities.has(dest_p):
+					dest_to_entities[dest_p] = []
+				if not dest_to_entities[dest_p].has(ent):
+					dest_to_entities[dest_p].append(ent)
 
-			if not can_move:
-				entity_deltas[ent] = Vector2i.ZERO
-				changed = true
+		var conflict_cells: Array[Vector2i] = []
+		for dest_p in dest_to_entities.keys():
+			var contenders: Array = dest_to_entities[dest_p]
+			if contenders.size() > 1:
+				conflict_cells.append(dest_p)
+
+		if not conflict_cells.is_empty():
+			# Deterministic ordering of cells for pseudo-random reproducibility
+			conflict_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+				return a.x < b.x if a.x != b.x else a.y < b.y
+			)
+
+			for dest_p in conflict_cells:
+				var contenders: Array = dest_to_entities[dest_p]
+				var active_contenders: Array = []
+				for ent in contenders:
+					if entity_deltas[ent] != Vector2i.ZERO:
+						active_contenders.append(ent)
+
+				if active_contenders.size() > 1:
+					# Sort active contenders deterministically before RNG choice
+					active_contenders.sort_custom(func(ent1: Array, ent2: Array) -> bool:
+						var min_id1 := 2147483647
+						for b: BlockData in ent1:
+							min_id1 = mini(min_id1, b.block_id)
+						var min_id2 := 2147483647
+						for b: BlockData in ent2:
+							min_id2 = mini(min_id2, b.block_id)
+						return min_id1 < min_id2
+					)
+					# True PRNG: choose 1 winner, all other contenders fail (stop)
+					var winner_idx := rng.randi_range(0, active_contenders.size() - 1)
+					for i in range(active_contenders.size()):
+						if i != winner_idx:
+							var loser_ent: Array = active_contenders[i]
+							entity_deltas[loser_ent] = Vector2i.ZERO
+							resolving = true
 
 	# Apply valid movements
 	# To prevent overwriting when swapping cells, sort or remove from grid first then re-insert

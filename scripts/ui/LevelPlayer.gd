@@ -29,6 +29,8 @@ var speed_slider: HSlider
 var speed_label: Label
 var goal_label: Label
 var level_title_label: Label
+var build_area_warning_panel: PanelContainer
+var build_area_warning_label: Label
 
 # Simulation running state
 var is_simulating: bool = false
@@ -114,6 +116,7 @@ func load_level_data(lvl_data: LevelData) -> void:
 	_refresh_tutorial()
 	_update_sim_buttons()
 	_update_goal_display()
+	_update_build_area_status()
 
 func _build_ui_layout() -> void:
 	# 1. 2D World Canvas Node
@@ -237,6 +240,26 @@ func _build_ui_layout() -> void:
 	reset_btn.pressed.connect(reset_simulation)
 	row2_hbox.add_child(reset_btn)
 
+	build_area_warning_panel = PanelContainer.new()
+	var warn_style := StyleBoxFlat.new()
+	warn_style.bg_color = Color(0.65, 0.12, 0.12, 0.88)
+	warn_style.border_color = Color(1.0, 0.35, 0.35, 0.95)
+	warn_style.set_border_width_all(1)
+	warn_style.set_corner_radius_all(6)
+	warn_style.content_margin_left = 10
+	warn_style.content_margin_right = 10
+	warn_style.content_margin_top = 4
+	warn_style.content_margin_bottom = 4
+	build_area_warning_panel.add_theme_stylebox_override("panel", warn_style)
+
+	build_area_warning_label = Label.new()
+	build_area_warning_label.text = "⚠️ 建造区外存在方块，无法启动模拟！"
+	build_area_warning_label.add_theme_font_size_override("font_size", 13)
+	build_area_warning_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.9))
+	build_area_warning_panel.add_child(build_area_warning_label)
+	build_area_warning_panel.visible = false
+	row2_hbox.add_child(build_area_warning_panel)
+
 	var sep2 := VSeparator.new()
 	row2_hbox.add_child(sep2)
 
@@ -326,11 +349,15 @@ func toggle_simulation() -> void:
 		start_simulation()
 
 func start_simulation() -> void:
+	if has_blocks_outside_build_area():
+		_flash_outside_warning()
+		return
 	if not _tutorial_can_run(): return
 	if is_simulating:
 		return
 	is_simulating = true
 	has_simulated = true
+	_update_build_area_status()
 	_update_sim_buttons()
 	_run_sim_loop()
 
@@ -339,10 +366,14 @@ func pause_simulation() -> void:
 	_update_sim_buttons()
 
 func step_single_tick() -> void:
+	if has_blocks_outside_build_area():
+		_flash_outside_warning()
+		return
 	if not _tutorial_can_run(): return
 	if is_animating_tick:
 		return
 	has_simulated = true
+	_update_build_area_status()
 	_update_sim_buttons()
 	_execute_tick()
 
@@ -359,7 +390,7 @@ func reset_simulation() -> void:
 	sim_engine.level_won.connect(_on_level_won)
 	grid_view.set_world(world)
 
-	_update_sim_buttons()
+	_update_build_area_status()
 	_update_goal_display()
 	_refresh_tutorial()
 
@@ -404,17 +435,83 @@ func _refresh_tutorial() -> void:
 	if grid_view.tutorial_target != target:
 		grid_view.tutorial_target = target
 		grid_view.queue_redraw()
-	var ready := _tutorial_can_run()
-	play_btn.disabled = not ready
-	step_btn.disabled = not ready
+	_update_sim_buttons()
 
 func _on_next_level_pressed() -> void:
 	if current_level_index + 1 < all_levels.size():
 		load_level_by_index(current_level_index + 1)
 
+func get_blocks_outside_build_area() -> Array[BlockData]:
+	var result: Array[BlockData] = []
+	if has_simulated:
+		return result
+	if current_level_data == null or world == null:
+		return result
+	var area := current_level_data.player_build_area
+	if area.size == Vector2i.ZERO:
+		return result
+	for b in world.get_all_blocks():
+		if not b.is_world_block and not area.has_point(b.grid_pos):
+			result.append(b)
+	return result
+
+func has_blocks_outside_build_area() -> bool:
+	return not get_blocks_outside_build_area().is_empty()
+
+func _update_build_area_status() -> void:
+	var outside_blocks := get_blocks_outside_build_area()
+	var outside_count := outside_blocks.size()
+	var has_outside := (outside_count > 0)
+
+	if build_area_warning_panel != null:
+		build_area_warning_panel.visible = has_outside
+		if has_outside:
+			build_area_warning_label.text = "⚠️ 建造区外存在 %d 处方块，无法启动模拟！" % outside_count
+
+	if grid_view != null:
+		var outside_positions: Array[Vector2i] = []
+		for b in outside_blocks:
+			outside_positions.append(b.grid_pos)
+		grid_view.blocks_outside_build_area = outside_positions
+		grid_view.queue_redraw()
+
+	_update_sim_buttons()
+
+func _flash_outside_warning() -> void:
+	if build_area_warning_panel == null:
+		return
+	var tween := create_tween()
+	tween.tween_property(build_area_warning_panel, "modulate", Color(1.8, 1.8, 1.8, 1.0), 0.1)
+	tween.tween_property(build_area_warning_panel, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.25)
+
 func _update_sim_buttons() -> void:
+	var outside_blocked := has_blocks_outside_build_area()
+	var tutorial_ready := _tutorial_can_run()
+	var can_start := not outside_blocked and tutorial_ready
+
 	if play_btn != null:
 		play_btn.text = "暂停 [空格]" if is_simulating else ("继续 [空格]" if has_simulated else "开始 [空格]")
+		if not is_simulating:
+			play_btn.disabled = not can_start
+			if outside_blocked:
+				play_btn.tooltip_text = "建造区外存在方块，无法启动模拟"
+			elif not tutorial_ready:
+				play_btn.tooltip_text = "请按照教学指引放置方块"
+			else:
+				play_btn.tooltip_text = ""
+		else:
+			play_btn.disabled = false
+			play_btn.tooltip_text = ""
+
+	if step_btn != null:
+		step_btn.disabled = not can_start
+		if outside_blocked:
+			step_btn.tooltip_text = "建造区外存在方块，无法启动模拟"
+		elif not tutorial_ready:
+			step_btn.tooltip_text = "请按照教学指引放置方块"
+		else:
+			step_btn.tooltip_text = ""
+
 	if reset_btn != null:
 		reset_btn.text = "重置 [R]"
 
@@ -497,10 +594,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("rotate_cw"):
 		if not selected_blocks.is_empty():
 			for b in selected_blocks:
-				b.rotate_cw()
-				var v := grid_view.get_view(b.block_id)
-				if v != null:
-					v.update_appearance()
+				if not b.is_world_block:
+					b.rotate_cw()
+					var v := grid_view.get_view(b.block_id)
+					if v != null:
+						v.update_appearance()
 		else:
 			toolbar.rotate_direction(1)
 		get_viewport().set_input_as_handled()
@@ -509,10 +607,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("rotate_ccw"):
 		if not selected_blocks.is_empty():
 			for b in selected_blocks:
-				b.rotate_ccw()
-				var v := grid_view.get_view(b.block_id)
-				if v != null:
-					v.update_appearance()
+				if not b.is_world_block:
+					b.rotate_ccw()
+					var v := grid_view.get_view(b.block_id)
+					if v != null:
+						v.update_appearance()
 		else:
 			toolbar.rotate_direction(-1)
 		get_viewport().set_input_as_handled()
@@ -554,7 +653,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						_clear_selection()
 					var clicked_block := world.get_block(grid_pos)
 					if clicked_block != null:
-						_toggle_select_block(clicked_block)
+						if not clicked_block.is_world_block:
+							_toggle_select_block(clicked_block)
 					else:
 						# Start box select
 						is_box_selecting = true
@@ -576,7 +676,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				var clicked_block := world.get_block(grid_pos)
 				var is_on_selection := false
 				if not selected_blocks.is_empty():
-					if clicked_block != null and clicked_block in selected_blocks:
+					if clicked_block != null and clicked_block in selected_blocks and not clicked_block.is_world_block:
 						is_on_selection = true
 					elif clicked_block == null:
 						var sel_bounds := _get_selection_bounds()
@@ -585,11 +685,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 				if is_on_selection:
 					if not is_simulating and not has_simulated:
-						is_right_dragging_selection = true
-						right_drag_start_grid = grid_pos
-						right_drag_orig_positions.clear()
-						for b in selected_blocks:
-							right_drag_orig_positions[b] = b.grid_pos
+						selected_blocks = selected_blocks.filter(func(b): return not b.is_world_block)
+						if not selected_blocks.is_empty():
+							is_right_dragging_selection = true
+							right_drag_start_grid = grid_pos
+							right_drag_orig_positions.clear()
+							for b in selected_blocks:
+								right_drag_orig_positions[b] = b.grid_pos
 				else:
 					if not is_simulating and not has_simulated:
 						is_mouse_erasing = true
@@ -634,8 +736,6 @@ func _unhandled_input(event: InputEvent) -> void:
 func _try_place_block(grid_pos: Vector2i) -> void:
 	if is_simulating or has_simulated:
 		return
-	if not grid_view.is_in_build_area(grid_pos):
-		return
 
 	var existing := world.get_block(grid_pos)
 	if existing != null:
@@ -651,6 +751,7 @@ func _try_place_block(grid_pos: Vector2i) -> void:
 
 	# Update initial snapshot so Reset keeps player's current design
 	_update_initial_snapshot()
+	_update_build_area_status()
 
 func _try_erase_block(grid_pos: Vector2i) -> void:
 	if is_simulating or has_simulated:
@@ -661,6 +762,7 @@ func _try_erase_block(grid_pos: Vector2i) -> void:
 			return # Protected world blocks
 		world.remove_block_at(grid_pos)
 		_update_initial_snapshot()
+		_update_build_area_status()
 
 func _update_initial_snapshot() -> void:
 	if not is_simulating and not has_simulated:
@@ -678,6 +780,8 @@ func _clear_selection() -> void:
 	selected_blocks.clear()
 
 func _toggle_select_block(b: BlockData) -> void:
+	if b == null or b.is_world_block:
+		return
 	var idx := selected_blocks.find(b)
 	if idx >= 0:
 		selected_blocks.remove_at(idx)
@@ -700,7 +804,7 @@ func _finish_box_select() -> void:
 	for y in range(min_grid.y, max_grid.y + 1):
 		for x in range(min_grid.x, max_grid.x + 1):
 			var b := world.get_block(Vector2i(x, y))
-			if b != null and b not in selected_blocks:
+			if b != null and not b.is_world_block and b not in selected_blocks:
 				selected_blocks.append(b)
 				var v := grid_view.get_view(b.block_id)
 				if v != null:
@@ -710,6 +814,7 @@ func _finish_box_select() -> void:
 func group_selected_blocks() -> void:
 	if is_simulating or has_simulated:
 		return
+	selected_blocks = selected_blocks.filter(func(b): return not b.is_world_block)
 	if selected_blocks.is_empty():
 		return
 	world.group_blocks(selected_blocks)
@@ -727,8 +832,10 @@ func delete_selected_blocks() -> void:
 			world.remove_block_at(b.grid_pos)
 	selected_blocks.clear()
 	_update_initial_snapshot()
+	_update_build_area_status()
 
 func _get_selection_bounds() -> Rect2i:
+	selected_blocks = selected_blocks.filter(func(b): return not b.is_world_block)
 	if selected_blocks.is_empty():
 		return Rect2i()
 	var min_p := Vector2i(999999, 999999)
@@ -746,6 +853,10 @@ func _apply_selection_drag(delta: Vector2i) -> void:
 	if selected_blocks.is_empty() or delta == Vector2i.ZERO:
 		return
 
+	selected_blocks = selected_blocks.filter(func(b): return not b.is_world_block)
+	if selected_blocks.is_empty():
+		return
+
 	var new_positions: Dictionary = {}
 	for b in selected_blocks:
 		if right_drag_orig_positions.has(b):
@@ -753,15 +864,12 @@ func _apply_selection_drag(delta: Vector2i) -> void:
 		else:
 			new_positions[b] = b.grid_pos + delta
 
-	# Check build area bounds and world blocks protection
+	# Check world blocks protection (cannot move onto any level world block)
 	var can_move := true
 	for b in selected_blocks:
 		var target_p: Vector2i = new_positions[b]
-		if not grid_view.is_in_build_area(target_p):
-			can_move = false
-			break
 		var occ := world.get_block(target_p)
-		if occ != null and occ not in selected_blocks and occ.is_world_block:
+		if occ != null and occ.is_world_block:
 			can_move = false
 			break
 
@@ -777,7 +885,7 @@ func _apply_selection_drag(delta: Vector2i) -> void:
 	for b in selected_blocks:
 		var target_p: Vector2i = new_positions[b]
 		var occ := world.get_block(target_p)
-		if occ != null and occ not in selected_blocks:
+		if occ != null and occ not in selected_blocks and not occ.is_world_block:
 			world.remove_block_at(target_p)
 
 	# 2. Batch move selected blocks
@@ -798,6 +906,7 @@ func _apply_selection_drag(delta: Vector2i) -> void:
 			v.update_appearance()
 
 	_update_initial_snapshot()
+	_update_build_area_status()
 
 func clear_player_blocks() -> void:
 	if is_simulating:
@@ -810,6 +919,7 @@ func clear_player_blocks() -> void:
 			world.remove_block_at(b.grid_pos)
 	selected_blocks.clear()
 	_update_initial_snapshot()
+	_update_build_area_status()
 
 # -------------------------------------------------------------
 # Blueprint Save / Load Modals
@@ -844,14 +954,43 @@ func _on_load_machine_pressed() -> void:
 		var blocks := SaveManager.load_machine(m_name)
 		if blocks.is_empty():
 			return
-		# Paste onto canvas centered at camera position
-		var center_grid := grid_view.world_to_grid(camera.position)
+
+		var shift := Vector2i.ZERO
+		var b_area := current_level_data.player_build_area if current_level_data else Rect2i()
+		if b_area.size != Vector2i.ZERO:
+			# Center of player build area
+			var area_center := Vector2(b_area.position) + Vector2(b_area.size) * 0.5
+			# Center of mass (重心) of loaded machine
+			var sum_pos := Vector2.ZERO
+			for b in blocks:
+				sum_pos += Vector2(b.grid_pos) + Vector2(0.5, 0.5)
+			var machine_center := sum_pos / float(blocks.size())
+			shift = Vector2i(round(area_center.x - machine_center.x), round(area_center.y - machine_center.y))
+		else:
+			var center_grid := grid_view.world_to_grid(camera.position)
+			var sum_pos := Vector2.ZERO
+			for b in blocks:
+				sum_pos += Vector2(b.grid_pos) + Vector2(0.5, 0.5)
+			var machine_center := sum_pos / float(blocks.size())
+			var cam_center := Vector2(center_grid) + Vector2(0.5, 0.5)
+			shift = Vector2i(round(cam_center.x - machine_center.x), round(cam_center.y - machine_center.y))
+
 		for b in blocks:
-			var target_pos := center_grid + b.grid_pos
+			var target_pos := b.grid_pos + shift
+			var existing := world.get_block(target_pos)
+			if existing != null:
+				if existing.is_world_block:
+					continue # Don't overwrite world terrain
+				world.remove_block_at(target_pos)
 			b.grid_pos = target_pos
 			b.is_world_block = false
+			if b.block_id <= 0 or world.get_all_blocks().any(func(ob): return ob.block_id == b.block_id):
+				b.block_id = BlockData.generate_new_id()
+				b.origin_id = b.block_id
 			world.add_block(b)
+
 		_update_initial_snapshot()
+		_update_build_area_status()
 	)
 
 # -------------------------------------------------------------
@@ -863,15 +1002,16 @@ func _on_toolbar_block_selected(btype: int) -> void:
 func _on_toolbar_variant_changed(variant_idx: int) -> void:
 	if not selected_blocks.is_empty():
 		for b in selected_blocks:
-			b.texture_variant = variant_idx
-			var v := grid_view.get_view(b.block_id)
-			if v != null:
-				v.update_appearance()
+			if not b.is_world_block:
+				b.texture_variant = variant_idx
+				var v := grid_view.get_view(b.block_id)
+				if v != null:
+					v.update_appearance()
 
 func _on_toolbar_sub_mode_toggled(sub_mode: int) -> void:
 	if not selected_blocks.is_empty():
 		for b in selected_blocks:
-			if b.block_type == BlockData.Type.ROTATOR:
+			if not b.is_world_block and b.block_type == BlockData.Type.ROTATOR:
 				b.sub_mode = sub_mode
 				var v := grid_view.get_view(b.block_id)
 				if v != null:

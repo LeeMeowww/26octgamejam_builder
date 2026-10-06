@@ -37,8 +37,15 @@ func click(pos: Vector2):
 		view.push_input(e, true)
 		await frames()
 func snap(name: String):
+	if DisplayServer.get_name() == "headless":
+		await frames(2)
+		return
 	await RenderingServer.frame_post_draw
-	view.get_texture().get_image().save_png(output_dir.path_join(name + ".png"))
+	var tex := view.get_texture()
+	if tex != null:
+		var img := tex.get_image()
+		if img != null:
+			img.save_png(output_dir.path_join(name + ".png"))
 func run_test():
 	view = SubViewport.new()
 	view.size = Vector2i(1280, 720)
@@ -77,7 +84,10 @@ func run_test():
 		verify(player.current_level_index == i + 1, "next_lesson_" + str(i))
 	verify(player.current_level_data.level_id == "level_04", "tutorials_lead_to_first_chapter")
 	verify(not player.tutorial_guide.visible, "ordinary_chapter_hides_guide")
+	DirAccess.make_dir_recursive_absolute(output_dir)
 	var f := FileAccess.open(output_dir.path_join("visual-results.json"), FileAccess.WRITE)
-	f.store_string(JSON.stringify({"checks": checks, "failures": failures}, "  "))
-	f.close()
+	if f != null:
+		f.store_string(JSON.stringify({"checks": checks, "failures": failures}, "  "))
+		f.close()
+	print("UI TEST COMPLETED. Checks: ", checks, " Failures: ", failures.size())
 	quit(0 if failures.is_empty() else 1)

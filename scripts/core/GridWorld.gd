@@ -70,6 +70,8 @@ func batch_move_blocks(entries: Array[Dictionary]) -> void:
 	for entry in entries:
 		var b: BlockData = entry["block"]
 		b.grid_pos = entry["new_pos"]
+		if _cells.has(entry["new_pos"]):
+			push_error("CRITICAL: Grid collision at %s: block %d overwritten by block %d!" % [entry["new_pos"], _cells[entry["new_pos"]].block_id, b.block_id])
 		_cells[entry["new_pos"]] = b
 		if not suppress_events:
 			block_moved.emit(b, entry["old_pos"], entry["new_pos"])
