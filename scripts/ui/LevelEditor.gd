@@ -1,5 +1,6 @@
 class_name LevelEditor
 extends Control
+const UI = preload("res://scripts/ui/UIStyle.gd")
 
 var current_level_data: LevelData
 var world: GridWorld
@@ -19,6 +20,7 @@ var step_btn: Button
 var reset_btn: Button
 var save_level_btn: Button
 var clear_level_btn: Button
+var clear_confirm: ConfirmationDialog
 var save_machine_btn: Button
 var load_machine_btn: Button
 
@@ -44,6 +46,8 @@ var right_drag_start_grid: Vector2i = Vector2i.ZERO
 var right_drag_orig_positions: Dictionary = {} # BlockData -> Vector2i
 
 func _ready() -> void:
+	theme = UI.get_theme()
+	RenderingServer.set_default_clear_color(UI.BG)
 	# Let board clicks reach _unhandled_input; UI panels still consume theirs.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_ui()
@@ -107,6 +111,7 @@ func _build_ui() -> void:
 
 	# Top Bar
 	var top_panel := PanelContainer.new()
+	top_panel.theme = UI.get_theme()
 	var top_style := StyleBoxFlat.new()
 	top_style.bg_color = Color(0.08, 0.1, 0.14, 0.95)
 	top_style.border_color = Color(0.2, 0.35, 0.5, 0.8)
@@ -194,7 +199,18 @@ func _build_ui() -> void:
 	clear_level_btn.focus_mode = Control.FOCUS_NONE
 	clear_level_btn.custom_minimum_size = Vector2(76, 32)
 	clear_level_btn.tooltip_text = "清空关卡所有方块"
-	clear_level_btn.pressed.connect(clear_all_blocks)
+	clear_level_btn.pressed.connect(func():
+		if not is_simulating and not is_animating_tick:
+			clear_confirm.popup_centered(Vector2i(420, 180))
+	)
+	clear_confirm = ConfirmationDialog.new()
+	clear_confirm.theme = UI.get_theme()
+	clear_confirm.title = "清空关卡画布？"
+	clear_confirm.dialog_text = "将移除画布中的全部方块。\n如需保留，请取消并先保存关卡。"
+	clear_confirm.ok_button_text = "清空画布"
+	clear_confirm.cancel_button_text = "保留画布"
+	clear_confirm.confirmed.connect(clear_all_blocks)
+	add_child(clear_confirm)
 	row2_hbox.add_child(clear_level_btn)
 
 	save_machine_btn = Button.new()
@@ -214,6 +230,7 @@ func _build_ui() -> void:
 	row2_hbox.add_child(load_machine_btn)
 
 	save_level_btn = Button.new()
+	UI.primary(save_level_btn)
 	save_level_btn.text = "保存关卡"
 	save_level_btn.focus_mode = Control.FOCUS_NONE
 	save_level_btn.custom_minimum_size = Vector2(80, 32)
@@ -261,7 +278,7 @@ func _build_ui() -> void:
 	toolbar.add_theme_stylebox_override("panel", btm_style)
 	ui_layer.add_child(toolbar)
 	toolbar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	toolbar.offset_top = -52
+	toolbar.offset_top = -110
 	toolbar.offset_bottom = 0
 
 	toolbar.setup(true) # Editor mode allows all 10 types
@@ -329,6 +346,7 @@ func save_level_layout() -> void:
 	)
 
 func _process(_delta: float) -> void:
+	if clear_level_btn != null: clear_level_btn.disabled = is_simulating or is_animating_tick
 	if grid_view != null and toolbar != null:
 		var mouse_world := grid_view.get_global_mouse_position()
 		var grid_pos := grid_view.world_to_grid(mouse_world)
