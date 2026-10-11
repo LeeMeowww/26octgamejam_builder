@@ -221,10 +221,11 @@ static func _send_dev_server_request(endpoint: String, payload_dict: Dictionary)
 		var js_code := """
 		(function() {
 			try {
+				var data = %s;
 				fetch('%s', {
 					method: 'POST',
 					headers: {'Content-Type': 'application/json'},
-					body: %s
+					body: typeof data === 'string' ? data : JSON.stringify(data)
 				}).then(function(res) {
 					if (res.ok) {
 						console.log('[DevServer] Sync ok:', '%s');
@@ -239,7 +240,7 @@ static func _send_dev_server_request(endpoint: String, payload_dict: Dictionary)
 				console.warn('[DevServer] Sync exception:', e);
 			}
 		})();
-		""" % [endpoint, JSON.stringify(payload_json), endpoint]
+		""" % [JSON.stringify(payload_json), endpoint, endpoint]
 		JavaScriptBridge.eval(js_code)
 
 # -------------------------------------------------------------
