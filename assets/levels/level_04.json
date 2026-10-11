@@ -122,8 +122,8 @@
 	"cg_theme": "toxic_magenta",
 	"description": "怪物对抗：一只游荡怪物正在巡逻。摧毁它并消除后方的污染源！",
 	"level_id": "level_04",
-	"level_name": "第四章：游荡怪物",
-	"order_index": 3,
+	"level_name": "1-A：游荡怪物",
+	"order_index": 1,
 	"player_build_area": {
 		"h": 8,
 		"w": 5,

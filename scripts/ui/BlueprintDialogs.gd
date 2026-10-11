@@ -1,5 +1,6 @@
 class_name BlueprintDialogs
 extends Node
+const UI = preload("res://scripts/ui/UIStyle.gd")
 
 # -------------------------------------------------------------
 # Modal Wrapper with centered dialog and full-screen backdrop
@@ -9,6 +10,7 @@ class ModalWrapper extends Control:
 	var content_node: Control
 
 	func _init(content: Control) -> void:
+		theme = UI.get_theme()
 		content_node = content
 		name = "BlueprintModalWrapper"
 		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

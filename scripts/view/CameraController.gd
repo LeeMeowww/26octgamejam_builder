@@ -16,6 +16,8 @@ var touch_prev_distance: float = 0.0
 var touch_prev_midpoint: Vector2 = Vector2.ZERO
 
 func _process(delta: float) -> void:
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit: return
 	# Keyboard WASD / Arrow keys pan
 	var input_vec := Vector2.ZERO
 	if Input.is_action_pressed("move_left"):

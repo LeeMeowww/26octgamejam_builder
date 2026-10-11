@@ -1,5 +1,6 @@
 class_name LevelManager
 extends Control
+const UI = preload("res://scripts/ui/UIStyle.gd")
 
 var levels: Array[LevelData] = []
 var selected_index: int = -1
@@ -10,6 +11,7 @@ var move_up_btn: Button
 var move_down_btn: Button
 var new_level_btn: Button
 var delete_level_btn: Button
+var delete_confirm: ConfirmationDialog
 
 # Right-hand Property inputs
 var prop_panel: PanelContainer
@@ -23,6 +25,7 @@ var save_prop_btn: Button
 var open_editor_btn: Button
 
 func _ready() -> void:
+	theme = UI.get_theme()
 	SaveManager.init_directories()
 	levels = SaveManager.get_all_levels()
 	_build_ui()
@@ -60,7 +63,7 @@ func _build_ui() -> void:
 	header_hbox.add_child(back_btn)
 
 	var title_lbl := Label.new()
-	title_lbl.text = "关卡管理中心 (Level Manager)"
+	title_lbl.text = "创作工坊 / 关卡管理"
 	title_lbl.add_theme_font_size_override("font_size", 24)
 	title_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 	header_hbox.add_child(title_lbl)
@@ -122,7 +125,18 @@ func _build_ui() -> void:
 	delete_level_btn = Button.new()
 	delete_level_btn.text = "删除关卡"
 	delete_level_btn.focus_mode = Control.FOCUS_NONE
-	delete_level_btn.pressed.connect(_on_delete_level)
+	delete_level_btn.pressed.connect(func():
+		if selected_index < 0 or selected_index >= levels.size(): return
+		delete_confirm.dialog_text = "确定删除「%s」？\n关卡会从地图与本地关卡库中移除。" % levels[selected_index].level_name
+		delete_confirm.popup_centered(Vector2i(480, 180))
+	)
+	delete_confirm = ConfirmationDialog.new()
+	delete_confirm.theme = UI.get_theme()
+	delete_confirm.title = "删除关卡"
+	delete_confirm.ok_button_text = "删除此关卡"
+	delete_confirm.cancel_button_text = "保留关卡"
+	delete_confirm.confirmed.connect(_on_delete_level)
+	add_child(delete_confirm)
 	reorder_hbox.add_child(delete_level_btn)
 
 	# ----------------- RIGHT PANEL (Properties Form) -----------------

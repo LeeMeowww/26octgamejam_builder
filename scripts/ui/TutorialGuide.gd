@@ -1,4 +1,5 @@
 extends PanelContainer
+const UI = preload("res://scripts/ui/UIStyle.gd")
 
 signal restart_requested()
 
@@ -10,8 +11,11 @@ var progress: Label
 var task: Label
 var reminder: Label
 var restart_button: Button
+var hint_button: Button
+var hint_index := 0
 
 func _init() -> void:
+	theme = UI.get_theme()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color("#101e2b")
 	style.border_color = Color("#48cbb0")
@@ -23,13 +27,13 @@ func _init() -> void:
 	style.content_margin_bottom = 18
 	add_theme_stylebox_override("panel", style)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
+	box.add_theme_constant_override("separation", 10)
 	add_child(box)
 	heading = _label(box, 18, Color("#71e5cc"))
 	dialogue = _label(box, 15, Color("#d0dce7"))
 	box.add_child(HSeparator.new())
 	progress = _label(box, 13, Color("#71e5cc"))
-	task = _label(box, 17, Color.WHITE)
+	task = _label(box, 15, Color.WHITE)
 	reminder = _label(box, 13, Color("#9aafc2"))
 	reminder.text = "左键放置 · 右键擦除\nQ / E 调整箭头 · 单步观察结果\n放错了可以擦除；重置保留你的构装。"
 	restart_button = Button.new()
@@ -38,6 +42,16 @@ func _init() -> void:
 	restart_button.custom_minimum_size.y = 36
 	restart_button.pressed.connect(func(): restart_requested.emit())
 	box.add_child(restart_button)
+	hint_button = Button.new()
+	hint_button.text = "下一条提示"
+	hint_button.custom_minimum_size.y = 36
+	hint_button.pressed.connect(func():
+		var hints: Array = lesson.get("hints", [])
+		if hints.is_empty(): return
+		hint_index = (hint_index + 1) % hints.size()
+		_show_hint()
+	)
+	box.add_child(hint_button)
 
 func _label(parent: Node, font_size: int, color: Color) -> Label:
 	var label := Label.new()
@@ -53,6 +67,9 @@ func configure(data: Dictionary) -> void:
 	visible = not lesson.is_empty()
 	heading.text = str(lesson.get("title", "母巢教学"))
 	dialogue.text = str(lesson.get("intro", ""))
+	hint_index = 0
+	hint_button.visible = lesson.has("hints")
+	restart_button.text = "还原预设" if lesson.has("hints") else "重新教学"
 	_fit_height.call_deferred()
 
 func _fit_height() -> void:
@@ -82,6 +99,9 @@ func can_run(world: GridWorld, ticks: int) -> bool:
 func refresh(world: GridWorld, ticks: int, animating: bool) -> Dictionary:
 	if lesson.is_empty(): return {}
 	restart_button.disabled = animating
+	if lesson.has("hints"):
+		_show_hint()
+		return {}
 	var index := next_step(world, ticks)
 	var steps: Array = lesson.get("steps", [])
 	if index != active_step:
@@ -94,3 +114,12 @@ func refresh(world: GridWorld, ticks: int, animating: bool) -> Dictionary:
 		_fit_height.call_deferred()
 	if index < steps.size(): return steps[index]
 	return {}
+
+func _show_hint() -> void:
+	var hints: Array = lesson.get("hints", [])
+	if hints.is_empty(): return
+	if active_step == hint_index: return
+	active_step = hint_index
+	progress.text = "可选提示 · %d / %d" % [hint_index + 1, hints.size()]
+	task.text = str(hints[hint_index])
+	_fit_height.call_deferred()
