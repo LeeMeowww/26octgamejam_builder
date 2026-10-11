@@ -31,7 +31,6 @@ var initial_protected_count: int = 0
 var initial_treasure_origin_ids: Dictionary = {} # origin_id -> true
 var collected_treasure_origins: Dictionary = {} # origin_id -> true
 var collected_treasure_ids: Dictionary = {} # id -> true
-var destroyed_treasure_origins: Dictionary = {} # origin_id -> true (lineage ruined)
 var destroyed_protected_count: int = 0
 
 func _init(p_world: GridWorld, p_build_area: Rect2i = Rect2i()) -> void:
@@ -48,7 +47,6 @@ func recount_goals() -> void:
 	initial_treasure_origin_ids.clear()
 	collected_treasure_origins.clear()
 	collected_treasure_ids.clear()
-	destroyed_treasure_origins.clear()
 	destroyed_protected_count = 0
 
 	for b in world.get_all_blocks():
@@ -84,15 +82,10 @@ func get_remaining_protected() -> int:
 	return count
 
 func get_collected_treasure_lineage_count() -> int:
-	# 语义更新：统计"当前处于建造区内"的宝藏谱系数（瞬时状态）
 	var count := 0
-	var seen: Dictionary = {}
-	for b in world.get_all_blocks():
-		if b.block_type == BlockData.Type.TREASURE:
-			var o_id: int = b.origin_id if b.origin_id != 0 else b.block_id
-			if not seen.has(o_id) and _treasure_in_zone(b):
-				seen[o_id] = true
-				count += 1
+	for o_id in initial_treasure_origin_ids.keys():
+		if collected_treasure_origins.has(o_id):
+			count += 1
 	return count
 
 func get_total_treasure_lineages() -> int:
@@ -633,8 +626,6 @@ func _simulate_wanderers(snap: GridWorld, result: TickResult, pusher_destination
 			if target_world.hp <= 0:
 				if target_world.block_type == BlockData.Type.PROTECTED:
 					destroyed_protected_count += 1
-				if target_world.block_type == BlockData.Type.TREASURE:
-					_on_treasure_destroyed(target_world)
 				world.remove_block_at(target_world.grid_pos)
 				result.destroyed_blocks.append(target_world)
 
@@ -778,8 +769,6 @@ func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacke
 			if wb.block_id == tid:
 				if wb.block_type == BlockData.Type.PROTECTED:
 					destroyed_protected_count += 1
-				if wb.block_type == BlockData.Type.TREASURE:
-					_on_treasure_destroyed(wb)
 				world.remove_block_at(wb.grid_pos)
 				result.destroyed_blocks.append(wb)
 				break
@@ -788,10 +777,13 @@ func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacke
 # Treasure Zone Check & Goal Checking
 # -----------------------------------------------------------------
 func _check_treasure_collection(result: TickResult) -> void:
-	# 宝藏不再被"回收移除"。宝藏必须停留在建造区（绿色区域）内；胜利判定在
-	# _check_victory 中按"当前是否处于区内 + 从未被摧毁"的瞬时状态检查。
-	# 此函数仅保留空实现以兼容旧行为信号（collected_treasures 不再产生条目）。
-	pass
+	# 宝藏进入绿色区域后记为已回收；保留方块本身，避免回收动作改变场面。
+	for b in world.get_all_blocks():
+		if b.block_type != BlockData.Type.TREASURE or not _treasure_in_zone(b):
+			continue
+		var o_id: int = b.origin_id if b.origin_id != 0 else b.block_id
+		collected_treasure_origins[o_id] = true
+		collected_treasure_ids[b.block_id] = true
 
 func _treasure_in_zone(b: BlockData) -> bool:
 	if player_build_area.size != Vector2i.ZERO:
@@ -803,16 +795,10 @@ func _treasure_in_zone(b: BlockData) -> bool:
 			return true
 	return false
 
-func _on_treasure_destroyed(b: BlockData) -> void:
-	# 记录被摧毁宝藏的谱系（无论何时摧毁，该宝藏都永久失去资格）
-	var o_id: int = b.origin_id if b.origin_id != 0 else b.block_id
-	destroyed_treasure_origins[o_id] = true
-
 func _check_victory() -> bool:
 	# 严格胜利判定（所有条件 AND）：
 	# 1. 污染源当前数量必须为 0。
-	# 2. 每个初始宝藏谱系：当前必须存在至少一个该谱系的宝藏方块处于建造区内
-	#    （瞬时状态，而非历史曾经进入），且该谱系从未有任何宝藏被摧毁。
+	# 2. 每个初始宝藏谱系至少有一个副本曾进入建造区。
 	# 3. 被保护方块不能被摧毁（数量保持初始值）。
 	if initial_protected_count > 0:
 		if destroyed_protected_count > 0 or get_remaining_protected() < initial_protected_count:
@@ -821,18 +807,8 @@ func _check_victory() -> bool:
 	if get_remaining_pollution() > 0:
 		return false
 
-	if initial_treasure_origin_ids.size() > 0:
-		var in_zone: Dictionary = {}
-		for b in world.get_all_blocks():
-			if b.block_type == BlockData.Type.TREASURE:
-				var o_id: int = b.origin_id if b.origin_id != 0 else b.block_id
-				if _treasure_in_zone(b):
-					in_zone[o_id] = true
-		for o_id in initial_treasure_origin_ids.keys():
-			if destroyed_treasure_origins.has(o_id):
-				return false
-			if not in_zone.has(o_id):
-				return false
+	if not has_collected_all_treasures():
+		return false
 
 	# 必须有至少一个初始目标（污染源、宝藏或保护方块）才判定胜利
 	var has_any_objective: bool = (initial_pollution_count > 0 or initial_treasure_origin_ids.size() > 0 or initial_protected_count > 0)
