@@ -1,6 +1,14 @@
 class_name LevelPlayer
 extends Control
 
+const Campaign = preload("res://scripts/core/Campaign.gd")
+const UI = preload("res://scripts/ui/UIStyle.gd")
+var status_label: Label
+var clear_confirm: ConfirmationDialog
+var help_dialog: AcceptDialog
+var clear_button: Button
+var load_button: Button
+
 const TutorialGuideScript = preload("res://scripts/ui/TutorialGuide.gd")
 var tutorial_guide: TutorialGuideScript
 
@@ -51,6 +59,8 @@ var right_drag_start_grid: Vector2i = Vector2i.ZERO
 var right_drag_orig_positions: Dictionary = {} # BlockData -> Vector2i
 
 func _ready() -> void:
+	theme = UI.get_theme()
+	RenderingServer.set_default_clear_color(UI.BG)
 	# Let board clicks reach _unhandled_input; UI panels still consume theirs.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	SaveManager.init_directories()
@@ -75,8 +85,9 @@ func load_level_data(lvl_data: LevelData) -> void:
 	selected_blocks.clear()
 	if victory_dialog != null: victory_dialog.hide()
 	current_level_data = lvl_data
+	Campaign.active_level = lvl_data.level_id
 	if level_title_label != null:
-		level_title_label.text = "【%s】 %s" % [lvl_data.level_id, lvl_data.level_name]
+		level_title_label.text = lvl_data.level_name
 
 	# Build world from level blocks
 	world = GridWorld.new()
@@ -105,8 +116,8 @@ func load_level_data(lvl_data: LevelData) -> void:
 		camera.position = center
 		if not lvl_data.tutorial.is_empty():
 			# Keep the small teaching board to the left of the guide panel.
-			camera.position = center + Vector2(160, 0)
-			camera.zoom = Vector2.ONE
+			camera.position = center + Vector2(float(lvl_data.tutorial.get("camera_offset_x", 160)), 0)
+			camera.zoom = Vector2.ONE * float(lvl_data.tutorial.get("camera_zoom", 1.0))
 
 	is_simulating = false
 	is_animating_tick = false
@@ -138,6 +149,7 @@ func _build_ui_layout() -> void:
 	add_child(ui_layer)
 
 	var top_panel := PanelContainer.new()
+	top_panel.theme = UI.get_theme()
 	var top_style := StyleBoxFlat.new()
 	top_style.bg_color = Color(0.07, 0.1, 0.14, 0.9)
 	top_style.border_color = Color(0.18, 0.25, 0.35, 0.8)
@@ -160,7 +172,7 @@ func _build_ui_layout() -> void:
 	top_vbox.add_child(row1_hbox)
 
 	var back_btn := Button.new()
-	back_btn.text = "« 关卡列表"
+	back_btn.text = "‹ 章节地图"
 	back_btn.focus_mode = Control.FOCUS_NONE
 	back_btn.pressed.connect(func():
 		back_to_menu_requested.emit()
@@ -173,6 +185,17 @@ func _build_ui_layout() -> void:
 	level_title_label.add_theme_font_size_override("font_size", 15)
 	level_title_label.add_theme_color_override("font_color", Color(0.3, 0.9, 1.0))
 	row1_hbox.add_child(level_title_label)
+	var frame_btn := Button.new()
+	frame_btn.text = "全景"
+	frame_btn.tooltip_text = "将所有目标与建造区放回画面中心（Home）"
+	frame_btn.focus_mode = Control.FOCUS_NONE
+	frame_btn.pressed.connect(frame_board)
+	row1_hbox.add_child(frame_btn)
+	var help_btn := Button.new()
+	help_btn.text = "操作帮助"
+	help_btn.focus_mode = Control.FOCUS_NONE
+	help_btn.pressed.connect(show_help)
+	row1_hbox.add_child(help_btn)
 
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -191,11 +214,12 @@ func _build_ui_layout() -> void:
 	top_vbox.add_child(row2_hbox)
 
 	var clear_btn := Button.new()
-	clear_btn.text = "新建清空"
+	clear_button = clear_btn
+	clear_btn.text = "清空构装"
 	clear_btn.focus_mode = Control.FOCUS_NONE
 	clear_btn.custom_minimum_size = Vector2(76, 32)
 	clear_btn.tooltip_text = "清空建造区内所有自建方块"
-	clear_btn.pressed.connect(clear_player_blocks)
+	clear_btn.pressed.connect(func(): clear_confirm.popup_centered(Vector2i(420, 180)))
 	row2_hbox.add_child(clear_btn)
 
 	var save_btn := Button.new()
@@ -207,6 +231,7 @@ func _build_ui_layout() -> void:
 	row2_hbox.add_child(save_btn)
 
 	var load_btn := Button.new()
+	load_button = load_btn
 	load_btn.text = "读图纸"
 	load_btn.focus_mode = Control.FOCUS_NONE
 	load_btn.custom_minimum_size = Vector2(64, 32)
@@ -219,6 +244,7 @@ func _build_ui_layout() -> void:
 
 	# Sim control buttons
 	play_btn = Button.new()
+	UI.primary(play_btn)
 	play_btn.text = "开始 [空格]"
 	play_btn.focus_mode = Control.FOCUS_NONE
 	play_btn.custom_minimum_size = Vector2(96, 32)
@@ -236,7 +262,7 @@ func _build_ui_layout() -> void:
 	reset_btn.text = "重置 [R]"
 	reset_btn.focus_mode = Control.FOCUS_NONE
 	reset_btn.custom_minimum_size = Vector2(64, 32)
-	reset_btn.tooltip_text = "重置关卡到初始状态 (快捷键: R)"
+	reset_btn.tooltip_text = "恢复运行前的构装，保留你放置的方块，并恢复编辑（R）"
 	reset_btn.pressed.connect(reset_simulation)
 	row2_hbox.add_child(reset_btn)
 
@@ -288,6 +314,25 @@ func _build_ui_layout() -> void:
 	speed_label = Label.new()
 	speed_label.text = "1.0x"
 	speed_hbox.add_child(speed_label)
+	row2_hbox.move_child(play_btn, 0)
+	row2_hbox.move_child(step_btn, 1)
+	row2_hbox.move_child(reset_btn, 2)
+	row2_hbox.move_child(sep_sim, 3)
+	status_label = UI.label(top_vbox, "构装中 · 在绿色区域内放置方块", 14, UI.MUTED)
+	clear_confirm = ConfirmationDialog.new()
+	clear_confirm.theme = UI.get_theme()
+	clear_confirm.title = "清空当前构装？"
+	clear_confirm.dialog_text = "将移除所有自建方块，关卡预设保持不变。\n此操作无法撤销；需要保留时请先保存图纸。"
+	clear_confirm.ok_button_text = "清空自建方块"
+	clear_confirm.cancel_button_text = "保留构装"
+	clear_confirm.confirmed.connect(clear_player_blocks)
+	add_child(clear_confirm)
+	help_dialog = AcceptDialog.new()
+	help_dialog.theme = UI.get_theme()
+	help_dialog.title = "构装操作指南"
+	help_dialog.dialog_text = "搭建\n左键放置 · 右键擦除 · 1—6 选择方块\nQ / E 调整朝向 · F 切换旋转模式\nV 进入选择模式 · 拖框多选 · G 编组 · Delete 删除\n\n观察\n空格运行或暂停 · 单步逐拍观察 · R 重置并恢复编辑\n暂停用于观察，重置才会回到构装状态。\n\n视野\n滚轮缩放 · 中键拖动或 WASD 平移 · Home 全景\n\n重置保留构装；清空构装会删除自建方块。"
+	help_dialog.ok_button_text = "回到构装"
+	add_child(help_dialog)
 
 	# 3. Bottom Toolbar
 	toolbar = Toolbar.new()
@@ -305,7 +350,7 @@ func _build_ui_layout() -> void:
 	toolbar.add_theme_stylebox_override("panel", btm_style)
 	ui_layer.add_child(toolbar)
 	toolbar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	toolbar.offset_top = -52
+	toolbar.offset_top = -110
 	toolbar.offset_bottom = 0
 
 	toolbar.setup(false) # Player mode
@@ -321,16 +366,25 @@ func _build_ui_layout() -> void:
 	tutorial_guide.set_anchors_and_offsets_preset(PRESET_TOP_RIGHT)
 	tutorial_guide.offset_left = -336
 	tutorial_guide.offset_right = -16
-	tutorial_guide.offset_top = 108
-	tutorial_guide.offset_bottom = 108
+	tutorial_guide.offset_top = 148
+	tutorial_guide.offset_bottom = 148
 	tutorial_guide.restart_requested.connect(func():
 		if not is_animating_tick: load_level_data(current_level_data)
 	)
 
 	# 4. Victory Dialog (Hidden initially)
+	var victory_scrim := ColorRect.new()
+	victory_scrim.color = Color(0.02, 0.06, 0.08, 0.72)
+	victory_scrim.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	victory_scrim.visible = false
+	ui_layer.add_child(victory_scrim)
 	victory_dialog = VictoryDialog.new()
 	victory_dialog.visible = false
 	ui_layer.add_child(victory_dialog)
+	victory_dialog.visibility_changed.connect(func():
+		victory_scrim.visible = victory_dialog.visible
+		camera.set_process(not victory_dialog.visible)
+	)
 	victory_dialog.set_anchors_and_offsets_preset(PRESET_CENTER)
 	victory_dialog.resized.connect(_center_victory_dialog)
 	victory_dialog.next_level_pressed.connect(_on_next_level_pressed)
@@ -417,13 +471,15 @@ func _execute_tick() -> void:
 
 func _on_level_won() -> void:
 	pause_simulation()
-	var has_next := (current_level_index + 1 < all_levels.size())
+	Campaign.mark_completed(current_level_data.level_id, sim_engine.step_count)
+	var has_next := Campaign.next_index(current_level_data.level_id, all_levels) >= 0
 	victory_dialog.show_victory(sim_engine.step_count, has_next)
 	if not current_level_data.tutorial.is_empty():
 		victory_dialog.details_label.text = str(current_level_data.tutorial.get("success", "学会了！继续下一课吧。"))
 	_center_victory_dialog.call_deferred()
 
 func _center_victory_dialog() -> void:
+	victory_dialog.reset_size()
 	victory_dialog.position = (get_viewport_rect().size - victory_dialog.size) * 0.5
 
 func _tutorial_can_run() -> bool:
@@ -438,8 +494,9 @@ func _refresh_tutorial() -> void:
 	_update_sim_buttons()
 
 func _on_next_level_pressed() -> void:
-	if current_level_index + 1 < all_levels.size():
-		load_level_by_index(current_level_index + 1)
+	var next := Campaign.next_index(current_level_data.level_id, all_levels)
+	if next >= 0:
+		load_level_by_index(next)
 
 func get_blocks_outside_build_area() -> Array[BlockData]:
 	var result: Array[BlockData] = []
@@ -485,6 +542,16 @@ func _flash_outside_warning() -> void:
 	tween.tween_property(build_area_warning_panel, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.25)
 
 func _update_sim_buttons() -> void:
+	if toolbar != null: toolbar.set_editable(not has_simulated and not is_simulating)
+	if clear_button != null: clear_button.disabled = is_simulating or is_animating_tick
+	if load_button != null: load_button.disabled = has_simulated or is_simulating
+	if status_label != null and sim_engine != null:
+		if is_simulating:
+			status_label.text = "运行中 · 第 %d 步 · 空格暂停观察" % sim_engine.step_count
+		elif has_simulated:
+			status_label.text = "已暂停 · 第 %d 步 · 点击「重置」恢复编辑，构装会保留" % sim_engine.step_count
+		else:
+			status_label.text = "构装中 · 在绿色区域内放置方块 · 单步可逐拍验证"
 	var outside_blocked := has_blocks_outside_build_area()
 	var tutorial_ready := _tutorial_can_run()
 	var can_start := not outside_blocked and tutorial_ready
@@ -549,7 +616,7 @@ func _process(_delta: float) -> void:
 	if grid_view != null and toolbar != null:
 		var mouse_world := grid_view.get_global_mouse_position()
 		var grid_pos := grid_view.world_to_grid(mouse_world)
-		if toolbar.is_placing and not is_simulating and not has_simulated:
+		if toolbar.is_placing and not is_simulating and not has_simulated and not _mouse_over_interface():
 			grid_view.update_preview(
 				true,
 				toolbar.current_type,
@@ -562,6 +629,17 @@ func _process(_delta: float) -> void:
 			grid_view.update_preview(false, 0, 0, 0, 0, grid_pos)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if victory_dialog.visible: return
+	if event is InputEventKey and event.pressed:
+		var key: int = event.keycode if event.keycode != 0 else event.physical_keycode
+		if key == KEY_HOME:
+			frame_board()
+			get_viewport().set_input_as_handled()
+			return
+		if key == KEY_ESCAPE:
+			pause_simulation()
+			get_viewport().set_input_as_handled()
+			return
 	# Space: toggle simulation
 	if event.is_action_pressed("toggle_sim"):
 		toggle_simulation()
@@ -577,6 +655,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 	# Number keys: 1..6 for player blocks (1: Basic, 2: Inhibitor, 3: Pusher, 4: Replicator, 5: Destroyer, 6: Rotator)
+	if has_simulated or is_simulating: return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var code: int = event.keycode if event.keycode != 0 else event.physical_keycode
 		if code >= KEY_1 and code <= KEY_6:
@@ -1019,3 +1098,28 @@ func _on_toolbar_sub_mode_toggled(sub_mode: int) -> void:
 
 func _on_toolbar_direction_changed(dir: int) -> void:
 	pass
+
+func show_help() -> void:
+	pause_simulation()
+	help_dialog.popup_centered(Vector2i(560, 440))
+
+func _mouse_over_interface() -> bool:
+	if help_dialog != null and help_dialog.visible: return true
+	if clear_confirm != null and clear_confirm.visible: return true
+	var point := get_viewport().get_mouse_position()
+	for child in ui_layer.get_children():
+		if child is Control and child.visible and child.get_global_rect().has_point(point):
+			return true
+	return false
+
+func frame_board() -> void:
+	if world == null: return
+	var bounds := Rect2(world.get_bounds())
+	if current_level_data.player_build_area.size != Vector2i.ZERO:
+		bounds = bounds.merge(Rect2(current_level_data.player_build_area))
+	var available := get_viewport_rect().size - Vector2(100, 300)
+	var side := 340.0 if tutorial_guide != null and tutorial_guide.visible else 0.0
+	available.x -= side
+	var scale_value := clampf(minf(available.x / maxf(64, bounds.size.x * 64 + 128), available.y / maxf(64, bounds.size.y * 64 + 128)), 0.25, 1.0)
+	camera.zoom = Vector2.ONE * scale_value
+	camera.position = (bounds.position + bounds.size * 0.5) * 64 + Vector2(side / (2 * scale_value), 0)

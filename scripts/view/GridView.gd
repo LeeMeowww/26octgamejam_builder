@@ -125,8 +125,8 @@ func is_in_build_area(grid_pos: Vector2i) -> bool:
 func _draw() -> void:
 	# Subtle grid lines around the visible area
 	var grid_range := 40
-	var line_color := Color(0.12, 0.16, 0.22, 0.4)
-	var origin_color := Color(0.2, 0.35, 0.5, 0.7)
+	var line_color := Color("21343e")
+	var origin_color := Color("3c5b6b")
 
 	for x in range(-grid_range, grid_range + 1):
 		var start := Vector2(x * CELL_SIZE, -grid_range * CELL_SIZE)

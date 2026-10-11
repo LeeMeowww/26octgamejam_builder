@@ -46,8 +46,9 @@ func test_level_select_scene() -> void:
 	var scene: LevelSelect = load("res://scenes/ui/LevelSelect.tscn").instantiate()
 	root.add_child(scene)
 	scene._ready()
-	assert(scene.grid_container != null, "GridContainer should exist in LevelSelect")
-	assert(scene.grid_container.get_child_count() >= 4, "Cards should be created for each level")
+	assert(scene.map != null, "Campaign map should exist")
+	assert(scene.chapter_buttons.size() >= 4, "Four chapters should be available")
+	assert(scene.node_buttons.size() == 5, "Teaching chapter should contain five nodes")
 	scene.queue_free()
 	print("   LevelSelect scene initialized successfully.")
 
@@ -61,7 +62,7 @@ func test_level_manager_scene() -> void:
 	# Select fourth chapter level
 	for i in range(scene.levels.size()):
 		if scene.levels[i].level_id == "level_04": scene._select_level(i)
-	assert(scene.name_edit.text.contains("第四章"), "Should load level 4 data into form")
+	assert(scene.name_edit.text == SaveManager.load_level("level_04").level_name, "Should load the selected level name into form")
 	scene.queue_free()
 	print("   LevelManager scene initialized successfully.")
 
