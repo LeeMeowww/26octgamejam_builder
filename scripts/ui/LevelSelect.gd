@@ -21,6 +21,7 @@ var map_scroll: ScrollContainer
 
 func _ready() -> void:
 	theme = UI.get_theme()
+	MusicManager.play_ambient()
 	if map != null: return
 	levels = SaveManager.get_all_levels()
 	_build_ui()

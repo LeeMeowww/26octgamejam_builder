@@ -93,6 +93,7 @@ func load_level_by_index(idx: int) -> void:
 		load_level_data(all_levels[idx])
 
 func load_level_data(lvl_data: LevelData) -> void:
+	MusicManager.play_ambient()
 	selected_blocks.clear()
 	if victory_dialog != null: victory_dialog.hide()
 	current_level_data = lvl_data
@@ -361,7 +362,7 @@ func _build_ui_layout() -> void:
 	toolbar.add_theme_stylebox_override("panel", btm_style)
 	ui_layer.add_child(toolbar)
 	toolbar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	toolbar.offset_top = -110
+	toolbar.offset_top = -56
 	toolbar.offset_bottom = 0
 
 	toolbar.setup(false) # Player mode
@@ -426,6 +427,7 @@ func start_simulation() -> void:
 		return
 	is_simulating = true
 	has_simulated = true
+	MusicManager.play_running()
 	_update_build_area_status()
 	_update_sim_buttons()
 	_run_sim_loop()
@@ -442,6 +444,7 @@ func step_single_tick() -> void:
 	if is_animating_tick:
 		return
 	has_simulated = true
+	MusicManager.play_running()
 	_update_build_area_status()
 	_update_sim_buttons()
 	_execute_tick()
@@ -451,6 +454,7 @@ func reset_simulation() -> void:
 	is_animating_tick = false
 	has_simulated = false
 	victory_dialog.visible = false
+	MusicManager.play_ambient()
 
 	# Restore from initial snapshot
 	world = initial_snapshot.clone()

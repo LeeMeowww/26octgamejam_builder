@@ -12,6 +12,7 @@ func _ready() -> void:
 	KeybindManager.init_keybinds()
 	SaveManager.init_directories()
 	theme = UI.get_theme()
+	MusicManager.play_ambient()
 	_build_ui()
 
 func _build_ui() -> void:

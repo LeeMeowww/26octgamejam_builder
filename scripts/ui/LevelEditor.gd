@@ -147,6 +147,7 @@ func _build_ui() -> void:
 	back_btn.text = "« 关卡管理"
 	back_btn.focus_mode = Control.FOCUS_NONE
 	back_btn.pressed.connect(func():
+		MusicManager.play_ambient()
 		get_tree().change_scene_to_file("res://scenes/ui/LevelManager.tscn")
 	)
 	row1_hbox.add_child(back_btn)
@@ -288,7 +289,7 @@ func _build_ui() -> void:
 	toolbar.add_theme_stylebox_override("panel", btm_style)
 	ui_layer.add_child(toolbar)
 	toolbar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	toolbar.offset_top = -110
+	toolbar.offset_top = -56
 	toolbar.offset_bottom = 0
 
 	toolbar.setup(true) # Editor mode allows all 10 types
@@ -311,11 +312,13 @@ func toggle_simulation() -> void:
 		initial_snapshot = world.clone()
 		is_simulating = true
 		play_btn.text = "暂停 [空格]"
+		MusicManager.play_running()
 		_run_sim_loop()
 
 func step_tick() -> void:
 	if is_animating_tick:
 		return
+	MusicManager.play_running()
 	is_animating_tick = true
 	var res := sim_engine.step_tick()
 	grid_view.play_tick_animation(res, 0.3, func():
@@ -326,6 +329,7 @@ func reset_simulation() -> void:
 	is_simulating = false
 	is_animating_tick = false
 	play_btn.text = "测试 [空格]"
+	MusicManager.play_ambient()
 
 	world = initial_snapshot.clone()
 	sim_engine = SimulationEngine.new(world)
