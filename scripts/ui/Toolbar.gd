@@ -50,23 +50,12 @@ func _build_ui() -> void:
 	rows.add_child(h_box)
 
 	btn_group = ButtonGroup.new()
+	btn_group.allow_unpress = true
 
-	# Pointer / Selection Tool Button
+	# Keep pointer_btn reference as hidden button for compatibility
 	pointer_btn = Button.new()
-	pointer_btn.text = "选择 [V]"
 	pointer_btn.toggle_mode = true
 	pointer_btn.button_group = btn_group
-	pointer_btn.focus_mode = Control.FOCUS_NONE
-	pointer_btn.custom_minimum_size = Vector2(64, 34)
-	pointer_btn.pressed.connect(func():
-		is_placing = false
-		block_type_selected.emit(-1)
-		_describe_selection()
-	)
-	h_box.add_child(pointer_btn)
-
-	var sep1 := VSeparator.new()
-	h_box.add_child(sep1)
 
 	# Block buttons:
 	# In player mode: 0..5 (Basic [1] to Rotator [6])
@@ -99,9 +88,13 @@ func _build_ui() -> void:
 					# Cycle texture variant
 					cycle_variant()
 		)
-		btn.pressed.connect(func():
-			is_placing = true
-			select_type(type_val)
+		btn.toggled.connect(func(pressed: bool):
+			if pressed:
+				is_placing = true
+				select_type(type_val)
+			else:
+				if current_type == type_val:
+					deselect_tool()
 		)
 
 		type_buttons[t] = btn
@@ -160,8 +153,8 @@ func _build_ui() -> void:
 	)
 	h_box.add_child(group_btn)
 
-	# Select default
-	select_type(BlockData.Type.BASIC)
+	# Default to selection mode (no tool selected)
+	deselect_tool()
 
 func select_type(type_val: int) -> void:
 	if not editing_enabled: return
@@ -172,11 +165,26 @@ func select_type(type_val: int) -> void:
 	block_type_selected.emit(type_val)
 	_update_mode_visibility()
 
-func select_pointer() -> void:
+func deselect_tool() -> void:
 	is_placing = false
-	pointer_btn.button_pressed = true
+	current_type = -1
+	for b in type_buttons.values():
+		b.button_pressed = false
 	block_type_selected.emit(-1)
-	_describe_selection()
+	_update_mode_visibility()
+
+func select_pointer() -> void:
+	deselect_tool()
+
+func cycle_tool(step: int) -> void:
+	if not editing_enabled: return
+	var max_type := BlockData.Type.PROTECTED if is_editor_mode else BlockData.Type.ROTATOR
+	var next_type: int
+	if not is_placing or current_type < 0:
+		next_type = 0 if step > 0 else max_type
+	else:
+		next_type = posmod(current_type + step, max_type + 1)
+	select_type(next_type)
 
 func cycle_variant() -> void:
 	current_variant = (current_variant + 1) % 3
@@ -204,11 +212,12 @@ func _describe_selection() -> void:
 	if description_label == null: return
 	if not editing_enabled:
 		description_label.text = "模拟后暂停也不能编辑 · 点击「重置」恢复构装"
-	elif not is_placing:
-		description_label.text = "选择模式 · 拖框多选，G 编组，Delete 删除"
+	elif not is_placing or current_type < 0:
+		description_label.text = "选择模式 · 框选/单选方块 · 右键菜单 · 按 1~6 建造"
 	else:
 		var descriptions := ["连接并承载其他模块", "前方有方块时，关闭后方模块", "推动前方方块并一起前进", "读取后方，复制到前方", "清除前方的目标", "旋转前方模块", "抵挡攻击，可被抑制", "按规则游荡的敌人", "带回建造区完成回收", "清除全部污染源", "保持完整，不能损毁"]
-		description_label.text = "%s · %s" % [BlockData.SHORT_NAMES[current_type], descriptions[current_type]]
+		var desc = descriptions[current_type] if current_type >= 0 and current_type < descriptions.size() else ""
+		description_label.text = "%s · %s · 按 ESC 退出建造" % [BlockData.SHORT_NAMES.get(current_type, "方块"), desc]
 
 func set_editable(enabled: bool) -> void:
 	if editing_enabled == enabled: return

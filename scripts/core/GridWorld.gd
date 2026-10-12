@@ -45,6 +45,17 @@ func remove_block_at(pos: Vector2i) -> BlockData:
 	if block.structure_id > 0:
 		var sid := block.structure_id
 		block.structure_id = 0
+		# Check if remaining blocks in this structure are still 4-connected
+		var remaining := get_structure_blocks(sid)
+		if remaining.size() > 1:
+			var comps := get_connected_components(remaining)
+			if comps.size() > 1:
+				for i in range(1, comps.size()):
+					var new_sid := create_new_structure_id()
+					for b: BlockData in comps[i]:
+						b.structure_id = new_sid
+					if not suppress_events:
+						structure_changed.emit(new_sid)
 		if not suppress_events:
 			structure_changed.emit(sid)
 	if not suppress_events:
@@ -98,9 +109,42 @@ func get_structure_blocks(structure_id: int) -> Array[BlockData]:
 			result.append(block)
 	return result
 
+static func get_connected_components(blocks: Array[BlockData]) -> Array:
+	if blocks.is_empty():
+		return []
+	var pos_map: Dictionary = {}
+	for b in blocks:
+		pos_map[b.grid_pos] = b
+
+	var visited: Dictionary = {}
+	var components: Array = []
+
+	for b in blocks:
+		if visited.has(b.grid_pos):
+			continue
+		var comp: Array[BlockData] = []
+		var queue: Array[Vector2i] = [b.grid_pos]
+		visited[b.grid_pos] = true
+
+		while not queue.is_empty():
+			var p: Vector2i = queue.pop_front()
+			comp.append(pos_map[p])
+			for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var np: Vector2i = p + offset
+				if pos_map.has(np) and not visited.has(np):
+					visited[np] = true
+					queue.append(np)
+
+		components.append(comp)
+
+	return components
+
 func group_blocks(blocks: Array[BlockData]) -> int:
 	if blocks.is_empty():
 		return 0
+
+	var components := get_connected_components(blocks)
+
 	# Check if all blocks already share the same positive structure_id -> if so, dissolve
 	var first_sid: int = blocks[0].structure_id
 	var all_same: bool = (first_sid > 0)
@@ -108,20 +152,24 @@ func group_blocks(blocks: Array[BlockData]) -> int:
 		if b.structure_id != first_sid:
 			all_same = false
 			break
-	
-	if all_same:
+
+	if all_same and components.size() == 1:
 		# Toggle off: dissolve group
 		for b in blocks:
 			b.structure_id = 0
 		structure_changed.emit(first_sid)
 		return 0
 	else:
-		# Assign new structure ID
-		var new_sid := create_new_structure_id()
-		for b in blocks:
-			b.structure_id = new_sid
-		structure_changed.emit(new_sid)
-		return new_sid
+		# Each connected branch becomes a group!
+		var first_new_sid := 0
+		for comp in components:
+			var new_sid := create_new_structure_id()
+			if first_new_sid == 0:
+				first_new_sid = new_sid
+			for b in comp:
+				b.structure_id = new_sid
+			structure_changed.emit(new_sid)
+		return first_new_sid
 
 func dissolve_structure(structure_id: int) -> void:
 	if structure_id <= 0:

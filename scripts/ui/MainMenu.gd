@@ -5,9 +5,11 @@ const UI = preload("res://scripts/ui/UIStyle.gd")
 const Campaign = preload("res://scripts/core/Campaign.gd")
 var title_label: Label
 var subtitle_label: Label
+var settings_menu: SettingsMenu
 
 func _ready() -> void:
 	if title_label != null: return
+	KeybindManager.init_keybinds()
 	SaveManager.init_directories()
 	theme = UI.get_theme()
 	_build_ui()
@@ -65,8 +67,17 @@ func _build_ui() -> void:
 	actions.add_child(HSeparator.new())
 	var editor := _button(actions, "创作工坊")
 	editor.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/ui/LevelManager.tscn"))
+	var settings_btn := _button(actions, "系统设置")
+	settings_btn.pressed.connect(func():
+		settings_menu.visible = true
+	)
 	var quit_button := _button(actions, "退出游戏")
 	quit_button.pressed.connect(func(): get_tree().quit())
+
+	settings_menu = SettingsMenu.new()
+	settings_menu.visible = false
+	add_child(settings_menu)
+
 	var footer := UI.label(self, "自由构装解谜   /   鼠标与键盘操作   /   关内可随时查看操作帮助", 14, UI.MUTED)
 	footer.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
 	footer.offset_top = -50

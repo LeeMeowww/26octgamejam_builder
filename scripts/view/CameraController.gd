@@ -82,6 +82,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			touch_prev_distance = current_dist
 			touch_prev_midpoint = current_mid
 
+func pan_by_screen_delta(screen_delta: Vector2) -> void:
+	position -= screen_delta / zoom.x
+
+func zoom_at_point(factor: float, anchor_world_point: Vector2) -> void:
+	_zoom_at_point(factor, anchor_world_point)
+
 func _zoom_at_point(factor: float, anchor_world_point: Vector2) -> void:
 	var old_zoom := zoom.x
 	var target_zoom := clampf(old_zoom * factor, min_zoom, max_zoom)

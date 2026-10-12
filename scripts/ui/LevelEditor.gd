@@ -1,6 +1,9 @@
 class_name LevelEditor
 extends Control
 const UI = preload("res://scripts/ui/UIStyle.gd")
+const KeybindManager = preload("res://scripts/core/KeybindManager.gd")
+const EditorContextMenu = preload("res://scripts/ui/EditorContextMenu.gd")
+const EditorClipboard = preload("res://scripts/core/EditorClipboard.gd")
 
 var current_level_data: LevelData
 var world: GridWorld
@@ -44,6 +47,13 @@ var box_select_start_world: Vector2 = Vector2.ZERO
 var is_right_dragging_selection: bool = false
 var right_drag_start_grid: Vector2i = Vector2i.ZERO
 var right_drag_orig_positions: Dictionary = {} # BlockData -> Vector2i
+
+# Context menu & right-drag panning
+var context_menu: EditorContextMenu
+var is_right_mouse_down: bool = false
+var is_right_panning: bool = false
+var right_mouse_down_pos: Vector2 = Vector2.ZERO
+var right_pan_drag_threshold: float = 6.0
 
 func _ready() -> void:
 	theme = UI.get_theme()
@@ -288,6 +298,11 @@ func _build_ui() -> void:
 	toolbar.direction_changed.connect(_on_toolbar_direction_changed)
 	toolbar.group_pressed.connect(group_selected_blocks)
 
+	# Context Menu
+	context_menu = EditorContextMenu.new()
+	context_menu.item_selected.connect(_on_context_menu_action)
+	ui_layer.add_child(context_menu)
+
 func toggle_simulation() -> void:
 	if is_simulating:
 		is_simulating = false
@@ -350,7 +365,10 @@ func _process(_delta: float) -> void:
 	if grid_view != null and toolbar != null:
 		var mouse_world := grid_view.get_global_mouse_position()
 		var grid_pos := grid_view.world_to_grid(mouse_world)
-		if toolbar.is_placing and not is_simulating and not is_editing_build_area:
+		if grid_view.is_multi_ghost_active():
+			grid_view.update_multi_ghost_position(grid_pos)
+			grid_view.update_preview(false, 0, 0, 0, 0, grid_pos)
+		elif toolbar.is_placing and not is_simulating and not is_editing_build_area:
 			grid_view.update_preview(
 				true,
 				toolbar.current_type,
@@ -404,78 +422,146 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 
-	if event.is_action_pressed("toggle_sim"):
+	# Multi-block Ghost Preview Controls (Paste & Blueprint)
+	if grid_view != null and grid_view.is_multi_ghost_active():
+		var mouse_world := grid_view.get_global_mouse_position()
+		var grid_pos := grid_view.world_to_grid(mouse_world)
+
+		if KeybindManager.is_action_just_pressed(event, "rotate_ccw"):
+			grid_view.rotate_multi_ghost_ccw()
+			get_viewport().set_input_as_handled()
+			return
+		elif KeybindManager.is_action_just_pressed(event, "rotate_cw"):
+			grid_view.rotate_multi_ghost_cw()
+			get_viewport().set_input_as_handled()
+			return
+		elif KeybindManager.is_action_just_pressed(event, "flip_h"):
+			grid_view.flip_multi_ghost_h()
+			get_viewport().set_input_as_handled()
+			return
+		elif KeybindManager.is_action_just_pressed(event, "flip_v"):
+			grid_view.flip_multi_ghost_v()
+			get_viewport().set_input_as_handled()
+			return
+		elif KeybindManager.is_action_just_pressed(event, "cancel_tool") or (event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE):
+			grid_view.cancel_multi_ghost()
+			get_viewport().set_input_as_handled()
+			return
+
+		if event is InputEventMouseButton and event.pressed:
+			if event.button_index == MOUSE_BUTTON_LEFT:
+				if grid_view.can_place_multi_ghost():
+					_try_place_ghost_blocks(grid_pos)
+				get_viewport().set_input_as_handled()
+				return
+			elif event.button_index == MOUSE_BUTTON_RIGHT:
+				grid_view.cancel_multi_ghost()
+				get_viewport().set_input_as_handled()
+				return
+
+	# ESC: deselect current block tool -> enters selection state
+	if toolbar != null and toolbar.is_placing:
+		if KeybindManager.is_action_just_pressed(event, "cancel_tool") or (event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE):
+			toolbar.deselect_tool()
+			get_viewport().set_input_as_handled()
+			return
+
+		# Mouse Wheel cycles current tool when building
+		if event is InputEventMouseButton and event.pressed:
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+				toolbar.cycle_tool(-1)
+				get_viewport().set_input_as_handled()
+				return
+			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				toolbar.cycle_tool(1)
+				get_viewport().set_input_as_handled()
+				return
+
+	# Simulation Controls
+	if KeybindManager.is_action_just_pressed(event, "toggle_sim"):
 		toggle_simulation()
 		get_viewport().set_input_as_handled()
 		return
 
-	if event is InputEventKey and event.pressed and not event.echo:
-		var code: int = event.keycode if event.keycode != 0 else event.physical_keycode
-		if code == KEY_R:
-			reset_simulation()
-			get_viewport().set_input_as_handled()
-			return
-
-	# Number keys: 1..9, 0 for all blocks
-	# 1: Basic, 2: Inhibitor, 3: Pusher, 4: Replicator, 5: Destroyer, 6: Rotator, 7: Hard, 8: Wanderer, 9: Treasure, 0: Pollution
-	if event is InputEventKey and event.pressed and not event.echo:
-		var code: int = event.keycode if event.keycode != 0 else event.physical_keycode
-		if code >= KEY_1 and code <= KEY_9:
-			toolbar.select_type(code - KEY_1)
-			get_viewport().set_input_as_handled()
-			return
-		elif code == KEY_0:
-			toolbar.select_type(BlockData.Type.POLLUTION)
-			get_viewport().set_input_as_handled()
-			return
-		elif code == KEY_MINUS:
-			toolbar.select_type(BlockData.Type.PROTECTED)
-			get_viewport().set_input_as_handled()
-			return
-		elif code == KEY_V:
-			toolbar.pointer_btn.button_pressed = true
-			toolbar.is_placing = false
-			toolbar.block_type_selected.emit(-1)
-			get_viewport().set_input_as_handled()
-			return
-
-	if event.is_action_pressed("rotate_cw"):
-		if not selected_blocks.is_empty():
-			for b in selected_blocks:
-				b.rotate_cw()
-				var v := grid_view.get_view(b.block_id)
-				if v != null:
-					v.update_appearance()
-		else:
-			toolbar.rotate_direction(1)
+	if KeybindManager.is_action_just_pressed(event, "reset_sim"):
+		reset_simulation()
 		get_viewport().set_input_as_handled()
 		return
 
-	if event.is_action_pressed("rotate_ccw"):
-		if not selected_blocks.is_empty():
-			for b in selected_blocks:
-				b.rotate_ccw()
-				var v := grid_view.get_view(b.block_id)
-				if v != null:
-					v.update_appearance()
-		else:
-			toolbar.rotate_direction(-1)
-		get_viewport().set_input_as_handled()
-		return
-
-	if event.is_action_pressed("flip_mode"):
-		toolbar.toggle_sub_mode()
-		get_viewport().set_input_as_handled()
-		return
-
-	if event.is_action_pressed("group_structure"):
+	# Structure Grouping
+	if KeybindManager.is_action_just_pressed(event, "group_structure"):
 		group_selected_blocks()
 		get_viewport().set_input_as_handled()
 		return
 
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_DELETE or event.keycode == KEY_BACKSPACE:
-			delete_selected_blocks()
+	# Delete Selected Blocks (default key: X)
+	if KeybindManager.is_action_just_pressed(event, "delete"):
+		delete_selected_blocks()
+		get_viewport().set_input_as_handled()
+		return
+
+	# Copy & Paste Shortcuts
+	if KeybindManager.is_action_just_pressed(event, "copy"):
+		if not selected_blocks.is_empty():
+			EditorClipboard.copy(selected_blocks)
+			_clear_selection()
+			get_viewport().set_input_as_handled()
+			return
+
+	if KeybindManager.is_action_just_pressed(event, "paste"):
+		if EditorClipboard.has_blocks():
+			_start_paste_preview(EditorClipboard.get_blocks())
+			get_viewport().set_input_as_handled()
+			return
+
+	# Transforms on selected blocks or placement tool
+	if not selected_blocks.is_empty():
+		if KeybindManager.is_action_just_pressed(event, "rotate_cw"):
+			_rotate_selected_blocks_cw()
+			get_viewport().set_input_as_handled()
+			return
+		elif KeybindManager.is_action_just_pressed(event, "rotate_ccw"):
+			_rotate_selected_blocks_ccw()
+			get_viewport().set_input_as_handled()
+			return
+		elif KeybindManager.is_action_just_pressed(event, "flip_h"):
+			_flip_selected_blocks_h()
+			get_viewport().set_input_as_handled()
+			return
+		elif KeybindManager.is_action_just_pressed(event, "flip_v"):
+			_flip_selected_blocks_v()
+			get_viewport().set_input_as_handled()
+			return
+	elif toolbar != null and toolbar.is_placing:
+		if KeybindManager.is_action_just_pressed(event, "rotate_cw"):
+			toolbar.rotate_direction(1)
+			get_viewport().set_input_as_handled()
+			return
+		elif KeybindManager.is_action_just_pressed(event, "rotate_ccw"):
+			toolbar.rotate_direction(-1)
+			get_viewport().set_input_as_handled()
+			return
+		elif KeybindManager.is_action_just_pressed(event, "flip_h"):
+			toolbar.toggle_sub_mode()
+			get_viewport().set_input_as_handled()
+			return
+
+	# Number keys: 1..9, 0 for all blocks
+	if event is InputEventKey and event.pressed and not event.echo:
+		var code: int = event.keycode if event.keycode != 0 else event.physical_keycode
+		if code >= KEY_1 and code <= KEY_9:
+			_clear_selection()
+			toolbar.select_type(code - KEY_1)
+			get_viewport().set_input_as_handled()
+			return
+		elif code == KEY_0:
+			_clear_selection()
+			toolbar.select_type(BlockData.Type.POLLUTION)
+			get_viewport().set_input_as_handled()
+			return
+		elif code == KEY_MINUS:
+			_clear_selection()
+			toolbar.select_type(BlockData.Type.PROTECTED)
 			get_viewport().set_input_as_handled()
 			return
 
@@ -490,18 +576,35 @@ func _unhandled_input(event: InputEvent) -> void:
 					is_mouse_placing = true
 					_place_block_editor(grid_pos)
 				else:
-					if not Input.is_key_pressed(KEY_SHIFT):
-						_clear_selection()
-					var b := world.get_block(grid_pos)
-					if b != null:
-						_toggle_select(b)
+					# Selection mode
+					if Input.is_key_pressed(KEY_SHIFT):
+						var b := world.get_block(grid_pos)
+						if b != null:
+							_toggle_select(b)
+						else:
+							is_box_selecting = true
+							box_select_start_world = mouse_world
+							grid_view.is_box_selecting = true
+							grid_view.box_select_start = mouse_world
+							grid_view.box_select_current = mouse_world
+							grid_view.queue_redraw()
 					else:
-						is_box_selecting = true
-						box_select_start_world = mouse_world
-						grid_view.is_box_selecting = true
-						grid_view.box_select_start = mouse_world
-						grid_view.box_select_current = mouse_world
-						grid_view.queue_redraw()
+						# "当选中一个或一些方块时,左键单击会取消选择"
+						var clicked_b := world.get_block(grid_pos)
+						if not selected_blocks.is_empty():
+							_clear_selection()
+							if clicked_b != null:
+								_toggle_select(clicked_b)
+						else:
+							if clicked_b != null:
+								_toggle_select(clicked_b)
+							else:
+								is_box_selecting = true
+								box_select_start_world = mouse_world
+								grid_view.is_box_selecting = true
+								grid_view.box_select_start = mouse_world
+								grid_view.box_select_current = mouse_world
+								grid_view.queue_redraw()
 			else:
 				is_mouse_placing = false
 				if is_box_selecting:
@@ -512,42 +615,37 @@ func _unhandled_input(event: InputEvent) -> void:
 
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			if event.pressed:
-				var clicked_block := world.get_block(grid_pos)
-				var is_on_selection := false
-				if not selected_blocks.is_empty():
-					if clicked_block != null and clicked_block in selected_blocks:
-						is_on_selection = true
-					elif clicked_block == null:
-						var sel_bounds := _get_selection_bounds()
-						if sel_bounds.grow(1).has_point(grid_pos):
-							is_on_selection = true
-
-				if is_on_selection:
-					is_right_dragging_selection = true
-					right_drag_start_grid = grid_pos
-					right_drag_orig_positions.clear()
-					for b in selected_blocks:
-						right_drag_orig_positions[b] = b.grid_pos
-				else:
+				if toolbar.is_placing:
 					is_mouse_erasing = true
 					_erase_block_editor(grid_pos)
+				else:
+					# Selection Mode: Start right drag panning or context menu
+					is_right_mouse_down = true
+					is_right_panning = false
+					right_mouse_down_pos = event.position
 			else:
-				if is_right_dragging_selection:
-					is_right_dragging_selection = false
-					var final_delta := grid_pos - right_drag_start_grid
-					if final_delta != Vector2i.ZERO:
-						_apply_selection_drag(final_delta)
-					else:
-						for b in selected_blocks:
-							var v := grid_view.get_view(b.block_id)
-							if v != null:
-								v.position = grid_view.grid_to_world(b.grid_pos)
-					grid_view.queue_redraw()
-				is_mouse_erasing = false
+				if toolbar.is_placing:
+					is_mouse_erasing = false
+				else:
+					if is_right_mouse_down:
+						is_right_mouse_down = false
+						if not is_right_panning:
+							# Single right click without drag
+							if not selected_blocks.is_empty():
+								context_menu.popup_at(event.position, EditorClipboard.has_blocks())
+						is_right_panning = false
 
 	elif event is InputEventMouseMotion:
 		var mouse_world := grid_view.get_global_mouse_position()
 		var grid_pos := grid_view.world_to_grid(mouse_world)
+
+		if is_right_mouse_down and not toolbar.is_placing:
+			if not is_right_panning and (event.position - right_mouse_down_pos).length() > right_pan_drag_threshold:
+				is_right_panning = true
+			if is_right_panning and camera != null:
+				camera.pan_by_screen_delta(event.relative)
+				get_viewport().set_input_as_handled()
+				return
 
 		if is_right_dragging_selection:
 			var delta := grid_pos - right_drag_start_grid
@@ -564,6 +662,208 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif is_box_selecting:
 			grid_view.box_select_current = mouse_world
 			grid_view.queue_redraw()
+
+func _on_context_menu_action(action: String) -> void:
+	match action:
+		"copy":
+			if not selected_blocks.is_empty():
+				EditorClipboard.copy(selected_blocks)
+				_clear_selection()
+		"paste":
+			if EditorClipboard.has_blocks():
+				_start_paste_preview(EditorClipboard.get_blocks())
+		"delete":
+			delete_selected_blocks()
+		"rotate_cw":
+			_rotate_selected_blocks_cw()
+		"rotate_ccw":
+			_rotate_selected_blocks_ccw()
+		"flip_h":
+			_flip_selected_blocks_h()
+		"flip_v":
+			_flip_selected_blocks_v()
+
+func _start_paste_preview(blocks: Array[BlockData]) -> void:
+	if blocks.is_empty(): return
+	_clear_selection()
+	if toolbar != null:
+		toolbar.deselect_tool()
+	grid_view.start_multi_ghost(blocks)
+
+func _try_place_ghost_blocks(mouse_grid: Vector2i) -> void:
+	if not grid_view.can_place_multi_ghost():
+		return
+	var new_blocks := grid_view.get_multi_ghost_blocks_to_place(mouse_grid)
+	if new_blocks.is_empty():
+		return
+
+	var sid_map: Dictionary = {}
+	for b in new_blocks:
+		if b.structure_id > 0:
+			if not sid_map.has(b.structure_id):
+				sid_map[b.structure_id] = world.create_new_structure_id()
+			b.structure_id = sid_map[b.structure_id]
+		b.block_id = BlockData.generate_new_id()
+		b.origin_id = b.block_id
+		b.is_world_block = true
+		world.add_block(b)
+
+	grid_view.cancel_multi_ghost()
+	initial_snapshot = world.clone()
+
+func _rotate_selected_blocks_cw() -> void:
+	if selected_blocks.is_empty(): return
+	var sum := Vector2.ZERO
+	for b in selected_blocks: sum += Vector2(b.grid_pos)
+	var center := sum / float(selected_blocks.size())
+	var anchor := Vector2i(int(round(center.x)), int(round(center.y)))
+
+	var moves: Array[Dictionary] = []
+	for b in selected_blocks:
+		var rel: Vector2i = b.grid_pos - anchor
+		var new_rel := Vector2i(-rel.y, rel.x)
+		var new_dir: int = (b.direction + 1) % 4
+		moves.append({ "block": b, "old_pos": b.grid_pos, "new_pos": anchor + new_rel, "new_dir": new_dir })
+
+	for m in moves:
+		world._cells.erase(m["old_pos"])
+
+	for m in moves:
+		var occupant = world.get_block(m["new_pos"])
+		if occupant != null and occupant not in selected_blocks:
+			world.remove_block_at(m["new_pos"])
+
+	for m in moves:
+		var b: BlockData = m["block"]
+		b.grid_pos = m["new_pos"]
+		b.direction = m["new_dir"]
+		world._cells[b.grid_pos] = b
+		var v := grid_view.get_view(b.block_id)
+		if v != null:
+			v.position = grid_view.grid_to_world(b.grid_pos)
+			v.update_appearance()
+
+	grid_view.queue_redraw()
+	initial_snapshot = world.clone()
+
+func _rotate_selected_blocks_ccw() -> void:
+	if selected_blocks.is_empty(): return
+	var sum := Vector2.ZERO
+	for b in selected_blocks: sum += Vector2(b.grid_pos)
+	var center := sum / float(selected_blocks.size())
+	var anchor := Vector2i(int(round(center.x)), int(round(center.y)))
+
+	var moves: Array[Dictionary] = []
+	for b in selected_blocks:
+		var rel: Vector2i = b.grid_pos - anchor
+		var new_rel := Vector2i(rel.y, -rel.x)
+		var new_dir: int = (b.direction + 3) % 4
+		moves.append({ "block": b, "old_pos": b.grid_pos, "new_pos": anchor + new_rel, "new_dir": new_dir })
+
+	for m in moves:
+		world._cells.erase(m["old_pos"])
+
+	for m in moves:
+		var occupant = world.get_block(m["new_pos"])
+		if occupant != null and occupant not in selected_blocks:
+			world.remove_block_at(m["new_pos"])
+
+	for m in moves:
+		var b: BlockData = m["block"]
+		b.grid_pos = m["new_pos"]
+		b.direction = m["new_dir"]
+		world._cells[b.grid_pos] = b
+		var v := grid_view.get_view(b.block_id)
+		if v != null:
+			v.position = grid_view.grid_to_world(b.grid_pos)
+			v.update_appearance()
+
+	grid_view.queue_redraw()
+	initial_snapshot = world.clone()
+
+func _flip_selected_blocks_h() -> void:
+	if selected_blocks.is_empty(): return
+	var sum := Vector2.ZERO
+	for b in selected_blocks: sum += Vector2(b.grid_pos)
+	var center := sum / float(selected_blocks.size())
+	var anchor := Vector2i(int(round(center.x)), int(round(center.y)))
+
+	var moves: Array[Dictionary] = []
+	for b in selected_blocks:
+		var rel: Vector2i = b.grid_pos - anchor
+		var new_rel := Vector2i(-rel.x, rel.y)
+		var new_dir: int = b.direction
+		match b.direction:
+			BlockData.Direction.RIGHT: new_dir = BlockData.Direction.LEFT
+			BlockData.Direction.LEFT: new_dir = BlockData.Direction.RIGHT
+		var new_sub: int = b.sub_mode
+		if b.block_type == BlockData.Type.ROTATOR:
+			new_sub = 1 - b.sub_mode
+		moves.append({ "block": b, "old_pos": b.grid_pos, "new_pos": anchor + new_rel, "new_dir": new_dir, "new_sub": new_sub })
+
+	for m in moves:
+		world._cells.erase(m["old_pos"])
+
+	for m in moves:
+		var occupant = world.get_block(m["new_pos"])
+		if occupant != null and occupant not in selected_blocks:
+			world.remove_block_at(m["new_pos"])
+
+	for m in moves:
+		var b: BlockData = m["block"]
+		b.grid_pos = m["new_pos"]
+		b.direction = m["new_dir"]
+		b.sub_mode = m["new_sub"]
+		world._cells[b.grid_pos] = b
+		var v := grid_view.get_view(b.block_id)
+		if v != null:
+			v.position = grid_view.grid_to_world(b.grid_pos)
+			v.update_appearance()
+
+	grid_view.queue_redraw()
+	initial_snapshot = world.clone()
+
+func _flip_selected_blocks_v() -> void:
+	if selected_blocks.is_empty(): return
+	var sum := Vector2.ZERO
+	for b in selected_blocks: sum += Vector2(b.grid_pos)
+	var center := sum / float(selected_blocks.size())
+	var anchor := Vector2i(int(round(center.x)), int(round(center.y)))
+
+	var moves: Array[Dictionary] = []
+	for b in selected_blocks:
+		var rel: Vector2i = b.grid_pos - anchor
+		var new_rel := Vector2i(rel.x, -rel.y)
+		var new_dir: int = b.direction
+		match b.direction:
+			BlockData.Direction.DOWN: new_dir = BlockData.Direction.UP
+			BlockData.Direction.UP: new_dir = BlockData.Direction.DOWN
+		var new_sub: int = b.sub_mode
+		if b.block_type == BlockData.Type.ROTATOR:
+			new_sub = 1 - b.sub_mode
+		moves.append({ "block": b, "old_pos": b.grid_pos, "new_pos": anchor + new_rel, "new_dir": new_dir, "new_sub": new_sub })
+
+	for m in moves:
+		world._cells.erase(m["old_pos"])
+
+	for m in moves:
+		var occupant = world.get_block(m["new_pos"])
+		if occupant != null and occupant not in selected_blocks:
+			world.remove_block_at(m["new_pos"])
+
+	for m in moves:
+		var b: BlockData = m["block"]
+		b.grid_pos = m["new_pos"]
+		b.direction = m["new_dir"]
+		b.sub_mode = m["new_sub"]
+		world._cells[b.grid_pos] = b
+		var v := grid_view.get_view(b.block_id)
+		if v != null:
+			v.position = grid_view.grid_to_world(b.grid_pos)
+			v.update_appearance()
+
+	grid_view.queue_redraw()
+	initial_snapshot = world.clone()
 
 func _place_block_editor(grid_pos: Vector2i) -> void:
 	if is_simulating:
@@ -708,41 +1008,17 @@ func _on_load_machine() -> void:
 		var blocks := SaveManager.load_machine(m_name)
 		if blocks.is_empty():
 			return
-
-		var shift := Vector2i.ZERO
-		var b_area := current_level_data.player_build_area if current_level_data else Rect2i()
-		var sum_pos := Vector2.ZERO
-		for b in blocks:
-			sum_pos += Vector2(b.grid_pos) + Vector2(0.5, 0.5)
-		var machine_center := sum_pos / float(blocks.size())
-
-		if b_area.size != Vector2i.ZERO:
-			var area_center := Vector2(b_area.position) + Vector2(b_area.size) * 0.5
-			shift = Vector2i(round(area_center.x - machine_center.x), round(area_center.y - machine_center.y))
-		else:
-			var center_grid := grid_view.world_to_grid(camera.position)
-			var cam_center := Vector2(center_grid) + Vector2(0.5, 0.5)
-			shift = Vector2i(round(cam_center.x - machine_center.x), round(cam_center.y - machine_center.y))
-
-		for b in blocks:
-			var target_pos := b.grid_pos + shift
-			var existing := world.get_block(target_pos)
-			if existing != null:
-				world.remove_block_at(target_pos)
-			b.grid_pos = target_pos
-			b.is_world_block = true
-			if b.block_id <= 0 or world.get_all_blocks().any(func(ob): return ob.block_id == b.block_id):
-				b.block_id = BlockData.generate_new_id()
-				b.origin_id = b.block_id
-			world.add_block(b)
-		initial_snapshot = world.clone()
+		_start_paste_preview(blocks)
 	)
 
 # -------------------------------------------------------------
 # Toolbar signal handlers
 # -------------------------------------------------------------
 func _on_toolbar_block_selected(btype: int) -> void:
-	pass
+	if btype >= 0:
+		_clear_selection()
+		if grid_view != null and grid_view.is_multi_ghost_active():
+			grid_view.cancel_multi_ghost()
 
 func _on_toolbar_variant_changed(variant_idx: int) -> void:
 	if not selected_blocks.is_empty():
