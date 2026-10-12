@@ -165,7 +165,7 @@ func test_treasure_replicated_can_satisfy_lineage() -> void:
 	# Original t1 remains outside at (10, 0)
 	var res := sim.step_tick()
 
-	assert(not world.has_block(Vector2i(1, 1)), "Replica inside build area should be collected")
+	assert(world.has_block(Vector2i(1, 1)), "Collected replica remains visible in build area")
 	assert(world.has_block(Vector2i(10, 0)), "Original t1 should still be on grid")
 	assert(sim.has_collected_all_treasures() == true, "Collecting the replica satisfies the lineage!")
 	assert(res.is_victory == true, "Level won by collecting replica even though original remains on map!")

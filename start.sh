@@ -81,7 +81,7 @@ if [ "$NO_EXPORT" = false ]; then
 
     if [ -z "$GODOT_EXEC" ]; then
         echo "❌ 未检测到 Godot 4 可执行文件！"
-        echo "请尝试指定路径: GODOT_BIN=\"/path/to/godot\" ./start_web.sh"
+        echo "请尝试指定路径: GODOT_BIN=\"/path/to/godot\" ./start.sh"
         exit 1
     fi
 

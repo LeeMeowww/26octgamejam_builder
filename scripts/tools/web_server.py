@@ -17,7 +17,7 @@ import socket
 import ssl
 import subprocess
 import webbrowser
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LEVELS_DIR = os.path.join(PROJECT_ROOT, "assets", "levels")
@@ -55,7 +55,13 @@ class GodotWebHandler(SimpleHTTPRequestHandler):
             if length <= 0:
                 return None
             body = self.rfile.read(length).decode("utf-8")
-            return json.loads(body)
+            data = json.loads(body)
+            if isinstance(data, str):
+                try:
+                    data = json.loads(data)
+                except Exception:
+                    pass
+            return data
         except Exception as e:
             sys.stderr.write(f"[DevServer] JSON parse error: {e}\n")
             return None
@@ -221,7 +227,7 @@ def run_server(web_dir, port=8060, use_https=False, open_browser=True):
     handler = lambda *args, **kwargs: GodotWebHandler(*args, directory=web_dir, **kwargs)
 
     try:
-        httpd = HTTPServer(('0.0.0.0', actual_port), handler)
+        httpd = ThreadingHTTPServer(('0.0.0.0', actual_port), handler)
     except Exception as e:
         print(f"❌ 启动 Web 服务器失败: {e}")
         return

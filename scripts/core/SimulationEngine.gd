@@ -774,44 +774,32 @@ func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacke
 				break
 
 # -----------------------------------------------------------------
-# Treasure Collection & Goal Checking
+# Treasure Zone Check & Goal Checking
 # -----------------------------------------------------------------
 func _check_treasure_collection(result: TickResult) -> void:
-	# 宝藏回收规则：宝藏必须被机械推动/搬运带回玩家建造区域内才算被回收！
-	var all_blocks := world.get_all_blocks()
-	var treasures_to_collect: Array[BlockData] = []
-
-	for b in all_blocks:
-		if b.block_type == BlockData.Type.TREASURE:
-			if player_build_area.size != Vector2i.ZERO:
-				# 有指定建造区时：必须带回建造区内
-				if player_build_area.has_point(b.grid_pos):
-					treasures_to_collect.append(b)
-			else:
-				# 若关卡为无限制建造区（全图模式）：与机械相邻即可回收
-				var collected := false
-				for offset in BlockData.DIR_VECTORS:
-					var neighbor := world.get_block(b.grid_pos + offset)
-					if neighbor != null and neighbor.is_player_block():
-						collected = true
-						break
-				if collected:
-					treasures_to_collect.append(b)
-
-	for tr in treasures_to_collect:
-		var o_id: int = tr.origin_id if tr.origin_id != 0 else tr.block_id
+	# 宝藏进入绿色区域后记为已回收；保留方块本身，避免回收动作改变场面。
+	for b in world.get_all_blocks():
+		if b.block_type != BlockData.Type.TREASURE or not _treasure_in_zone(b):
+			continue
+		var o_id: int = b.origin_id if b.origin_id != 0 else b.block_id
 		collected_treasure_origins[o_id] = true
-		collected_treasure_ids[tr.block_id] = true
-		world.remove_block_at(tr.grid_pos)
-		result.collected_treasures.append(tr)
+		collected_treasure_ids[b.block_id] = true
+
+func _treasure_in_zone(b: BlockData) -> bool:
+	if player_build_area.size != Vector2i.ZERO:
+		return player_build_area.has_point(b.grid_pos)
+	# 无建造区限制（全图模式）：与玩家机械相邻即视为在区内
+	for offset in BlockData.DIR_VECTORS:
+		var neighbor := world.get_block(b.grid_pos + offset)
+		if neighbor != null and neighbor.is_player_block():
+			return true
+	return false
 
 func _check_victory() -> bool:
-	# 胜利判定规则：
-	# 1. 关卡目标：取回所有宝藏且摧毁所有污染源，同时不能摧毁被保护的方块
-	# 2. 一开始的每个宝藏是区分的；被复制出来的宝藏/污染是不区分的。
-	#    判定集齐了所有宝藏，可以是靠复制或取回，但不能是同一个宝藏复制很多份代替其他宝藏。
-	# 3. 污染源要求最后绝对数量为0。
-	# 4. 被保护方块不能被摧毁（无论是被怪物还是自己摧毁）。
+	# 严格胜利判定（所有条件 AND）：
+	# 1. 污染源当前数量必须为 0。
+	# 2. 每个初始宝藏谱系至少有一个副本曾进入建造区。
+	# 3. 被保护方块不能被摧毁（数量保持初始值）。
 	if initial_protected_count > 0:
 		if destroyed_protected_count > 0 or get_remaining_protected() < initial_protected_count:
 			return false
