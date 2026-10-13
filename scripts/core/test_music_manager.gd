@@ -39,13 +39,13 @@ func run_tests() -> void:
 	check(mm.running_track.target_volume == 1.0, "Running target volume is 1.0")
 	check(mm.ambient_track.target_volume == 0.0, "Ambient target volume is 0.0")
 
-	# Simulate 0.6 seconds (halfway through 1.2s track crossfade)
-	mm._process(0.6)
-	check(mm.running_track.current_volume > 0.3 and mm.running_track.current_volume < 0.7, "Running track volume crossfading in (approx 0.5)")
-	check(mm.ambient_track.current_volume > 0.3 and mm.ambient_track.current_volume < 0.7, "Ambient track volume crossfading out (approx 0.5)")
+	# Simulate 0.175 seconds (halfway through 0.35s track crossfade)
+	mm._process(0.175)
+	check(mm.running_track.current_volume > 0.35 and mm.running_track.current_volume < 0.65, "Running track volume crossfading in (approx 0.5)")
+	check(mm.ambient_track.current_volume > 0.35 and mm.ambient_track.current_volume < 0.65, "Ambient track volume crossfading out (approx 0.5)")
 
-	# Complete crossfade (another 0.7s)
-	mm._process(0.7)
+	# Complete crossfade (another 0.25s)
+	mm._process(0.25)
 	check(mm.running_track.current_volume == 1.0, "Running track volume fully faded in (1.0)")
 	check(mm.ambient_track.current_volume <= 0.001, "Ambient track volume fully faded out (0.0)")
 
@@ -60,8 +60,8 @@ func run_tests() -> void:
 	check(mm.ambient_track.target_volume == 1.0, "Ambient target volume is 1.0")
 	check(mm.running_track.target_volume == 0.0, "Running target volume is 0.0")
 
-	# Advance process by full transition duration
-	mm._process(1.3)
+	# Advance process by full transition duration (0.8s)
+	mm._process(0.9)
 	check(mm.ambient_track.current_volume == 1.0, "Ambient track fully faded in")
 	check(mm.running_track.current_volume <= 0.001, "Running track fully faded out and stopped")
 

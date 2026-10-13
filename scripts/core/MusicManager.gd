@@ -15,7 +15,9 @@ const AMBIENT_STREAM_PATH := "res://assets/music/The_Eccentric_Carpenter.mp3"
 const RUNNING_STREAM_PATH := "res://assets/music/Saturday_Morning_Architect.mp3"
 
 const LOOP_CROSSFADE_DURATION := 4.0 # Seconds for head-tail loop crossfade
-const TRACK_CROSSFADE_DURATION := 1.2 # Seconds for transitioning between tracks
+const TRANSITION_TO_RUNNING_DURATION := 0.35 # Fast snappy transition when simulation starts (~1 tick)
+const TRANSITION_TO_AMBIENT_DURATION := 0.8 # Smooth transition back to ambient/build mode
+const TRACK_CROSSFADE_DURATION := 0.35 # Default / compatibility duration
 
 class LoopedTrack:
 	var name: String
@@ -34,6 +36,7 @@ class LoopedTrack:
 	var current_volume: float = 0.0
 	var is_running_track: bool = false
 	var master_volume: float = 1.0
+	var fade_duration: float = 0.35
 
 	func _init(p_parent: Node, p_name: String, p_stream_path: String, p_is_running: bool) -> void:
 		name = p_name
@@ -97,10 +100,11 @@ class LoopedTrack:
 
 	func update(delta: float) -> void:
 		# 1. Update track-level volume crossfade
+		var dur := maxf(fade_duration, 0.01)
 		if current_volume < target_volume:
-			current_volume = minf(target_volume, current_volume + delta / TRACK_CROSSFADE_DURATION)
+			current_volume = minf(target_volume, current_volume + delta / dur)
 		elif current_volume > target_volume:
-			current_volume = maxf(target_volume, current_volume - delta / TRACK_CROSSFADE_DURATION)
+			current_volume = maxf(target_volume, current_volume - delta / dur)
 			if current_volume <= 0.0001 and target_volume == 0.0:
 				if is_running_track:
 					stop()
@@ -191,19 +195,23 @@ func _process(delta: float) -> void:
 func play_ambient_track() -> void:
 	current_mode = Mode.AMBIENT
 	if ambient_track != null:
+		ambient_track.fade_duration = TRANSITION_TO_AMBIENT_DURATION
 		ambient_track.target_volume = 1.0
 		if not ambient_track.is_playing() or ambient_track.active_player.stream_paused:
 			ambient_track.start(false)
 	if running_track != null:
+		running_track.fade_duration = TRANSITION_TO_AMBIENT_DURATION
 		running_track.target_volume = 0.0
 
 func play_running_track() -> void:
 	current_mode = Mode.RUNNING
 	if running_track != null:
+		running_track.fade_duration = TRANSITION_TO_RUNNING_DURATION
 		running_track.target_volume = 1.0
 		if not running_track.is_playing():
 			running_track.start(true)
 	if ambient_track != null:
+		ambient_track.fade_duration = TRANSITION_TO_RUNNING_DURATION
 		ambient_track.target_volume = 0.0
 
 # Static helpers for global access anywhere in GDScript
