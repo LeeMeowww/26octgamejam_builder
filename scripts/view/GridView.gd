@@ -28,12 +28,24 @@ var box_select_current: Vector2 = Vector2.ZERO
 
 var preview_sprite: Sprite2D
 
+# Multi-block Ghost preview for Paste / Load Blueprint
+var multi_ghost_root: Node2D
+var multi_ghost_active: bool = false
+var multi_ghost_blocks: Array[Dictionary] = []
+var multi_ghost_sprites: Array[Sprite2D] = []
+var multi_ghost_mouse_pos: Vector2i = Vector2i.ZERO
+var multi_ghost_has_conflict: bool = false
+
 func _ready() -> void:
 	preview_sprite = Sprite2D.new()
 	preview_sprite.modulate = Color(1.0, 1.0, 1.0, 0.5)
 	preview_sprite.z_index = 10
 	preview_sprite.visible = false
 	add_child(preview_sprite)
+
+	multi_ghost_root = Node2D.new()
+	multi_ghost_root.z_index = 10
+	add_child(multi_ghost_root)
 
 func set_world(p_world: GridWorld) -> void:
 	if grid_world != null:
@@ -226,6 +238,165 @@ func _get_preview_texture_path(btype: int, var_idx: int, sub_mode: int) -> Strin
 		BlockData.Type.POLLUTION: return "res://assets/textures/blocks/pollution_%d.svg" % v
 		BlockData.Type.PROTECTED: return "res://assets/textures/blocks/protected_%d.svg" % v
 		_: return "res://assets/textures/blocks/basic_0.svg"
+
+# -------------------------------------------------------------
+# Multi-block Ghost Preview (Paste & Load Blueprint)
+# -------------------------------------------------------------
+func start_multi_ghost(blocks: Array[BlockData]) -> void:
+	cancel_multi_ghost()
+	if blocks.is_empty():
+		return
+
+	# Calculate center of mass
+	var sum := Vector2.ZERO
+	for b in blocks:
+		sum += Vector2(b.grid_pos)
+	var center := sum / float(blocks.size())
+	var anchor := Vector2i(int(round(center.x)), int(round(center.y)))
+
+	multi_ghost_blocks.clear()
+	for b in blocks:
+		multi_ghost_blocks.append({
+			"offset": b.grid_pos - anchor,
+			"type": b.block_type,
+			"dir": b.direction,
+			"variant": b.texture_variant,
+			"sub_mode": b.sub_mode,
+			"structure_id": b.structure_id
+		})
+
+	multi_ghost_active = true
+	_create_multi_ghost_sprites()
+	update_multi_ghost_position(multi_ghost_mouse_pos)
+
+func _ensure_multi_ghost_root() -> void:
+	if multi_ghost_root == null:
+		multi_ghost_root = Node2D.new()
+		multi_ghost_root.z_index = 10
+		add_child(multi_ghost_root)
+
+func _create_multi_ghost_sprites() -> void:
+	_ensure_multi_ghost_root()
+	for s in multi_ghost_sprites:
+		s.queue_free()
+	multi_ghost_sprites.clear()
+
+	for d in multi_ghost_blocks:
+		var sprite := Sprite2D.new()
+		sprite.modulate = Color(1.0, 1.0, 1.0, 0.7)
+		multi_ghost_root.add_child(sprite)
+		multi_ghost_sprites.append(sprite)
+
+	_refresh_multi_ghost_sprites()
+
+func _refresh_multi_ghost_sprites() -> void:
+	for i in range(multi_ghost_blocks.size()):
+		if i >= multi_ghost_sprites.size():
+			break
+		var d: Dictionary = multi_ghost_blocks[i]
+		var s: Sprite2D = multi_ghost_sprites[i]
+
+		var tex_path := _get_preview_texture_path(d["type"], d["variant"], d["sub_mode"])
+		var tex := BlockView._get_cached_texture(tex_path)
+		if tex != null:
+			s.texture = tex
+			var scale_factor := (CELL_SIZE - 4.0) / tex.get_width()
+			s.scale = Vector2(scale_factor, scale_factor)
+
+	update_multi_ghost_position(multi_ghost_mouse_pos)
+
+func rotate_multi_ghost_cw() -> void:
+	if not multi_ghost_active: return
+	for d in multi_ghost_blocks:
+		var old_offset: Vector2i = d["offset"]
+		d["offset"] = Vector2i(-old_offset.y, old_offset.x)
+		d["dir"] = (d["dir"] + 1) % 4
+	_refresh_multi_ghost_sprites()
+
+func rotate_multi_ghost_ccw() -> void:
+	if not multi_ghost_active: return
+	for d in multi_ghost_blocks:
+		var old_offset: Vector2i = d["offset"]
+		d["offset"] = Vector2i(old_offset.y, -old_offset.x)
+		d["dir"] = (d["dir"] + 3) % 4
+	_refresh_multi_ghost_sprites()
+
+func flip_multi_ghost_h() -> void:
+	if not multi_ghost_active: return
+	for d in multi_ghost_blocks:
+		var old_offset: Vector2i = d["offset"]
+		d["offset"] = Vector2i(-old_offset.x, old_offset.y)
+		match d["dir"]:
+			BlockData.Direction.RIGHT: d["dir"] = BlockData.Direction.LEFT
+			BlockData.Direction.LEFT: d["dir"] = BlockData.Direction.RIGHT
+		if d["type"] == BlockData.Type.ROTATOR:
+			d["sub_mode"] = 1 - d["sub_mode"]
+	_refresh_multi_ghost_sprites()
+
+func flip_multi_ghost_v() -> void:
+	if not multi_ghost_active: return
+	for d in multi_ghost_blocks:
+		var old_offset: Vector2i = d["offset"]
+		d["offset"] = Vector2i(old_offset.x, -old_offset.y)
+		match d["dir"]:
+			BlockData.Direction.DOWN: d["dir"] = BlockData.Direction.UP
+			BlockData.Direction.UP: d["dir"] = BlockData.Direction.DOWN
+		if d["type"] == BlockData.Type.ROTATOR:
+			d["sub_mode"] = 1 - d["sub_mode"]
+	_refresh_multi_ghost_sprites()
+
+func update_multi_ghost_position(mouse_grid: Vector2i) -> void:
+	multi_ghost_mouse_pos = mouse_grid
+	if not multi_ghost_active:
+		return
+
+	multi_ghost_has_conflict = false
+
+	for i in range(multi_ghost_blocks.size()):
+		if i >= multi_ghost_sprites.size():
+			break
+		var d: Dictionary = multi_ghost_blocks[i]
+		var s: Sprite2D = multi_ghost_sprites[i]
+
+		var target_pos: Vector2i = mouse_grid + d["offset"]
+		s.position = grid_to_world(target_pos)
+		s.rotation = d["dir"] * (PI / 2.0)
+
+		var conflict := false
+		if grid_world != null and grid_world.has_block(target_pos):
+			conflict = true
+		if not is_level_editor_mode and not is_in_build_area(target_pos):
+			conflict = true
+
+		if conflict:
+			multi_ghost_has_conflict = true
+			s.modulate = Color(1.0, 0.25, 0.25, 0.75)
+		else:
+			s.modulate = Color(1.0, 1.0, 1.0, 0.7)
+
+func can_place_multi_ghost() -> bool:
+	return multi_ghost_active and not multi_ghost_has_conflict
+
+func cancel_multi_ghost() -> void:
+	multi_ghost_active = false
+	for s in multi_ghost_sprites:
+		s.queue_free()
+	multi_ghost_sprites.clear()
+	multi_ghost_blocks.clear()
+
+func is_multi_ghost_active() -> bool:
+	return multi_ghost_active
+
+func get_multi_ghost_blocks_to_place(mouse_grid: Vector2i) -> Array[BlockData]:
+	var result: Array[BlockData] = []
+	for d in multi_ghost_blocks:
+		var target_pos: Vector2i = mouse_grid + d["offset"]
+		var b := BlockData.new(d["type"], target_pos, d["dir"])
+		b.texture_variant = d["variant"]
+		b.sub_mode = d["sub_mode"]
+		b.structure_id = d["structure_id"]
+		result.append(b)
+	return result
 
 # -------------------------------------------------------------
 # Tick Animation Player

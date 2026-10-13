@@ -26,6 +26,7 @@ var open_editor_btn: Button
 
 func _ready() -> void:
 	theme = UI.get_theme()
+	MusicManager.play_ambient()
 	SaveManager.init_directories()
 	levels = SaveManager.get_all_levels()
 	_build_ui()

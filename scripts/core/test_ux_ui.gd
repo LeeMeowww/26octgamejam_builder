@@ -29,6 +29,7 @@ func click(button: Button) -> void:
 	await process_frame
 
 func run() -> void:
+	root.size = Vector2i(1280, 720)
 	root.gui_embed_subwindows = true
 	var menu: MainMenu = load("res://scenes/ui/MainMenu.tscn").instantiate()
 	root.add_child(menu)

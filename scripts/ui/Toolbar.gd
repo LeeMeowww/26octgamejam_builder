@@ -40,39 +40,50 @@ func _build_ui() -> void:
 
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var rows := VBoxContainer.new()
-	rows.add_theme_constant_override("separation", 6)
-	add_child(rows)
-	var h_box := HBoxContainer.new()
-	h_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	h_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h_box.add_theme_constant_override("separation", 8)
-	rows.add_child(h_box)
+	var main_hbox := HBoxContainer.new()
+	main_hbox.name = "MainHBox"
+	main_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_hbox.add_theme_constant_override("separation", 10)
+	main_hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(main_hbox)
 
 	btn_group = ButtonGroup.new()
 
-	# Pointer / Selection Tool Button
+	# Keep pointer_btn reference as hidden button for compatibility
 	pointer_btn = Button.new()
-	pointer_btn.text = "选择 [V]"
 	pointer_btn.toggle_mode = true
 	pointer_btn.button_group = btn_group
-	pointer_btn.focus_mode = Control.FOCUS_NONE
-	pointer_btn.custom_minimum_size = Vector2(64, 34)
-	pointer_btn.pressed.connect(func():
-		is_placing = false
-		block_type_selected.emit(-1)
-		_describe_selection()
-	)
-	h_box.add_child(pointer_btn)
 
-	var sep1 := VSeparator.new()
-	h_box.add_child(sep1)
+	# 1. Left container: Description Label (说明文字)
+	var left_box := HBoxContainer.new()
+	left_box.name = "LeftBox"
+	left_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_box.alignment = BoxContainer.ALIGNMENT_BEGIN
+	left_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_hbox.add_child(left_box)
 
-	# Block buttons:
-	# In player mode: 0..5 (Basic [1] to Rotator [6])
-	# In editor mode: 0..10 (Basic [1] to Protected [-])
+	description_label = UI.label(left_box, "", 14, UI.MUTED)
+	description_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	description_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	description_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+
+	# Separator between description and block buttons
+	var sep_left := VSeparator.new()
+	sep_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_hbox.add_child(sep_left)
+
+	# 2. Center container: Block buttons (6 in player mode, 11 in editor mode)
+	var center_box := HBoxContainer.new()
+	center_box.name = "CenterBox"
+	center_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center_box.add_theme_constant_override("separation", 6)
+	main_hbox.add_child(center_box)
+
 	var max_type := BlockData.Type.PROTECTED if is_editor_mode else BlockData.Type.ROTATOR
 	var shortcuts_labels := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-"]
+	var btn_height := 34
 
 	for t in range(0, max_type + 1):
 		var btn := Button.new()
@@ -82,11 +93,12 @@ func _build_ui() -> void:
 		btn.text = "%s %s" % [bname, short_lbl]
 		btn.icon = load("res://assets/textures/blocks/" + ["basic_0", "inhibitor_0", "pusher_0", "replicator_0", "destroyer_0", "rotator_cw_0", "hard_0", "wanderer_0", "treasure_0", "pollution_0", "protected_0"][t] + ".svg")
 		btn.expand_icon = true
-		btn.add_theme_constant_override("icon_max_width", 24)
+		btn.add_theme_constant_override("icon_max_width", 20 if is_editor_mode else 22)
 		btn.toggle_mode = true
 		btn.button_group = btn_group
 		btn.focus_mode = Control.FOCUS_NONE
-		btn.custom_minimum_size = Vector2(96, 40)
+		btn.custom_minimum_size = Vector2(72 if is_editor_mode else 88, btn_height)
+		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		
 		# Set tooltip
 		btn.tooltip_text = "【%s】\n点击选中方块进行放置。\n右键切换外观；重复左键保持选择。\n快捷键: %s" % [full_bname, short_lbl]
@@ -96,7 +108,6 @@ func _build_ui() -> void:
 			if event is InputEventMouseButton and event.pressed:
 				if event.button_index == MOUSE_BUTTON_RIGHT and editing_enabled:
 					select_type(type_val)
-					# Cycle texture variant
 					cycle_variant()
 		)
 		btn.pressed.connect(func():
@@ -105,63 +116,73 @@ func _build_ui() -> void:
 		)
 
 		type_buttons[t] = btn
-		h_box.add_child(btn)
+		center_box.add_child(btn)
 
-	h_box = HBoxContainer.new()
-	h_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	h_box.add_theme_constant_override("separation", 8)
-	rows.add_child(h_box)
-	description_label = UI.label(h_box, "", 14, UI.MUTED)
-	description_label.size_flags_horizontal = SIZE_EXPAND_FILL
-	var sep2 := VSeparator.new()
-	h_box.add_child(sep2)
+	# Separator between block buttons and control buttons
+	var sep_right := VSeparator.new()
+	sep_right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_hbox.add_child(sep_right)
+
+	# 3. Right container: 3 remaining buttons (变体, 朝向, 编组 - plus rotator mode when rotator selected)
+	var right_box := HBoxContainer.new()
+	right_box.name = "RightBox"
+	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_box.alignment = BoxContainer.ALIGNMENT_END
+	right_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right_box.add_theme_constant_override("separation", 6)
+	main_hbox.add_child(right_box)
 
 	# Variant cycling button
 	variant_btn = Button.new()
 	variant_btn.text = "变体: α"
 	variant_btn.focus_mode = Control.FOCUS_NONE
-	variant_btn.custom_minimum_size = Vector2(64, 34)
+	variant_btn.custom_minimum_size = Vector2(64, btn_height)
+	variant_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	variant_btn.tooltip_text = "切换方块外观纹理样式 (不影响逻辑功能)"
 	variant_btn.pressed.connect(cycle_variant)
-	h_box.add_child(variant_btn)
+	right_box.add_child(variant_btn)
 
 	# Submode toggle (for Rotator CW / CCW)
 	mode_btn = Button.new()
 	mode_btn.text = "旋转: 顺时针"
 	mode_btn.focus_mode = Control.FOCUS_NONE
-	mode_btn.custom_minimum_size = Vector2(68, 32)
+	mode_btn.custom_minimum_size = Vector2(80, btn_height)
+	mode_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	mode_btn.tooltip_text = "按 [F] 切换转向器顺逆时针模式 (CW 顺时针 / CCW 逆时针)"
 	mode_btn.pressed.connect(toggle_sub_mode)
-	h_box.add_child(mode_btn)
+	right_box.add_child(mode_btn)
 
 	# Direction Indicator / Rotate button
 	rotate_btn = Button.new()
 	rotate_btn.text = "朝向: →"
 	rotate_btn.focus_mode = Control.FOCUS_NONE
-	rotate_btn.custom_minimum_size = Vector2(64, 34)
+	rotate_btn.custom_minimum_size = Vector2(68, btn_height)
+	rotate_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	rotate_btn.tooltip_text = "当前放置朝向。按 [Q]/[E] 逆时针/顺时针旋转"
 	rotate_btn.pressed.connect(func():
 		rotate_direction(1)
 	)
-	h_box.add_child(rotate_btn)
+	right_box.add_child(rotate_btn)
 
 	var sep3 := VSeparator.new()
-	h_box.add_child(sep3)
+	sep3.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right_box.add_child(sep3)
 
 	# Group / Structure button
 	var group_btn := Button.new()
 	group_button = group_btn
 	group_btn.text = "编组 [G]"
 	group_btn.focus_mode = Control.FOCUS_NONE
-	group_btn.custom_minimum_size = Vector2(76, 32)
+	group_btn.custom_minimum_size = Vector2(76, btn_height)
+	group_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	group_btn.tooltip_text = "将选中的方块绑定为刚性整体结构（快捷键 G）"
 	group_btn.pressed.connect(func():
 		group_pressed.emit()
 	)
-	h_box.add_child(group_btn)
+	right_box.add_child(group_btn)
 
-	# Select default
-	select_type(BlockData.Type.BASIC)
+	# Default to selection mode (no tool selected)
+	deselect_tool()
 
 func select_type(type_val: int) -> void:
 	if not editing_enabled: return
@@ -172,11 +193,26 @@ func select_type(type_val: int) -> void:
 	block_type_selected.emit(type_val)
 	_update_mode_visibility()
 
-func select_pointer() -> void:
+func deselect_tool() -> void:
 	is_placing = false
-	pointer_btn.button_pressed = true
+	current_type = -1
+	for b in type_buttons.values():
+		b.button_pressed = false
 	block_type_selected.emit(-1)
-	_describe_selection()
+	_update_mode_visibility()
+
+func select_pointer() -> void:
+	deselect_tool()
+
+func cycle_tool(step: int) -> void:
+	if not editing_enabled: return
+	var max_type := BlockData.Type.PROTECTED if is_editor_mode else BlockData.Type.ROTATOR
+	var next_type: int
+	if not is_placing or current_type < 0:
+		next_type = 0 if step > 0 else max_type
+	else:
+		next_type = posmod(current_type + step, max_type + 1)
+	select_type(next_type)
 
 func cycle_variant() -> void:
 	current_variant = (current_variant + 1) % 3
@@ -204,11 +240,12 @@ func _describe_selection() -> void:
 	if description_label == null: return
 	if not editing_enabled:
 		description_label.text = "模拟后暂停也不能编辑 · 点击「重置」恢复构装"
-	elif not is_placing:
-		description_label.text = "选择模式 · 拖框多选，G 编组，Delete 删除"
+	elif not is_placing or current_type < 0:
+		description_label.text = "选择模式 · 框选/单选方块 · 右键菜单 · 按 1~6 建造"
 	else:
 		var descriptions := ["连接并承载其他模块", "前方有方块时，关闭后方模块", "推动前方方块并一起前进", "读取后方，复制到前方", "清除前方的目标", "旋转前方模块", "抵挡攻击，可被抑制", "按规则游荡的敌人", "带回建造区完成回收", "清除全部污染源", "保持完整，不能损毁"]
-		description_label.text = "%s · %s" % [BlockData.SHORT_NAMES[current_type], descriptions[current_type]]
+		var desc = descriptions[current_type] if current_type >= 0 and current_type < descriptions.size() else ""
+		description_label.text = "%s · %s · 按 ESC 退出建造" % [BlockData.SHORT_NAMES.get(current_type, "方块"), desc]
 
 func set_editable(enabled: bool) -> void:
 	if editing_enabled == enabled: return
