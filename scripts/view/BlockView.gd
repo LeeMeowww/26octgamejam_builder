@@ -4,10 +4,12 @@ extends Node2D
 const CELL_SIZE: float = 64.0
 const HALF_CELL: float = CELL_SIZE * 0.5
 const BASIC_ARTWORK: PackedScene = preload("res://scenes/animation/BasicArtwork.tscn")
+const DESTROYER_ARTWORK: PackedScene = preload("res://scenes/animation/DestroyerArtwork.tscn")
 
 ## Disable to compare with the original SVG artwork.
 @export var use_basic_idle: bool = true
 var basic_artwork: Node2D
+var destroyer_artwork: DestroyerArtwork
 
 var block_data: BlockData
 var grid_world: GridWorld
@@ -43,6 +45,9 @@ func _init(p_block: BlockData, p_world: GridWorld) -> void:
 	basic_artwork = BASIC_ARTWORK.instantiate() as Node2D
 	basic_artwork.visible = false
 	inner_sprite.add_child(basic_artwork)
+	destroyer_artwork = DESTROYER_ARTWORK.instantiate() as DestroyerArtwork
+	destroyer_artwork.visible = false
+	inner_sprite.add_child(destroyer_artwork)
 
 	# 3. Inhibited overlay sprite
 	inhibited_sprite = Sprite2D.new()
@@ -70,11 +75,21 @@ func update_appearance() -> void:
 	# Rotation: direction * 90 degrees
 	inner_sprite.rotation = block_data.direction * (PI / 2.0)
 	var show_idle := use_basic_idle and block_data.block_type == BlockData.Type.BASIC
-	# Hide only the fallback texture; keep Inner for shared transforms.
-	inner_sprite.self_modulate.a = 0.0 if show_idle else 1.0
+	var show_destroyer := block_data.block_type == BlockData.Type.DESTROYER
+	# Hide only the SVG fallback for the two PNG-driven artworks.
+	# Keep the parent visible so its child artwork remains visible.
+	if show_destroyer:
+		inner_sprite.texture = null
+		inner_sprite.scale = Vector2.ONE
+		inner_sprite.self_modulate.a = 1.0
+	else:
+		inner_sprite.self_modulate.a = 0.0 if show_idle else 1.0
 	basic_artwork.visible = show_idle
+	destroyer_artwork.visible = show_destroyer
 	# Cancel the SVG-dependent scale so PNG pixels fit the cell consistently.
 	basic_artwork.scale = Vector2.ONE * ((CELL_SIZE - 4.0) / 64.0) / inner_sprite.scale
+	# DestroyerArtwork owns the one-cell/two-cell artwork scales internally.
+	destroyer_artwork.scale = Vector2.ONE
 
 	# Inhibited state
 	if inhibited_sprite != null:
@@ -223,6 +238,11 @@ func animate_destroy(duration: float, on_complete: Callable) -> void:
 	t.tween_property(self, "scale", Vector2(0.1, 0.1), duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.tween_property(self, "modulate", Color(2.5, 0.4, 0.4, 0.0), duration)
 	t.chain().tween_callback(on_complete)
+
+func play_destroyer_eat() -> void:
+	if block_data == null or block_data.block_type != BlockData.Type.DESTROYER:
+		return
+	destroyer_artwork.play_eat()
 
 func animate_damage(duration: float) -> void:
 	var t := create_tween()

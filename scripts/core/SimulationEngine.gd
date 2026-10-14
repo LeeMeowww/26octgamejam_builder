@@ -17,6 +17,8 @@ class TickResult extends RefCounted:
 	var spawned_blocks: Array[BlockData] = []
 	# Array of BlockData
 	var destroyed_blocks: Array[BlockData] = []
+	# Array of { "id": int, "direction": int, "target_id": int }
+	var destroyer_actions: Array[Dictionary] = []
 	# Array of BlockData
 	var collected_treasures: Array[BlockData] = []
 	var is_victory: bool = false
@@ -729,12 +731,14 @@ func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacke
 			var target_snap := snap.get_block(target_pos)
 			if target_snap != null and not target_snap.is_immune():
 				to_destroy[target_snap.block_id] = target_snap
+				_record_destroyer_action(result, snap_b.block_id, snap_b.direction, target_snap.block_id)
 
 			# Also check current front position if destroyer moved
 			var cur_front := cur_d.grid_pos + cur_d.get_forward_vec()
 			var cur_target := world.get_block(cur_front)
 			if cur_target != null and not cur_target.is_immune() and cur_target.block_id != cur_d.block_id:
 				to_destroy[cur_target.block_id] = cur_target
+				_record_destroyer_action(result, cur_d.block_id, cur_d.direction, cur_target.block_id)
 
 			# Mutual facing clash with Wanderer:
 			var candidates: Array[BlockData] = []
@@ -772,6 +776,16 @@ func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacke
 				world.remove_block_at(wb.grid_pos)
 				result.destroyed_blocks.append(wb)
 				break
+
+func _record_destroyer_action(result: TickResult, destroyer_id: int, direction: int, target_id: int) -> void:
+	for action in result.destroyer_actions:
+		if action["id"] == destroyer_id and action["target_id"] == target_id:
+			return
+	result.destroyer_actions.append({
+		"id": destroyer_id,
+		"direction": direction,
+		"target_id": target_id
+	})
 
 # -----------------------------------------------------------------
 # Treasure Zone Check & Goal Checking
