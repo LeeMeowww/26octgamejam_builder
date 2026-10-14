@@ -7,8 +7,12 @@ signal variant_changed(variant_idx: int)
 signal sub_mode_toggled(sub_mode: int)
 signal direction_changed(dir: int)
 signal group_pressed()
+# Public hooks retained for external consumers; no toolbar buttons emit these.
+@warning_ignore("unused_signal")
 signal clear_pressed()
+@warning_ignore("unused_signal")
 signal save_machine_pressed()
+@warning_ignore("unused_signal")
 signal load_machine_pressed()
 
 var is_editor_mode: bool = false

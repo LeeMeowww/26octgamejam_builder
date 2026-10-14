@@ -776,7 +776,7 @@ func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacke
 # -----------------------------------------------------------------
 # Treasure Zone Check & Goal Checking
 # -----------------------------------------------------------------
-func _check_treasure_collection(result: TickResult) -> void:
+func _check_treasure_collection(_result: TickResult) -> void:
 	# 宝藏进入绿色区域后记为已回收；保留方块本身，避免回收动作改变场面。
 	for b in world.get_all_blocks():
 		if b.block_type != BlockData.Type.TREASURE or not _treasure_in_zone(b):

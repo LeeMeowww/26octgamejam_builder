@@ -3,9 +3,6 @@ extends Control
 
 const Campaign = preload("res://scripts/core/Campaign.gd")
 const UI = preload("res://scripts/ui/UIStyle.gd")
-const KeybindManager = preload("res://scripts/core/KeybindManager.gd")
-const EditorContextMenu = preload("res://scripts/ui/EditorContextMenu.gd")
-const EditorClipboard = preload("res://scripts/core/EditorClipboard.gd")
 var status_label: Label
 var clear_confirm: ConfirmationDialog
 var help_dialog: AcceptDialog
@@ -1312,7 +1309,9 @@ func _on_save_machine_pressed() -> void:
 	if is_simulating:
 		return
 	var has_sel := not selected_blocks.is_empty()
-	var target_parent: Node = ui_layer if ui_layer != null else self
+	var target_parent: Node = self
+	if ui_layer != null:
+		target_parent = ui_layer
 	BlueprintDialogs.show_save_dialog(target_parent, has_sel, func(m_name: String, only_selected: bool):
 		var target_blocks: Array[BlockData] = []
 		if only_selected and not selected_blocks.is_empty():
@@ -1331,7 +1330,9 @@ func _on_save_machine_pressed() -> void:
 func _on_load_machine_pressed() -> void:
 	if is_simulating:
 		return
-	var target_parent: Node = ui_layer if ui_layer != null else self
+	var target_parent: Node = self
+	if ui_layer != null:
+		target_parent = ui_layer
 	BlueprintDialogs.show_load_dialog(target_parent, func(m_name: String):
 		if has_simulated:
 			reset_simulation()
@@ -1368,7 +1369,7 @@ func _on_toolbar_sub_mode_toggled(sub_mode: int) -> void:
 				if v != null:
 					v.update_appearance()
 
-func _on_toolbar_direction_changed(dir: int) -> void:
+func _on_toolbar_direction_changed(_dir: int) -> void:
 	pass
 
 func show_help() -> void:

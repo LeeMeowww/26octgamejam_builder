@@ -3,6 +3,11 @@ extends Node2D
 
 const CELL_SIZE: float = 64.0
 const HALF_CELL: float = CELL_SIZE * 0.5
+const BASIC_ARTWORK: PackedScene = preload("res://scenes/animation/BasicArtwork.tscn")
+
+## Disable to compare with the original SVG artwork.
+@export var use_basic_idle: bool = true
+var basic_artwork: Node2D
 
 var block_data: BlockData
 var grid_world: GridWorld
@@ -34,6 +39,10 @@ func _init(p_block: BlockData, p_world: GridWorld) -> void:
 	inner_sprite.name = "Inner"
 	inner_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	add_child(inner_sprite)
+	# As a child of Inner, art inherits existing rotation/damage effects.
+	basic_artwork = BASIC_ARTWORK.instantiate() as Node2D
+	basic_artwork.visible = false
+	inner_sprite.add_child(basic_artwork)
 
 	# 3. Inhibited overlay sprite
 	inhibited_sprite = Sprite2D.new()
@@ -60,6 +69,12 @@ func update_appearance() -> void:
 
 	# Rotation: direction * 90 degrees
 	inner_sprite.rotation = block_data.direction * (PI / 2.0)
+	var show_idle := use_basic_idle and block_data.block_type == BlockData.Type.BASIC
+	# Hide only the fallback texture; keep Inner for shared transforms.
+	inner_sprite.self_modulate.a = 0.0 if show_idle else 1.0
+	basic_artwork.visible = show_idle
+	# Cancel the SVG-dependent scale so PNG pixels fit the cell consistently.
+	basic_artwork.scale = Vector2.ONE * ((CELL_SIZE - 4.0) / 64.0) / inner_sprite.scale
 
 	# Inhibited state
 	if inhibited_sprite != null:
