@@ -5,6 +5,7 @@ const CELL_SIZE: float = 64.0
 const HALF_CELL: float = CELL_SIZE * 0.5
 const DESTROYER_ARTWORK: PackedScene = preload("res://scenes/animation/DestroyerArtwork.tscn")
 const BASIC_ARTWORK: PackedScene = preload("res://scenes/animation/BasicArtwork.tscn")
+const PUSHER_ARTWORK: PackedScene = preload("res://scenes/animation/PusherArtwork.tscn")
 
 var grid_world: GridWorld
 var player_build_area: Rect2i = Rect2i(0, 0, 0, 0)
@@ -34,6 +35,7 @@ var box_select_current: Vector2 = Vector2.ZERO
 var preview_sprite: Sprite2D
 var preview_destroyer: DestroyerArtwork
 var preview_basic: Node2D
+var preview_pusher: PusherArtwork
 
 # Multi-block Ghost preview for Paste / Load Blueprint
 var multi_ghost_root: Node2D
@@ -59,6 +61,11 @@ func _ready() -> void:
 	preview_basic.z_index = 10
 	preview_basic.visible = false
 	add_child(preview_basic)
+	preview_pusher = PUSHER_ARTWORK.instantiate() as PusherArtwork
+	preview_pusher.name = "PusherPreview"
+	preview_pusher.z_index = 10
+	preview_pusher.visible = false
+	add_child(preview_pusher)
 
 	multi_ghost_root = Node2D.new()
 	multi_ghost_root.z_index = 10
@@ -220,6 +227,8 @@ func update_preview(active: bool, btype: int, dir: int, variant: int, sub_mode: 
 			preview_destroyer.visible = false
 		if preview_basic != null:
 			preview_basic.visible = false
+		if preview_pusher != null:
+			preview_pusher.visible = false
 		return
 
 	preview_sprite.visible = true
@@ -227,6 +236,7 @@ func update_preview(active: bool, btype: int, dir: int, variant: int, sub_mode: 
 	preview_sprite.rotation = dir * (PI / 2.0)
 	preview_destroyer.visible = false
 	preview_basic.visible = false
+	preview_pusher.visible = false
 	if btype == BlockData.Type.DESTROYER:
 		preview_sprite.visible = false
 		preview_destroyer.visible = true
@@ -252,6 +262,18 @@ func update_preview(active: bool, btype: int, dir: int, variant: int, sub_mode: 
 			preview_basic.modulate = Color(1.0, 0.78, 0.2, basic_preview_alpha)
 		else:
 			preview_basic.modulate = Color(1.0, 1.0, 1.0, basic_preview_alpha)
+		return
+	if btype == BlockData.Type.PUSHER:
+		preview_sprite.visible = false
+		preview_pusher.visible = true
+		preview_pusher.position = grid_to_world(grid_pos)
+		preview_pusher.rotation = dir * (PI / 2.0)
+		preview_pusher.scale = Vector2.ONE
+		var pusher_preview_alpha := 0.6
+		if not is_in_build_area(grid_pos):
+			preview_pusher.modulate = Color(1.0, 0.78, 0.2, pusher_preview_alpha)
+		else:
+			preview_pusher.modulate = Color(1.0, 1.0, 1.0, pusher_preview_alpha)
 		return
 
 	var tex_path := _get_preview_texture_path(btype, variant, sub_mode)
@@ -462,6 +484,8 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 	for mov in result.moved_blocks:
 		var v := get_view(mov["id"])
 		if v != null:
+			if v.block_data.block_type == BlockData.Type.PUSHER:
+				v.play_pusher_push()
 			v.animate_to_pos(mov["new_pos"], duration)
 
 	# 3. Damages

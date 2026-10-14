@@ -101,6 +101,8 @@ func _build_ui() -> void:
 			icon_path = "res://assets/textures/blocks/destroyer_ui.svg"
 		elif t == BlockData.Type.BASIC:
 			icon_path = "res://assets/textures/blocks/basic_ui.tres"
+		elif t == BlockData.Type.PUSHER:
+			icon_path = "res://assets/textures/blocks/pusher_ui.svg"
 		else:
 			icon_path = "res://assets/textures/blocks/" + icon_name + ".svg"
 		btn.icon = load(icon_path)
