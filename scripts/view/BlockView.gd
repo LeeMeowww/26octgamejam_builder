@@ -3,6 +3,15 @@ extends Node2D
 
 const CELL_SIZE: float = 64.0
 const HALF_CELL: float = CELL_SIZE * 0.5
+const BASIC_ARTWORK: PackedScene = preload("res://scenes/animation/BasicArtwork.tscn")
+const DESTROYER_ARTWORK: PackedScene = preload("res://scenes/animation/DestroyerArtwork.tscn")
+const PUSHER_ARTWORK: PackedScene = preload("res://scenes/animation/PusherArtwork.tscn")
+
+## Disable to compare with the original SVG artwork.
+@export var use_basic_idle: bool = true
+var basic_artwork: Node2D
+var destroyer_artwork: DestroyerArtwork
+var pusher_artwork: PusherArtwork
 
 var block_data: BlockData
 var grid_world: GridWorld
@@ -14,6 +23,7 @@ var inhibited_sprite: Sprite2D
 var border_node: Node2D
 
 var _current_tween: Tween
+var _pushing := false
 
 # Textures cache
 static var _texture_cache: Dictionary = {}
@@ -34,6 +44,17 @@ func _init(p_block: BlockData, p_world: GridWorld) -> void:
 	inner_sprite.name = "Inner"
 	inner_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	add_child(inner_sprite)
+	# As a child of Inner, art inherits existing rotation/damage effects.
+	basic_artwork = BASIC_ARTWORK.instantiate() as Node2D
+	basic_artwork.visible = false
+	inner_sprite.add_child(basic_artwork)
+	destroyer_artwork = DESTROYER_ARTWORK.instantiate() as DestroyerArtwork
+	destroyer_artwork.visible = false
+	inner_sprite.add_child(destroyer_artwork)
+	pusher_artwork = PUSHER_ARTWORK.instantiate() as PusherArtwork
+	pusher_artwork.visible = false
+	pusher_artwork.push_finished.connect(_on_pusher_push_finished)
+	add_child(pusher_artwork)
 
 	# 3. Inhibited overlay sprite
 	inhibited_sprite = Sprite2D.new()
@@ -60,6 +81,27 @@ func update_appearance() -> void:
 
 	# Rotation: direction * 90 degrees
 	inner_sprite.rotation = block_data.direction * (PI / 2.0)
+	var show_idle := use_basic_idle and block_data.block_type == BlockData.Type.BASIC
+	var show_destroyer := block_data.block_type == BlockData.Type.DESTROYER
+	# Pushers always use the PNG artwork. While idle, PusherArtwork holds
+	# the first push frame; during movement it plays the full sequence.
+	var show_pusher := block_data.block_type == BlockData.Type.PUSHER
+	# Hide only the SVG fallback for the two PNG-driven artworks.
+	# Keep the parent visible so its child artwork remains visible.
+	if show_destroyer:
+		inner_sprite.texture = null
+		inner_sprite.scale = Vector2.ONE
+		inner_sprite.self_modulate.a = 1.0
+	else:
+		inner_sprite.self_modulate.a = 0.0 if show_idle or show_pusher else 1.0
+	basic_artwork.visible = show_idle
+	destroyer_artwork.visible = show_destroyer
+	pusher_artwork.visible = show_pusher
+	pusher_artwork.set_direction(block_data.direction)
+	# Cancel the SVG-dependent scale so PNG pixels fit the cell consistently.
+	basic_artwork.scale = Vector2.ONE * ((CELL_SIZE - 4.0) / 64.0) / inner_sprite.scale
+	# DestroyerArtwork owns the one-cell/two-cell artwork scales internally.
+	destroyer_artwork.scale = Vector2.ONE
 
 	# Inhibited state
 	if inhibited_sprite != null:
@@ -208,6 +250,23 @@ func animate_destroy(duration: float, on_complete: Callable) -> void:
 	t.tween_property(self, "scale", Vector2(0.1, 0.1), duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.tween_property(self, "modulate", Color(2.5, 0.4, 0.4, 0.0), duration)
 	t.chain().tween_callback(on_complete)
+
+func play_destroyer_eat() -> void:
+	if block_data == null or block_data.block_type != BlockData.Type.DESTROYER:
+		return
+	destroyer_artwork.play_eat()
+
+func play_pusher_push() -> void:
+	if block_data == null or block_data.block_type != BlockData.Type.PUSHER:
+		return
+	_pushing = true
+	pusher_artwork.set_direction(block_data.direction)
+	update_appearance()
+	pusher_artwork.play_push()
+
+func _on_pusher_push_finished() -> void:
+	_pushing = false
+	update_appearance()
 
 func animate_damage(duration: float) -> void:
 	var t := create_tween()

@@ -101,23 +101,23 @@ res://
 │       ├── LevelManager.tscn # 关卡管理器 (顺序调整/属性配置)
 │       └── LevelEditor.tscn  # 全功能关卡编辑器 (支持放置世界方块与测试)
 └── scripts/
-    ├── core/
-    │   ├── BlockData.gd        # 方块数据结构与序列化
-    │   ├── GridWorld.gd        # 网格世界容器与结构管理
-    │   ├── SimulationEngine.gd # 离散时间与物理/生物互动模拟核
-    │   ├── LevelData.gd        # 关卡定义
-    │   └── SaveManager.gd      # 关卡与图纸独立持久化
-    ├── view/
-    │   ├── BlockView.gd        # 邻域自适应细胞膜边界合并与补间动画
-    │   ├── GridView.gd         # 世界画布、选框与幽灵预览
-    │   └── CameraController.gd # 光标锚定平滑缩放与 WASD 平移
-    └── ui/
-        ├── MainMenu.gd
-        ├── LevelSelect.gd
-        ├── LevelManager.gd
-        ├── LevelEditor.gd
-        ├── LevelPlayer.gd
-        ├── Toolbar.gd
-        ├── VictoryDialog.gd
-        └── BlueprintDialogs.gd
+	├── core/
+	│   ├── BlockData.gd        # 方块数据结构与序列化
+	│   ├── GridWorld.gd        # 网格世界容器与结构管理
+	│   ├── SimulationEngine.gd # 离散时间与物理/生物互动模拟核
+	│   ├── LevelData.gd        # 关卡定义
+	│   └── SaveManager.gd      # 关卡与图纸独立持久化
+	├── view/
+	│   ├── BlockView.gd        # 邻域自适应细胞膜边界合并与补间动画
+	│   ├── GridView.gd         # 世界画布、选框与幽灵预览
+	│   └── CameraController.gd # 光标锚定平滑缩放与 WASD 平移
+	└── ui/
+		├── MainMenu.gd
+		├── LevelSelect.gd
+		├── LevelManager.gd
+		├── LevelEditor.gd
+		├── LevelPlayer.gd
+		├── Toolbar.gd
+		├── VictoryDialog.gd
+		└── BlueprintDialogs.gd
 ```

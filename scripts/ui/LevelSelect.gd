@@ -164,11 +164,11 @@ func _show_chapter(index: int) -> void:
 		if data[0] != index: continue
 		if progress.has(level.level_id): completed_count += 1
 		var column: int = data[2] if index < 4 else count % 4
-		var row: int = data[3] if index < 4 else count / 4
-		var position := Vector2(20 + column * 145, 60 + row * 170)
+		var row: int = data[3] if index < 4 else floori(count / 4.0)
+		var node_position := Vector2(20 + column * 145, 60 + row * 170)
 		var button := Button.new()
 		button.toggle_mode = true
-		button.position = position
+		button.position = node_position
 		button.size = Vector2(130, 98)
 		button.text = "%s %s\n%s" % [data[1], "✓" if progress.has(level.level_id) else "", Campaign.title(level)]
 		button.add_theme_font_size_override("font_size", 15)
@@ -180,9 +180,9 @@ func _show_chapter(index: int) -> void:
 		button.pressed.connect(_select_level.bind(i))
 		map.add_child(button)
 		node_buttons[level.level_id] = button
-		positions[level.level_id] = position + button.size * 0.5
+		positions[level.level_id] = node_position + button.size * 0.5
 		count += 1
-	map.custom_minimum_size = Vector2(750, maxf(350, ceilf(count / 4.0) * 170 + 100) if index == 4 else 350)
+	map.custom_minimum_size = Vector2(750, maxf(350.0, ceilf(count / 4.0) * 170 + 100.0) if index == 4 else 350.0)
 	for id in positions:
 		var next: String = Campaign.info(id)[7]
 		if positions.has(next): map.routes.append([positions[id], positions[next], false])

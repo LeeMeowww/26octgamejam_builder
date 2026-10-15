@@ -3,6 +3,9 @@ extends Node2D
 
 const CELL_SIZE: float = 64.0
 const HALF_CELL: float = CELL_SIZE * 0.5
+const DESTROYER_ARTWORK: PackedScene = preload("res://scenes/animation/DestroyerArtwork.tscn")
+const BASIC_ARTWORK: PackedScene = preload("res://scenes/animation/BasicArtwork.tscn")
+const PUSHER_ARTWORK: PackedScene = preload("res://scenes/animation/PusherArtwork.tscn")
 
 var grid_world: GridWorld
 var player_build_area: Rect2i = Rect2i(0, 0, 0, 0)
@@ -12,6 +15,9 @@ var blocks_outside_build_area: Array[Vector2i] = []
 
 # BlockView mapping: block_id -> BlockView
 var _views: Dictionary = {}
+# Destroyer id -> last target id already used to trigger an eat animation.
+# This prevents a repeated simulation refresh from rewinding the same action.
+var _destroyer_eat_targets: Dictionary = {}
 
 # Ghost preview for placing
 var preview_active: bool = false
@@ -27,6 +33,9 @@ var box_select_start: Vector2 = Vector2.ZERO
 var box_select_current: Vector2 = Vector2.ZERO
 
 var preview_sprite: Sprite2D
+var preview_destroyer: DestroyerArtwork
+var preview_basic: Node2D
+var preview_pusher: PusherArtwork
 
 # Multi-block Ghost preview for Paste / Load Blueprint
 var multi_ghost_root: Node2D
@@ -42,6 +51,21 @@ func _ready() -> void:
 	preview_sprite.z_index = 10
 	preview_sprite.visible = false
 	add_child(preview_sprite)
+	preview_destroyer = DESTROYER_ARTWORK.instantiate() as DestroyerArtwork
+	preview_destroyer.name = "DestroyerPreview"
+	preview_destroyer.z_index = 10
+	preview_destroyer.visible = false
+	add_child(preview_destroyer)
+	preview_basic = BASIC_ARTWORK.instantiate() as Node2D
+	preview_basic.name = "BasicPreview"
+	preview_basic.z_index = 10
+	preview_basic.visible = false
+	add_child(preview_basic)
+	preview_pusher = PUSHER_ARTWORK.instantiate() as PusherArtwork
+	preview_pusher.name = "PusherPreview"
+	preview_pusher.z_index = 10
+	preview_pusher.visible = false
+	add_child(preview_pusher)
 
 	multi_ghost_root = Node2D.new()
 	multi_ghost_root.z_index = 10
@@ -57,6 +81,7 @@ func set_world(p_world: GridWorld) -> void:
 
 	grid_world = p_world
 	_clear_all_views()
+	_destroyer_eat_targets.clear()
 
 	if grid_world != null:
 		grid_world.block_added.connect(_on_block_added)
@@ -198,11 +223,58 @@ func update_preview(active: bool, btype: int, dir: int, variant: int, sub_mode: 
 	if not active or preview_sprite == null:
 		if preview_sprite != null:
 			preview_sprite.visible = false
+		if preview_destroyer != null:
+			preview_destroyer.visible = false
+		if preview_basic != null:
+			preview_basic.visible = false
+		if preview_pusher != null:
+			preview_pusher.visible = false
 		return
 
 	preview_sprite.visible = true
 	preview_sprite.position = grid_to_world(grid_pos)
 	preview_sprite.rotation = dir * (PI / 2.0)
+	preview_destroyer.visible = false
+	preview_basic.visible = false
+	preview_pusher.visible = false
+	if btype == BlockData.Type.DESTROYER:
+		preview_sprite.visible = false
+		preview_destroyer.visible = true
+		preview_destroyer.position = grid_to_world(grid_pos)
+		preview_destroyer.rotation = dir * (PI / 2.0)
+		var preview_alpha := 0.6
+		var existing_destroyer := grid_world.get_block(grid_pos) if grid_world != null else null
+		if existing_destroyer != null and existing_destroyer.is_world_block and not is_level_editor_mode:
+			preview_alpha = 0.6
+		elif not is_in_build_area(grid_pos):
+			preview_destroyer.modulate = Color(1.0, 0.78, 0.2, preview_alpha)
+			return
+		preview_destroyer.modulate = Color(1.0, 1.0, 1.0, preview_alpha)
+		return
+	if btype == BlockData.Type.BASIC:
+		preview_sprite.visible = false
+		preview_basic.visible = true
+		preview_basic.position = grid_to_world(grid_pos)
+		preview_basic.rotation = dir * (PI / 2.0)
+		preview_basic.scale = Vector2.ONE * ((CELL_SIZE - 4.0) / 64.0)
+		var basic_preview_alpha := 0.6
+		if not is_in_build_area(grid_pos):
+			preview_basic.modulate = Color(1.0, 0.78, 0.2, basic_preview_alpha)
+		else:
+			preview_basic.modulate = Color(1.0, 1.0, 1.0, basic_preview_alpha)
+		return
+	if btype == BlockData.Type.PUSHER:
+		preview_sprite.visible = false
+		preview_pusher.visible = true
+		preview_pusher.position = grid_to_world(grid_pos)
+		preview_pusher.rotation = dir * (PI / 2.0)
+		preview_pusher.scale = Vector2.ONE
+		var pusher_preview_alpha := 0.6
+		if not is_in_build_area(grid_pos):
+			preview_pusher.modulate = Color(1.0, 0.78, 0.2, pusher_preview_alpha)
+		else:
+			preview_pusher.modulate = Color(1.0, 1.0, 1.0, pusher_preview_alpha)
+		return
 
 	var tex_path := _get_preview_texture_path(btype, variant, sub_mode)
 	var tex := BlockView._get_cached_texture(tex_path)
@@ -412,6 +484,8 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 	for mov in result.moved_blocks:
 		var v := get_view(mov["id"])
 		if v != null:
+			if v.block_data.block_type == BlockData.Type.PUSHER:
+				v.play_pusher_push()
 			v.animate_to_pos(mov["new_pos"], duration)
 
 	# 3. Damages
@@ -432,6 +506,16 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 		v.animate_spawn(duration)
 
 	# 6. Destructions & Collections
+	for action in result.destroyer_actions:
+		var destroyer_id: int = action["id"]
+		var target_id: int = action["target_id"]
+		if _destroyer_eat_targets.get(destroyer_id, -1) == target_id:
+			continue
+		_destroyer_eat_targets[destroyer_id] = target_id
+		var destroyer_view := get_view(destroyer_id)
+		if destroyer_view != null:
+			destroyer_view.play_destroyer_eat()
+
 	for dest_block in result.destroyed_blocks:
 		var v := get_view(dest_block.block_id)
 		if v != null:

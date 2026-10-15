@@ -1,9 +1,6 @@
 class_name LevelEditor
 extends Control
 const UI = preload("res://scripts/ui/UIStyle.gd")
-const KeybindManager = preload("res://scripts/core/KeybindManager.gd")
-const EditorContextMenu = preload("res://scripts/ui/EditorContextMenu.gd")
-const EditorClipboard = preload("res://scripts/core/EditorClipboard.gd")
 
 var current_level_data: LevelData
 var world: GridWorld
@@ -996,7 +993,9 @@ func clear_all_blocks() -> void:
 
 func _on_save_machine() -> void:
 	var has_sel := not selected_blocks.is_empty()
-	var target_parent: Node = ui_layer if ui_layer != null else self
+	var target_parent: Node = self
+	if ui_layer != null:
+		target_parent = ui_layer
 	BlueprintDialogs.show_save_dialog(target_parent, has_sel, func(m_name: String, only_selected: bool):
 		var target_blocks: Array[BlockData] = []
 		if only_selected and not selected_blocks.is_empty():
@@ -1007,7 +1006,9 @@ func _on_save_machine() -> void:
 	)
 
 func _on_load_machine() -> void:
-	var target_parent: Node = ui_layer if ui_layer != null else self
+	var target_parent: Node = self
+	if ui_layer != null:
+		target_parent = ui_layer
 	BlueprintDialogs.show_load_dialog(target_parent, func(m_name: String):
 		var blocks := SaveManager.load_machine(m_name)
 		if blocks.is_empty():
