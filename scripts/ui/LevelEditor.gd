@@ -467,8 +467,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 
-		# Mouse Wheel cycles current tool when building
-		if event is InputEventMouseButton and event.pressed:
+	# Ctrl + Mouse Wheel cycles current block tool (Plain wheel zooms camera)
+	if toolbar != null and event is InputEventMouseButton and event.pressed:
+		var is_ctrl: bool = event.ctrl_pressed or Input.is_key_pressed(KEY_CTRL)
+		if is_ctrl:
 			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 				toolbar.cycle_tool(-1)
 				get_viewport().set_input_as_handled()
@@ -501,11 +503,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	# Copy & Paste Shortcuts
+	# Cut, Copy & Paste Shortcuts
+	if KeybindManager.is_action_just_pressed(event, "cut"):
+		if not selected_blocks.is_empty():
+			cut_selected_blocks()
+			get_viewport().set_input_as_handled()
+			return
+
 	if KeybindManager.is_action_just_pressed(event, "copy"):
 		if not selected_blocks.is_empty():
 			EditorClipboard.copy(selected_blocks)
-			_clear_selection()
 			get_viewport().set_input_as_handled()
 			return
 
@@ -669,7 +676,8 @@ func _on_context_menu_action(action: String) -> void:
 		"copy":
 			if not selected_blocks.is_empty():
 				EditorClipboard.copy(selected_blocks)
-				_clear_selection()
+		"cut":
+			cut_selected_blocks()
 		"paste":
 			if EditorClipboard.has_blocks():
 				_start_paste_preview(EditorClipboard.get_blocks())
@@ -929,6 +937,14 @@ func group_selected_blocks() -> void:
 		if v != null:
 			v.update_appearance()
 	initial_snapshot = world.clone()
+
+func cut_selected_blocks() -> void:
+	if selected_blocks.is_empty():
+		return
+	EditorClipboard.copy(selected_blocks)
+	var blocks_to_paste := EditorClipboard.get_blocks()
+	delete_selected_blocks()
+	_start_paste_preview(blocks_to_paste)
 
 func delete_selected_blocks() -> void:
 	for b in selected_blocks:

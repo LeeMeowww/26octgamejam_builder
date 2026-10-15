@@ -339,6 +339,8 @@ func start_multi_ghost(blocks: Array[BlockData]) -> void:
 
 	multi_ghost_active = true
 	_create_multi_ghost_sprites()
+	if is_inside_tree():
+		multi_ghost_mouse_pos = world_to_grid(get_global_mouse_position())
 	update_multi_ghost_position(multi_ghost_mouse_pos)
 
 func _ensure_multi_ghost_root() -> void:

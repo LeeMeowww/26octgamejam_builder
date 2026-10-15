@@ -5,6 +5,10 @@ const EditorClipboard = preload("res://scripts/core/EditorClipboard.gd")
 const EditorContextMenu = preload("res://scripts/ui/EditorContextMenu.gd")
 const SettingsMenu = preload("res://scripts/ui/SettingsMenu.gd")
 const GridView = preload("res://scripts/view/GridView.gd")
+const GridWorld = preload("res://scripts/core/GridWorld.gd")
+const BlockData = preload("res://scripts/core/BlockData.gd")
+const CameraController = preload("res://scripts/view/CameraController.gd")
+const Toolbar = preload("res://scripts/ui/Toolbar.gd")
 
 var passed_checks: int = 0
 var failed_checks: int = 0
@@ -24,6 +28,8 @@ func _init() -> void:
 	test_ghost_transformations()
 	test_context_menu_ui()
 	test_connectivity_enforcement()
+	test_cut_and_copy_actions()
+	test_wheel_zoom_and_tool_cycle()
 
 	print("\n--- Test Results: %d passed, %d failed ---" % [passed_checks, failed_checks])
 	if failed_checks == 0:
@@ -43,6 +49,9 @@ func test_keybind_manager() -> void:
 	var copy_str: String = KeybindManager.get_action_display_name("copy")
 	check(copy_str == "Ctrl+C", "Copy action display name is 'Ctrl+C'")
 
+	var cut_str: String = KeybindManager.get_action_display_name("cut")
+	check(cut_str == "Ctrl+X", "Cut action display name is 'Ctrl+X'")
+
 	# Test custom binding
 	KeybindManager.set_binding("delete", KEY_DELETE, false, false, false)
 	check(KeybindManager.get_binding("delete").get("key") == KEY_DELETE, "Delete successfully rebound to KEY_DELETE")
@@ -51,6 +60,18 @@ func test_keybind_manager() -> void:
 	# Reset defaults
 	KeybindManager.reset_to_defaults()
 	check(KeybindManager.get_binding("delete").get("key") == KEY_X, "Reset to defaults restored delete key to X")
+
+	# Test conflict detection & write failure
+	check(KeybindManager.has_conflict("copy", KEY_X, true, false, false), "Ctrl+X conflicts with cut")
+	var conflict_act: String = KeybindManager.find_conflicting_action("copy", KEY_X, true, false, false)
+	check(conflict_act == "cut", "Conflicting action for Ctrl+X is 'cut'")
+
+	var write_failed: bool = not KeybindManager.set_binding("copy", KEY_X, true, false, false)
+	check(write_failed, "Conflicting binding write fails and returns false")
+	check(KeybindManager.get_binding("copy").get("key") == KEY_C, "Binding for copy remains unchanged after failed write")
+
+	var same_key_success: bool = KeybindManager.set_binding("copy", KEY_C, true, false, false)
+	check(same_key_success, "Re-binding identical key to same action does not conflict with itself")
 
 func test_editor_clipboard() -> void:
 	print("\n--- 2. Testing EditorClipboard ---")
@@ -146,6 +167,7 @@ func test_context_menu_ui() -> void:
 
 	# Verify menu entries
 	var has_copy := false
+	var has_cut := false
 	var has_paste := false
 	var has_del := false
 	var has_rot_cw := false
@@ -157,6 +179,7 @@ func test_context_menu_ui() -> void:
 		if child is Button:
 			match child.name:
 				"copy": has_copy = true
+				"cut": has_cut = true
 				"paste": has_paste = true
 				"delete": has_del = true
 				"rotate_cw": has_rot_cw = true
@@ -164,8 +187,8 @@ func test_context_menu_ui() -> void:
 				"flip_h": has_flip_h = true
 				"flip_v": has_flip_v = true
 
-	check(has_copy and has_paste and has_del and has_rot_cw and has_rot_ccw and has_flip_h and has_flip_v,
-		"Context menu contains all required actions (Copy, Paste, Delete, Rotate CW/CCW, Flip H/V)")
+	check(has_copy and has_cut and has_paste and has_del and has_rot_cw and has_rot_ccw and has_flip_h and has_flip_v,
+		"Context menu contains all required actions (Copy, Cut, Paste, Delete, Rotate CW/CCW, Flip H/V)")
 
 	menu.queue_free()
 
@@ -182,3 +205,75 @@ func test_connectivity_enforcement() -> void:
 	check(b1.structure_id > 0, "Block 1 has positive structure ID")
 	check(b2.structure_id > 0, "Block 2 has positive structure ID")
 	check(b1.structure_id != b2.structure_id, "Disconnected blocks in grouping split into separate structure IDs")
+
+func test_cut_and_copy_actions() -> void:
+	print("\n--- 6. Testing Cut & Copy Action Behaviors ---")
+	var world := GridWorld.new()
+	var b1 := BlockData.new(BlockData.Type.BASIC, Vector2i(2, 3))
+	world.add_block(b1)
+	check(world.get_block(Vector2i(2, 3)) != null, "Block exists in world prior to cut")
+
+	var selected: Array[BlockData] = [b1]
+
+	# 1. Test Copy does not clear selection
+	EditorClipboard.copy(selected)
+	check(selected.size() == 1, "Copying does NOT deselect blocks")
+	check(EditorClipboard.has_blocks(), "Clipboard has blocks after copy")
+
+	# 2. Test Cut workflow (copy -> delete original -> start multi ghost)
+	var gview := GridView.new()
+	root.add_child(gview)
+
+	# Execute cut semantics
+	EditorClipboard.copy(selected)
+	var blocks_to_paste := EditorClipboard.get_blocks()
+	for b in selected:
+		world.remove_block_at(b.grid_pos)
+	selected.clear()
+	gview.start_multi_ghost(blocks_to_paste)
+
+	check(world.get_block(Vector2i(2, 3)) == null, "Original block was deleted after cut")
+	check(EditorClipboard.has_blocks(), "Clipboard holds the cut block")
+	check(gview.is_multi_ghost_active(), "Multi-ghost preview is active after cut")
+
+	gview.cancel_multi_ghost()
+	gview.queue_free()
+
+func test_wheel_zoom_and_tool_cycle() -> void:
+	print("\n--- 7. Testing Mouse Wheel Zoom vs Ctrl+Wheel Tool Cycling ---")
+	# Test key events for copy / cut / delete
+	var ev_x := InputEventKey.new()
+	ev_x.keycode = KEY_X
+	ev_x.pressed = true
+	ev_x.ctrl_pressed = false
+	check(KeybindManager.is_action_just_pressed(ev_x, "delete"), "Plain X triggers delete")
+	check(not KeybindManager.is_action_just_pressed(ev_x, "cut"), "Plain X does NOT trigger cut")
+
+	var ev_ctrl_x := InputEventKey.new()
+	ev_ctrl_x.keycode = KEY_X
+	ev_ctrl_x.pressed = true
+	ev_ctrl_x.ctrl_pressed = true
+	check(KeybindManager.is_action_just_pressed(ev_ctrl_x, "cut"), "Ctrl+X triggers cut")
+	check(not KeybindManager.is_action_just_pressed(ev_ctrl_x, "delete"), "Ctrl+X does NOT trigger delete")
+
+	var ev_ctrl_c := InputEventKey.new()
+	ev_ctrl_c.keycode = KEY_C
+	ev_ctrl_c.pressed = true
+	ev_ctrl_c.ctrl_pressed = true
+	check(KeybindManager.is_action_just_pressed(ev_ctrl_c, "copy"), "Ctrl+C triggers copy")
+	check(not KeybindManager.is_action_just_pressed(ev_ctrl_c, "cut"), "Ctrl+C does NOT trigger cut")
+
+	# Test Toolbar tool cycling
+	var tb := Toolbar.new()
+	root.add_child(tb)
+	tb.editing_enabled = true
+	tb.select_type(BlockData.Type.BASIC)
+	check(tb.current_type == BlockData.Type.BASIC, "Toolbar selected BASIC")
+
+	# Simulating Ctrl + Wheel: cycles tool
+	tb.cycle_tool(1)
+	check(tb.current_type == BlockData.Type.INHIBITOR, "Cycle tool advances to next block")
+	tb.cycle_tool(-1)
+	check(tb.current_type == BlockData.Type.BASIC, "Cycle tool returns to previous block")
+
+	tb.queue_free()

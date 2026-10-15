@@ -32,6 +32,14 @@ static func get_default_bindings() -> Dictionary:
 			"shift": false,
 			"alt": false
 		},
+		"cut": {
+			"label": "剪切",
+			"category": "编辑操作",
+			"key": KEY_X,
+			"ctrl": true,
+			"shift": false,
+			"alt": false
+		},
 		"paste": {
 			"label": "粘贴",
 			"category": "编辑操作",
@@ -292,14 +300,31 @@ static func get_binding(action_id: String) -> Dictionary:
 	init_keybinds()
 	return _bindings.get(action_id, {})
 
-static func set_binding(action_id: String, keycode: int, ctrl: bool = false, shift: bool = false, alt: bool = false) -> void:
+static func find_conflicting_action(action_id: String, keycode: int, ctrl: bool = false, shift: bool = false, alt: bool = false) -> String:
 	init_keybinds()
-	if _bindings.has(action_id):
-		_bindings[action_id]["key"] = keycode
-		_bindings[action_id]["ctrl"] = ctrl
-		_bindings[action_id]["shift"] = shift
-		_bindings[action_id]["alt"] = alt
-		save_bindings()
+	for act in _bindings.keys():
+		if act == action_id:
+			continue
+		var b: Dictionary = _bindings[act]
+		if b.get("key", 0) == keycode and b.get("ctrl", false) == ctrl and b.get("shift", false) == shift and b.get("alt", false) == alt:
+			return act
+	return ""
+
+static func has_conflict(action_id: String, keycode: int, ctrl: bool = false, shift: bool = false, alt: bool = false) -> bool:
+	return find_conflicting_action(action_id, keycode, ctrl, shift, alt) != ""
+
+static func set_binding(action_id: String, keycode: int, ctrl: bool = false, shift: bool = false, alt: bool = false) -> bool:
+	init_keybinds()
+	if not _bindings.has(action_id):
+		return false
+	if has_conflict(action_id, keycode, ctrl, shift, alt):
+		return false
+	_bindings[action_id]["key"] = keycode
+	_bindings[action_id]["ctrl"] = ctrl
+	_bindings[action_id]["shift"] = shift
+	_bindings[action_id]["alt"] = alt
+	save_bindings()
+	return true
 
 static func get_action_display_name(action_id: String) -> String:
 	init_keybinds()
@@ -350,7 +375,7 @@ static func is_action_just_pressed(event: InputEvent, action_id: String) -> bool
 
 	if event_key != target_key:
 		# Fallback: if delete action, also allow standard KEY_DELETE if not rebound
-		if action_id == "delete" and target_key == KEY_X and (event_key == KEY_DELETE or event_key == KEY_BACKSPACE):
+		if action_id == "delete" and target_key == KEY_X and (event_key == KEY_DELETE or event_key == KEY_BACKSPACE) and not key_event.ctrl_pressed and not key_event.alt_pressed:
 			return true
 		return false
 

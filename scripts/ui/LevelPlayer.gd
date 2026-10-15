@@ -700,8 +700,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 
-		# Mouse Wheel cycles current tool when building
-		if event is InputEventMouseButton and event.pressed:
+	# Ctrl + Mouse Wheel cycles current block tool (Plain wheel zooms camera)
+	if toolbar != null and not is_simulating and event is InputEventMouseButton and event.pressed:
+		var is_ctrl: bool = event.ctrl_pressed or Input.is_key_pressed(KEY_CTRL)
+		if is_ctrl:
 			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 				toolbar.cycle_tool(-1)
 				get_viewport().set_input_as_handled()
@@ -751,12 +753,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	# Copy & Paste Shortcuts
+	# Cut, Copy & Paste Shortcuts
+	if KeybindManager.is_action_just_pressed(event, "cut"):
+		if not is_simulating and not has_simulated:
+			var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
+			if not player_blocks.is_empty():
+				cut_selected_blocks()
+				get_viewport().set_input_as_handled()
+				return
+
 	if KeybindManager.is_action_just_pressed(event, "copy"):
 		var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
 		if not player_blocks.is_empty():
 			EditorClipboard.copy(player_blocks)
-			_clear_selection()
 			get_viewport().set_input_as_handled()
 			return
 
@@ -868,7 +877,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						if not is_right_panning:
 							# Single right click without drag
 							if not selected_blocks.is_empty():
-								context_menu.popup_at(event.position, EditorClipboard.has_blocks())
+								var can_act := selected_blocks.any(func(b): return not b.is_world_block) and not is_simulating and not has_simulated
+								context_menu.popup_at(event.position, EditorClipboard.has_blocks() and not is_simulating and not has_simulated, can_act)
 						is_right_panning = false
 
 	elif event is InputEventMouseMotion:
@@ -905,7 +915,8 @@ func _on_context_menu_action(action: String) -> void:
 			var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
 			if not player_blocks.is_empty():
 				EditorClipboard.copy(player_blocks)
-				_clear_selection()
+		"cut":
+			cut_selected_blocks()
 		"paste":
 			if EditorClipboard.has_blocks() and not is_simulating and not has_simulated:
 				_start_paste_preview(EditorClipboard.get_blocks())
@@ -1204,6 +1215,17 @@ func group_selected_blocks() -> void:
 		if v != null:
 			v.update_appearance()
 	_update_initial_snapshot()
+
+func cut_selected_blocks() -> void:
+	if is_simulating or has_simulated:
+		return
+	var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
+	if player_blocks.is_empty():
+		return
+	EditorClipboard.copy(player_blocks)
+	var blocks_to_paste := EditorClipboard.get_blocks()
+	delete_selected_blocks()
+	_start_paste_preview(blocks_to_paste)
 
 func delete_selected_blocks() -> void:
 	if is_simulating or has_simulated:

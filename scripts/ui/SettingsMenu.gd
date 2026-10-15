@@ -9,6 +9,7 @@ var tab_container: TabContainer
 var key_buttons: Dictionary = {} # action_id -> Button
 var listening_action: String = ""
 var listening_button: Button = null
+var tip_lbl: Label = null
 
 func _ready() -> void:
 	theme = UI.get_theme()
@@ -69,6 +70,12 @@ func _build_ui() -> void:
 	keyboard_tab.name = "键盘设置"
 	keyboard_tab.add_theme_constant_override("separation", 10)
 	tab_container.add_child(keyboard_tab)
+
+	tip_lbl = Label.new()
+	tip_lbl.text = "点击按键进行修改，按 Esc 取消修改。按键不可与其他操作冲突。"
+	tip_lbl.add_theme_font_size_override("font_size", 13)
+	tip_lbl.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9, 0.8))
+	keyboard_tab.add_child(tip_lbl)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
@@ -156,6 +163,10 @@ func _start_listening(act: String, btn: Button) -> void:
 	listening_button = btn
 	btn.text = "【请按下新按键...】"
 	btn.modulate = Color(0.3, 1.0, 0.7)
+	if tip_lbl != null:
+		var act_label: String = KeybindManager.get_binding(act).get("label", act)
+		tip_lbl.text = "正在为「%s」设置快捷键，按 Esc 取消..." % act_label
+		tip_lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.7))
 
 func _input(event: InputEvent) -> void:
 	if listening_action.is_empty() or listening_button == null:
@@ -175,10 +186,36 @@ func _input(event: InputEvent) -> void:
 			listening_button.modulate = Color(1.0, 1.0, 1.0)
 			listening_action = ""
 			listening_button = null
+			if tip_lbl != null:
+				tip_lbl.text = "点击按键进行修改，按 Esc 取消修改。按键不可与其他操作冲突。"
+				tip_lbl.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9, 0.8))
 			return
 
-		# Set new binding
-		KeybindManager.set_binding(listening_action, code, event.ctrl_pressed, event.shift_pressed, event.alt_pressed)
+		# Set new binding with conflict check
+		var success: bool = KeybindManager.set_binding(listening_action, code, event.ctrl_pressed, event.shift_pressed, event.alt_pressed)
+		if not success:
+			var conflict_act: String = KeybindManager.find_conflicting_action(listening_action, code, event.ctrl_pressed, event.shift_pressed, event.alt_pressed)
+			var conflict_label: String = KeybindManager.get_binding(conflict_act).get("label", conflict_act)
+			if tip_lbl != null:
+				tip_lbl.text = "⚠️ 设置失败：该按键与「%s」冲突！" % conflict_label
+				tip_lbl.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+			listening_button.text = "冲突: %s" % conflict_label
+			listening_button.modulate = Color(1.0, 0.4, 0.4)
+			var cur_btn := listening_button
+			var cur_act := listening_action
+			listening_action = ""
+			listening_button = null
+			var timer := get_tree().create_timer(1.2)
+			timer.timeout.connect(func():
+				if is_instance_valid(cur_btn):
+					cur_btn.text = KeybindManager.get_action_display_name(cur_act)
+					cur_btn.modulate = Color(1.0, 1.0, 1.0)
+			)
+			return
+
+		if tip_lbl != null:
+			tip_lbl.text = "✓ 按键已更新。按 Esc 可取消正在进行的修改。"
+			tip_lbl.add_theme_color_override("font_color", Color(0.4, 1.0, 0.6))
 		listening_button.text = KeybindManager.get_action_display_name(listening_action)
 		listening_button.modulate = Color(1.0, 1.0, 1.0)
 		listening_action = ""
@@ -187,6 +224,9 @@ func _input(event: InputEvent) -> void:
 func _on_reset_defaults() -> void:
 	KeybindManager.reset_to_defaults()
 	_refresh_button_labels()
+	if tip_lbl != null:
+		tip_lbl.text = "✓ 已恢复默认按键设置。"
+		tip_lbl.add_theme_color_override("font_color", Color(0.4, 1.0, 0.6))
 
 func _refresh_button_labels() -> void:
 	for act in key_buttons.keys():
