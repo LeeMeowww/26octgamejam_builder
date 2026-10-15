@@ -52,6 +52,7 @@ var ui_layer: CanvasLayer
 var selected_blocks: Array[BlockData] = []
 var is_mouse_placing: bool = false
 var is_mouse_erasing: bool = false
+var last_player_grid: Vector2i = Vector2i(-999999, -999999)
 var is_box_selecting: bool = false
 var box_select_start_world: Vector2 = Vector2.ZERO
 var is_right_dragging_selection: bool = false
@@ -64,6 +65,53 @@ var is_right_mouse_down: bool = false
 var is_right_panning: bool = false
 var right_mouse_down_pos: Vector2 = Vector2.ZERO
 var right_pan_drag_threshold: float = 6.0
+
+# Undo / Redo history
+var undo_stack: Array[GridWorld] = []
+var redo_stack: Array[GridWorld] = []
+const MAX_UNDO_STACK := 50
+
+func record_undo() -> void:
+	if is_simulating or is_animating_tick or has_simulated:
+		return
+	undo_stack.append(world.clone())
+	if undo_stack.size() > MAX_UNDO_STACK:
+		undo_stack.pop_front()
+	redo_stack.clear()
+
+func can_undo() -> bool:
+	return not is_simulating and not is_animating_tick and not has_simulated and not undo_stack.is_empty()
+
+func can_redo() -> bool:
+	return not is_simulating and not is_animating_tick and not has_simulated and not redo_stack.is_empty()
+
+func undo() -> void:
+	if not can_undo():
+		return
+	redo_stack.append(world.clone())
+	var prev_world: GridWorld = undo_stack.pop_back()
+	world = prev_world.clone()
+	initial_snapshot = world.clone()
+	sim_engine = SimulationEngine.new(world)
+	_clear_selection()
+	if grid_view != null:
+		grid_view.cancel_multi_ghost()
+		grid_view.set_world(world)
+	_update_build_area_status()
+
+func redo() -> void:
+	if not can_redo():
+		return
+	undo_stack.append(world.clone())
+	var next_world: GridWorld = redo_stack.pop_back()
+	world = next_world.clone()
+	initial_snapshot = world.clone()
+	sim_engine = SimulationEngine.new(world)
+	_clear_selection()
+	if grid_view != null:
+		grid_view.cancel_multi_ghost()
+		grid_view.set_world(world)
+	_update_build_area_status()
 
 func _ready() -> void:
 	KeybindManager.init_keybinds()
@@ -90,6 +138,8 @@ func load_level_by_index(idx: int) -> void:
 		load_level_data(all_levels[idx])
 
 func load_level_data(lvl_data: LevelData) -> void:
+	undo_stack.clear()
+	redo_stack.clear()
 	MusicManager.play_ambient()
 	selected_blocks.clear()
 	if victory_dialog != null: victory_dialog.hide()
@@ -487,6 +537,7 @@ func _execute_tick() -> void:
 
 func _on_level_won() -> void:
 	pause_simulation()
+	SoundManager.play_level_victory()
 	Campaign.mark_completed(current_level_data.level_id, sim_engine.step_count)
 	var has_next := Campaign.next_index(current_level_data.level_id, all_levels) >= 0
 	victory_dialog.show_victory(sim_engine.step_count, has_next)
@@ -741,6 +792,17 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 				return
 
+	# Undo / Redo Shortcuts
+	if KeybindManager.is_action_just_pressed(event, "undo"):
+		undo()
+		get_viewport().set_input_as_handled()
+		return
+
+	if KeybindManager.is_action_just_pressed(event, "redo"):
+		redo()
+		get_viewport().set_input_as_handled()
+		return
+
 	# Structure Grouping
 	if KeybindManager.is_action_just_pressed(event, "group_structure"):
 		group_selected_blocks()
@@ -816,7 +878,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.pressed:
 				if toolbar.is_placing:
 					if not is_simulating and not has_simulated:
+						record_undo()
 						is_mouse_placing = true
+						last_player_grid = grid_pos
 						_try_place_block(grid_pos)
 				else:
 					# Selection tool
@@ -851,6 +915,7 @@ func _unhandled_input(event: InputEvent) -> void:
 								grid_view.queue_redraw()
 			else:
 				is_mouse_placing = false
+				last_player_grid = Vector2i(-999999, -999999)
 				if is_box_selecting:
 					is_box_selecting = false
 					grid_view.is_box_selecting = false
@@ -861,7 +926,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.pressed:
 				if toolbar.is_placing:
 					if not is_simulating and not has_simulated:
+						record_undo()
 						is_mouse_erasing = true
+						last_player_grid = grid_pos
 						_try_erase_block(grid_pos)
 				else:
 					# Selection Mode: Start right drag panning or context menu
@@ -871,14 +938,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				if toolbar.is_placing:
 					is_mouse_erasing = false
+					last_player_grid = Vector2i(-999999, -999999)
 				else:
 					if is_right_mouse_down:
 						is_right_mouse_down = false
 						if not is_right_panning:
 							# Single right click without drag
-							if not selected_blocks.is_empty():
-								var can_act := selected_blocks.any(func(b): return not b.is_world_block) and not is_simulating and not has_simulated
-								context_menu.popup_at(event.position, EditorClipboard.has_blocks() and not is_simulating and not has_simulated, can_act)
+							var can_act := not selected_blocks.is_empty() and selected_blocks.any(func(b): return not b.is_world_block) and not is_simulating and not has_simulated
+							var can_paste := EditorClipboard.has_blocks() and not is_simulating and not has_simulated
+							if can_act or can_paste or can_undo() or can_redo():
+								context_menu.popup_at(event.position, can_paste, can_act, can_undo(), can_redo())
 						is_right_panning = false
 
 	elif event is InputEventMouseMotion:
@@ -902,15 +971,23 @@ func _unhandled_input(event: InputEvent) -> void:
 					v.position = grid_view.grid_to_world(preview_pos)
 			grid_view.queue_redraw()
 		elif is_mouse_placing:
-			_try_place_block(grid_pos)
+			if grid_pos != last_player_grid:
+				last_player_grid = grid_pos
+				_try_place_block(grid_pos)
 		elif is_mouse_erasing:
-			_try_erase_block(grid_pos)
+			if grid_pos != last_player_grid:
+				last_player_grid = grid_pos
+				_try_erase_block(grid_pos)
 		elif is_box_selecting:
 			grid_view.box_select_current = mouse_world
 			grid_view.queue_redraw()
 
 func _on_context_menu_action(action: String) -> void:
 	match action:
+		"undo":
+			undo()
+		"redo":
+			redo()
 		"copy":
 			var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
 			if not player_blocks.is_empty():
@@ -945,6 +1022,7 @@ func _try_place_ghost_blocks(mouse_grid: Vector2i) -> void:
 	var new_blocks := grid_view.get_multi_ghost_blocks_to_place(mouse_grid)
 	if new_blocks.is_empty():
 		return
+	record_undo()
 
 	var sid_map: Dictionary = {}
 	for b in new_blocks:
@@ -959,12 +1037,14 @@ func _try_place_ghost_blocks(mouse_grid: Vector2i) -> void:
 
 	grid_view.cancel_multi_ghost()
 	initial_snapshot = world.clone()
+	SoundManager.play_cell_place(grid_view.grid_to_world(mouse_grid))
 	_update_build_area_status()
 	_refresh_tutorial()
 
 func _rotate_selected_blocks_cw() -> void:
 	var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
 	if player_blocks.is_empty() or is_simulating or has_simulated: return
+	record_undo()
 	var sum := Vector2.ZERO
 	for b in player_blocks: sum += Vector2(b.grid_pos)
 	var center := sum / float(player_blocks.size())
@@ -1001,6 +1081,7 @@ func _rotate_selected_blocks_cw() -> void:
 func _rotate_selected_blocks_ccw() -> void:
 	var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
 	if player_blocks.is_empty() or is_simulating or has_simulated: return
+	record_undo()
 	var sum := Vector2.ZERO
 	for b in player_blocks: sum += Vector2(b.grid_pos)
 	var center := sum / float(player_blocks.size())
@@ -1037,6 +1118,7 @@ func _rotate_selected_blocks_ccw() -> void:
 func _flip_selected_blocks_h() -> void:
 	var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
 	if player_blocks.is_empty() or is_simulating or has_simulated: return
+	record_undo()
 	var sum := Vector2.ZERO
 	for b in player_blocks: sum += Vector2(b.grid_pos)
 	var center := sum / float(player_blocks.size())
@@ -1081,6 +1163,7 @@ func _flip_selected_blocks_h() -> void:
 func _flip_selected_blocks_v() -> void:
 	var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
 	if player_blocks.is_empty() or is_simulating or has_simulated: return
+	record_undo()
 	var sum := Vector2.ZERO
 	for b in player_blocks: sum += Vector2(b.grid_pos)
 	var center := sum / float(player_blocks.size())
@@ -1140,6 +1223,7 @@ func _try_place_block(grid_pos: Vector2i) -> void:
 	new_block.sub_mode = toolbar.current_sub_mode
 	new_block.is_world_block = false
 	world.add_block(new_block)
+	SoundManager.play_cell_place(grid_view.grid_to_world(grid_pos))
 
 	# Update initial snapshot so Reset keeps player's current design
 	_update_initial_snapshot()
@@ -1153,6 +1237,7 @@ func _try_erase_block(grid_pos: Vector2i) -> void:
 		if b.is_world_block:
 			return # Protected world blocks
 		world.remove_block_at(grid_pos)
+		SoundManager.play_cell_delete(grid_view.grid_to_world(grid_pos))
 		_update_initial_snapshot()
 		_update_build_area_status()
 
@@ -1209,6 +1294,7 @@ func group_selected_blocks() -> void:
 	selected_blocks = selected_blocks.filter(func(b): return not b.is_world_block)
 	if selected_blocks.is_empty():
 		return
+	record_undo()
 	world.group_blocks(selected_blocks)
 	for b in selected_blocks:
 		var v := grid_view.get_view(b.block_id)
@@ -1230,10 +1316,18 @@ func cut_selected_blocks() -> void:
 func delete_selected_blocks() -> void:
 	if is_simulating or has_simulated:
 		return
+	var delete_pos := Vector2.ZERO
+	var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
+	if player_blocks.is_empty():
+		return
+	record_undo()
+	delete_pos = grid_view.grid_to_world(player_blocks[0].grid_pos)
 	for b in selected_blocks:
 		if not b.is_world_block:
 			world.remove_block_at(b.grid_pos)
 	selected_blocks.clear()
+	if delete_pos != Vector2.ZERO:
+		SoundManager.play_cell_delete(delete_pos)
 	_update_initial_snapshot()
 	_update_build_area_status()
 
@@ -1284,6 +1378,8 @@ func _apply_selection_drag(delta: Vector2i) -> void:
 				v.position = grid_view.grid_to_world(b.grid_pos)
 		return
 
+	record_undo()
+
 	# 1. Remove non-selected player blocks at target positions
 	for b in selected_blocks:
 		var target_p: Vector2i = new_positions[b]
@@ -1316,6 +1412,7 @@ func clear_player_blocks() -> void:
 		return
 	if has_simulated:
 		reset_simulation()
+	record_undo()
 	var all_b := world.get_all_blocks()
 	for b in all_b:
 		if not b.is_world_block:

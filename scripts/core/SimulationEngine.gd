@@ -352,13 +352,47 @@ func _simulate_pushers(snap: GridWorld, result: TickResult) -> Dictionary:
 			var own_entity = block_to_entity.get(own_block, null)
 
 			if target_entity != null:
-				_apply_force_to_entity(entity_forces[target_entity], fwd)
+				var target_has_hard := false
+				for b: BlockData in target_entity:
+					if b.block_type == BlockData.Type.HARD:
+						target_has_hard = true
+						break
+				if not target_has_hard:
+					_apply_force_to_entity(entity_forces[target_entity], fwd)
 			if own_entity != null:
-				_apply_force_to_entity(entity_forces[own_entity], fwd)
+				var own_has_hard := false
+				for b: BlockData in own_entity:
+					if b.block_type == BlockData.Type.HARD:
+						own_has_hard = true
+						break
+				if not own_has_hard:
+					_apply_force_to_entity(entity_forces[own_entity], fwd)
 
-	# Calculate net intended delta for each entity
+	# Calculate net intended delta for each entity.
+	# Deterministically sort entities so PRNG decisions remain reproducible with seed.
+	var entities_sorted := entities.duplicate()
+	entities_sorted.sort_custom(func(ent1: Array, ent2: Array) -> bool:
+		var min1 := 2147483647
+		for b: BlockData in ent1:
+			min1 = mini(min1, b.block_id)
+		var min2 := 2147483647
+		for b: BlockData in ent2:
+			min2 = mini(min2, b.block_id)
+		return min1 < min2
+	)
+
 	var entity_deltas: Dictionary = {}
-	for ent in entities:
+	for ent in entities_sorted:
+		# Entities containing a HARD block are completely immovable and cannot be pushed
+		var has_hard := false
+		for b: BlockData in ent:
+			if b.block_type == BlockData.Type.HARD:
+				has_hard = true
+				break
+		if has_hard:
+			entity_deltas[ent] = Vector2i.ZERO
+			continue
+
 		var f = entity_forces[ent]
 		var dx := 0
 		if f.x_pos and not f.x_neg:
@@ -371,6 +405,14 @@ func _simulate_pushers(snap: GridWorld, result: TickResult) -> Dictionary:
 			dy = 1
 		elif f.y_neg and not f.y_pos:
 			dy = -1
+
+		# When pushers in two directions act on an object simultaneously (e.g. right and down),
+		# randomly choose one direction to move first, and the other direction is invalid this turn.
+		if dx != 0 and dy != 0:
+			if rng.randi_range(0, 1) == 0:
+				dy = 0
+			else:
+				dx = 0
 
 		entity_deltas[ent] = Vector2i(dx, dy)
 
@@ -396,8 +438,8 @@ func _simulate_pushers(snap: GridWorld, result: TickResult) -> Dictionary:
 					var next_pos := b.grid_pos + delta
 					var occupant := world.get_block(next_pos)
 					if occupant != null and occupant not in ent:
-						# If occupant is HARD and uninhibited, cannot move!
-						if occupant.is_immune():
+						# If occupant is HARD, cannot move or push it!
+						if occupant.block_type == BlockData.Type.HARD:
 							can_move = false
 							break
 						# If occupant is stopped or moving in conflicting direction, blocked!

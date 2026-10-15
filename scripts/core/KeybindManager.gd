@@ -24,6 +24,22 @@ static func _notify_changed() -> void:
 static func get_default_bindings() -> Dictionary:
 	return {
 		# 编辑操作
+		"undo": {
+			"label": "撤销",
+			"category": "编辑操作",
+			"key": KEY_Z,
+			"ctrl": true,
+			"shift": false,
+			"alt": false
+		},
+		"redo": {
+			"label": "重做",
+			"category": "编辑操作",
+			"key": KEY_R,
+			"ctrl": true,
+			"shift": false,
+			"alt": false
+		},
 		"copy": {
 			"label": "复制",
 			"category": "编辑操作",

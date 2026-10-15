@@ -1332,7 +1332,7 @@
   "description": "击败这些怪物!",
   "level_id": "custom_level_81605",
   "level_name": "2-2：无限火力",
-  "order_index": 4,
+  "order_index": 104,
   "player_build_area": {
     "h": 14,
     "w": 14,

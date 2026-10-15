@@ -45,6 +45,15 @@ static func get_theme() -> Theme:
 	shared_theme.set_stylebox("panel", "TooltipPanel", box(Color("243c47"), ACCENT))
 	shared_theme.set_color("font_color", "TooltipLabel", TEXT)
 	shared_theme.set_font_size("font_size", "TooltipLabel", 15)
+	
+	# TabBar & TabContainer
+	shared_theme.set_color("font_selected_color", "TabBar", ACCENT)
+	shared_theme.set_color("font_unselected_color", "TabBar", MUTED)
+	shared_theme.set_color("font_hovered_color", "TabBar", TEXT)
+	shared_theme.set_stylebox("tab_selected", "TabBar", box(Color("223b49"), ACCENT, 6, 16))
+	shared_theme.set_stylebox("tab_unselected", "TabBar", box(Color("132530"), BORDER, 6, 16))
+	shared_theme.set_stylebox("tab_hovered", "TabBar", box(Color("1a3240"), ACCENT, 6, 16))
+	shared_theme.set_stylebox("panel", "TabContainer", box(Color("0e1c24"), BORDER, 8, 16))
 	return shared_theme
 
 static func primary(button: Button) -> void:

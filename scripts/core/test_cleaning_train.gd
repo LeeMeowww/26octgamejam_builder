@@ -5,6 +5,7 @@ var checks := 0
 var output_dir := OS.get_environment("BLOCKBOUND_TEST_OUTPUT")
 
 func _initialize() -> void:
+	create_timer(10.0).timeout.connect(func(): printerr("TEST WATCHDOG TIMEOUT!"); quit(1))
 	call_deferred("run_tests")
 
 func verify(ok: bool, label: String) -> void:
@@ -13,13 +14,19 @@ func verify(ok: bool, label: String) -> void:
 	print(label, ": ", ok)
 
 func build(player: LevelPlayer, grouped: bool, inhibitor_dir: int = 3) -> void:
-	for spec in [[2, -3, 0, 0], [4, -2, 0, 0], [1, -1, -1, inhibitor_dir], [4, -1, -2, 0]]:
+	player.selected_blocks.clear()
+	var placed: Array[BlockData] = []
+	for spec in [[4, -2, 0, 0], [2, -2, -1, 0], [1, -1, -1, inhibitor_dir], [4, -1, -2, 0]]:
 		player.toolbar.select_type(spec[0])
 		player.toolbar.current_dir = spec[3]
 		var pos := Vector2i(spec[1], spec[2])
 		player._try_place_block(pos)
 		verify(player.world.has_block(pos), "Player can place module at " + str(pos))
-		player.selected_blocks.append(player.world.get_block(pos))
+		var b := player.world.get_block(pos)
+		if b != null:
+			placed.append(b)
+	for b in placed:
+		player.selected_blocks.append(b)
 	if grouped: player.group_selected_blocks()
 
 func snap(view: SubViewport, file_name: String) -> void:
@@ -68,7 +75,7 @@ func run_tests() -> void:
 	await snap(view, "train_complete")
 	player.reset_simulation()
 	verify(player.sim_engine.get_remaining_pollution() == 2 and not player.victory_dialog.visible, "Reset restores goals and hides victory")
-	verify(player.world.get_block(Vector2i(-3, 0)).structure_id > 0, "Reset preserves grouped machine")
+	verify(player.world.get_block(Vector2i(-2, 0)).structure_id > 0, "Reset preserves grouped machine")
 	for variant in [0, 1]:
 		player.load_level_by_index(index)
 		build(player, variant == 1, 1 if variant == 1 else 3)

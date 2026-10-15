@@ -223,13 +223,21 @@ def generate_self_signed_cert(cert_dir):
             return None, None
     return cert_path, key_path
 
+class GestaltServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        exc_type = sys.exc_info()[0]
+        if exc_type in (BrokenPipeError, ConnectionResetError):
+            return
+        super().handle_error(request, client_address)
+
 def run_server(web_dir, port=8060, use_https=False, open_browser=True):
     actual_port = find_available_port(port)
     handler = lambda *args, **kwargs: GodotWebHandler(*args, directory=web_dir, **kwargs)
 
     try:
-        httpd = ThreadingHTTPServer(('0.0.0.0', actual_port), handler)
-        httpd.daemon_threads = True
+        httpd = GestaltServer(('0.0.0.0', actual_port), handler)
     except Exception as e:
         print(f"❌ 启动 Web 服务器失败: {e}")
         return

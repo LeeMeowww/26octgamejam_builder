@@ -151,6 +151,16 @@ class LoopedTrack:
 		_set_player_volume(active_player, active_weight * current_volume * master_volume)
 		_set_player_volume(fade_player, fade_weight * current_volume * master_volume)
 
+	func apply_immediate_volume() -> void:
+		var active_weight := 1.0
+		var fade_weight := 0.0
+		if is_loop_crossfading:
+			var p := clampf(loop_fade_progress, 0.0, 1.0)
+			active_weight = cos(p * (PI * 0.5))
+			fade_weight = sin(p * (PI * 0.5))
+		_set_player_volume(active_player, active_weight * current_volume * master_volume)
+		_set_player_volume(fade_player, fade_weight * current_volume * master_volume)
+
 	func _complete_loop_crossfade() -> void:
 		active_player.stop()
 		var temp := active_player
@@ -170,6 +180,15 @@ class LoopedTrack:
 var ambient_track: LoopedTrack
 var running_track: LoopedTrack
 var current_mode: Mode = Mode.AMBIENT
+var music_volume: float = 1.0:
+	set(v):
+		music_volume = clampf(v, 0.0, 1.0)
+		if ambient_track != null:
+			ambient_track.master_volume = music_volume
+			ambient_track.apply_immediate_volume()
+		if running_track != null:
+			running_track.master_volume = music_volume
+			running_track.apply_immediate_volume()
 
 func _ready() -> void:
 	instance = self
@@ -227,3 +246,12 @@ static func get_mode() -> Mode:
 	if instance != null:
 		return instance.current_mode
 	return Mode.AMBIENT
+
+static func set_volume(val: float) -> void:
+	if instance != null:
+		instance.music_volume = val
+
+static func get_volume() -> float:
+	if instance != null:
+		return instance.music_volume
+	return 1.0
