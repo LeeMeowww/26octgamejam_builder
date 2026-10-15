@@ -15,6 +15,7 @@ import json
 import argparse
 import socket
 import ssl
+import signal
 import subprocess
 import webbrowser
 from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -228,6 +229,7 @@ def run_server(web_dir, port=8060, use_https=False, open_browser=True):
 
     try:
         httpd = ThreadingHTTPServer(('0.0.0.0', actual_port), handler)
+        httpd.daemon_threads = True
     except Exception as e:
         print(f"❌ 启动 Web 服务器失败: {e}")
         return
@@ -259,6 +261,18 @@ def run_server(web_dir, port=8060, use_https=False, open_browser=True):
     print(f"  🛑 按 Ctrl + C 停止服务")
     print(f"=======================================================\n")
 
+    def shutdown_server(sig=None, frame=None):
+        print("\n正在关闭 Web 调试服务器...")
+        try:
+            httpd.server_close()
+        except Exception:
+            pass
+        print("✓ Web 服务器已安全退出。")
+        os._exit(0)
+
+    signal.signal(signal.SIGINT, shutdown_server)
+    signal.signal(signal.SIGTERM, shutdown_server)
+
     if open_browser:
         try:
             webbrowser.open(url)
@@ -267,10 +281,8 @@ def run_server(web_dir, port=8060, use_https=False, open_browser=True):
 
     try:
         httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\n正在关闭 Web 调试服务器...")
-        httpd.server_close()
-        print("✓ Web 服务器已安全退出。")
+    except (KeyboardInterrupt, SystemExit):
+        shutdown_server()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gestalt Godot 4 Web Debug Server")
