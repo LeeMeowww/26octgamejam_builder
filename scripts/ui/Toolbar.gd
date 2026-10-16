@@ -7,8 +7,12 @@ signal variant_changed(variant_idx: int)
 signal sub_mode_toggled(sub_mode: int)
 signal direction_changed(dir: int)
 signal group_pressed()
+# Public hooks retained for external consumers; no toolbar buttons emit these.
+@warning_ignore("unused_signal")
 signal clear_pressed()
+@warning_ignore("unused_signal")
 signal save_machine_pressed()
+@warning_ignore("unused_signal")
 signal load_machine_pressed()
 
 var is_editor_mode: bool = false
@@ -91,7 +95,17 @@ func _build_ui() -> void:
 		var bname = BlockData.SHORT_NAMES.get(t, "方块")
 		var full_bname = BlockData.TYPE_NAMES.get(t, "方块")
 		btn.text = "%s %s" % [bname, short_lbl]
-		btn.icon = load("res://assets/textures/blocks/" + ["basic_0", "inhibitor_0", "pusher_0", "replicator_0", "destroyer_0", "rotator_cw_0", "hard_0", "wanderer_0", "treasure_0", "pollution_0", "protected_0"][t] + ".svg")
+		var icon_name: String = ["basic_0", "inhibitor_0", "pusher_0", "replicator_0", "destroyer_0", "rotator_cw_0", "hard_0", "wanderer_0", "treasure_0", "pollution_0", "protected_0"][t]
+		var icon_path: String
+		if t == BlockData.Type.DESTROYER:
+			icon_path = "res://assets/textures/blocks/destroyer_ui.svg"
+		elif t == BlockData.Type.BASIC:
+			icon_path = "res://assets/textures/blocks/basic_ui.tres"
+		elif t == BlockData.Type.PUSHER:
+			icon_path = "res://assets/textures/blocks/pusher_ui.svg"
+		else:
+			icon_path = "res://assets/textures/blocks/" + icon_name + ".svg"
+		btn.icon = load(icon_path)
 		btn.expand_icon = true
 		btn.add_theme_constant_override("icon_max_width", 20 if is_editor_mode else 22)
 		btn.toggle_mode = true

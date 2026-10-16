@@ -4,7 +4,7 @@
   "description": "中等偏难｜上路清除 污染核心；下路回收 2 份不同的宝藏谱系，守住 2 座保护核心。两台清扫车会向左销毁样本，先复制备份，再拦截来敌！提示：副本回到绿色区即可计入回收；只复制同一份样本不能完成双份任务。",
   "author": "隔离站工程组",
   "cg_theme": "purple_synapse",
-  "order_index": 6,
+  "order_index": 105,
   "player_build_area": {
     "w": 14,
     "y": -10,

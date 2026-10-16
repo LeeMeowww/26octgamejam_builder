@@ -1518,7 +1518,7 @@
   "description": "击败这把枪",
   "level_id": "custom_level_86910",
   "level_name": "2-A：手枪决斗",
-  "order_index": 5,
+  "order_index": 24,
   "player_build_area": {
     "h": 18,
     "w": 24,

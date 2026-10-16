@@ -8,6 +8,8 @@ func _init() -> void:
 	test_three_way_pusher_competition()
 	test_prng_distribution()
 	test_prng_seed_reproducibility()
+	test_hard_block_cannot_be_pushed()
+	test_dual_direction_pushers_on_connected_object()
 	print("=== ALL PUSHER CONFLICT & PRNG TESTS PASSED! ===")
 	quit(0)
 
@@ -183,3 +185,107 @@ func test_prng_seed_reproducibility() -> void:
 	var pos2: Vector2i = run_with_seed.call(12345)
 	assert(pos1 == pos2, "Same seed must produce identical deterministic results!")
 	print("  Seed reproducibility verified.")
+
+func test_hard_block_cannot_be_pushed() -> void:
+	print("Testing Hard Block Push Immunity...")
+	# 1. Direct push on uninhibited Hard block
+	var world := GridWorld.new()
+	var pusher := BlockData.new(BlockData.Type.PUSHER, Vector2i(0, 0), BlockData.Direction.RIGHT)
+	var hard := BlockData.new(BlockData.Type.HARD, Vector2i(1, 0))
+	world.add_block(pusher)
+	world.add_block(hard)
+
+	var sim := SimulationEngine.new(world)
+	var res := sim.step_tick()
+	assert(res.moved_blocks.is_empty(), "Uninhibited Hard block must not be moved by Pusher!")
+	assert(pusher.grid_pos == Vector2i(0, 0), "Pusher must remain at (0, 0)!")
+	assert(hard.grid_pos == Vector2i(1, 0), "Hard block must remain at (1, 0)!")
+
+	# 2. Direct push on inhibited Hard block (it is still solid and cannot be moved, only destroyed by Destroyer)
+	hard.is_inhibited = true
+	var res_inh := sim.step_tick()
+	assert(res_inh.moved_blocks.is_empty(), "Inhibited Hard block must also never be moved by Pusher!")
+	assert(hard.grid_pos == Vector2i(1, 0), "Hard block must stay at (1, 0) even when inhibited!")
+
+	# 3. Connected structure containing a Hard block
+	var world2 := GridWorld.new()
+	var sid := world2.create_new_structure_id()
+	var p_struct := BlockData.new(BlockData.Type.PUSHER, Vector2i(5, 5), BlockData.Direction.RIGHT)
+	var h_struct := BlockData.new(BlockData.Type.HARD, Vector2i(6, 5))
+	p_struct.structure_id = sid
+	h_struct.structure_id = sid
+	world2.add_block(p_struct)
+	world2.add_block(h_struct)
+
+	var sim2 := SimulationEngine.new(world2)
+	var res2 := sim2.step_tick()
+	assert(res2.moved_blocks.is_empty(), "Structure containing a Hard block must not move!")
+	assert(p_struct.grid_pos == Vector2i(5, 5), "Structure Pusher must stay at (5, 5)!")
+	assert(h_struct.grid_pos == Vector2i(6, 5), "Structure Hard block must stay at (6, 5)!")
+
+	# 4. Cascading push: Pusher -> Basic block -> Hard block
+	var world3 := GridWorld.new()
+	var p_casc := BlockData.new(BlockData.Type.PUSHER, Vector2i(0, 0), BlockData.Direction.RIGHT)
+	var b_casc := BlockData.new(BlockData.Type.BASIC, Vector2i(1, 0))
+	var h_casc := BlockData.new(BlockData.Type.HARD, Vector2i(2, 0))
+	world3.add_block(p_casc)
+	world3.add_block(b_casc)
+	world3.add_block(h_casc)
+
+	var sim3 := SimulationEngine.new(world3)
+	var res3 := sim3.step_tick()
+	assert(res3.moved_blocks.is_empty(), "Chain blocked by Hard block must not move!")
+	assert(b_casc.grid_pos == Vector2i(1, 0), "Basic block must not move into Hard block!")
+
+	print("  Hard Block Push Immunity verified.")
+
+func test_dual_direction_pushers_on_connected_object() -> void:
+	print("Testing Dual-Direction Pushers on Connected Object (Right + Down)...")
+	var trials := 200
+	var x_moves := 0
+	var y_moves := 0
+
+	for i in range(trials):
+		var world := GridWorld.new()
+		var sid := world.create_new_structure_id()
+
+		# Object: connected 2x2 shape
+		# (1, 1) and (1, 2)
+		var b1 := BlockData.new(BlockData.Type.BASIC, Vector2i(1, 1))
+		var b2 := BlockData.new(BlockData.Type.BASIC, Vector2i(1, 2))
+		b1.structure_id = sid
+		b2.structure_id = sid
+
+		# Rightward Pusher at (0, 1) pushing b1 to the right (+X)
+		var p_right := BlockData.new(BlockData.Type.PUSHER, Vector2i(0, 1), BlockData.Direction.RIGHT)
+		# Downward Pusher at (1, 0) pushing b1 downward (+Y)
+		var p_down := BlockData.new(BlockData.Type.PUSHER, Vector2i(1, 0), BlockData.Direction.DOWN)
+
+		world.add_block(b1)
+		world.add_block(b2)
+		world.add_block(p_right)
+		world.add_block(p_down)
+
+		var sim := SimulationEngine.new(world)
+		sim.step_tick()
+
+		# Verify: b1 must have moved EITHER (+1, 0) OR (0, +1). It must NEVER move (+1, +1) diagonally!
+		var new_pos1 := b1.grid_pos
+		var delta := new_pos1 - Vector2i(1, 1)
+
+		assert(delta == Vector2i(1, 0) or delta == Vector2i(0, 1),
+			"Object must move purely along chosen axis (+1, 0) or (0, +1), never diagonally (%s)!" % str(delta))
+
+		if delta == Vector2i(1, 0):
+			x_moves += 1
+			assert(b2.grid_pos == Vector2i(2, 2), "Connected block b2 must follow along X!")
+		elif delta == Vector2i(0, 1):
+			y_moves += 1
+			assert(b2.grid_pos == Vector2i(1, 3), "Connected block b2 must follow along Y!")
+
+	print("  Dual-direction results over %d trials: X-first = %d (%.1f%%), Y-first = %d (%.1f%%)" % [
+		trials, x_moves, (float(x_moves) / trials) * 100.0, y_moves, (float(y_moves) / trials) * 100.0
+	])
+	assert(x_moves >= 60 and x_moves <= 140, "X move rate must be statistically consistent with 50/50 PRNG!")
+	assert(y_moves >= 60 and y_moves <= 140, "Y move rate must be statistically consistent with 50/50 PRNG!")
+	print("  Dual-direction pusher resolution verified.")

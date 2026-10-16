@@ -19,6 +19,13 @@ boot_splash/bg_color=Color(0.08, 0.09, 0.12, 1)
 [autoload]
 
 BGM="*res://scripts/core/MusicManager.gd"
+SFX="*res://scripts/core/SoundManager.gd"
+
+[audio]
+
+general/default_playback_type.web=1
+driver/output_latency.web=25
+driver/output_latency=15
 
 [display]
 

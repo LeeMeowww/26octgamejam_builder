@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《格式塔 (Gestalt)》音效试听选型面板 (第3版更新)</title>
+  <style>
+    :root {
+      --bg: #111a21;
+      --card-bg: #18252f;
+      --border: #283e4e;
+      --accent: #8ce2be;
+      --accent-hover: #b4f5d8;
+      --text: #d6e5ea;
+      --text-bright: #ffffff;
+      --text-muted: #8ca3ae;
+      --success: #3fb950;
+      --tag-bg: #21323f;
+      --gold: #f1e05a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 32px 20px 80px;
+    }
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+    header {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 {
+      color: var(--text-bright);
+      font-size: 26px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .badge {
+      font-size: 13px;
+      background: rgba(140, 226, 190, 0.15);
+      color: var(--accent);
+      padding: 3px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(140, 226, 190, 0.35);
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 14.5px;
+    }
+    .global-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--card-bg);
+      padding: 14px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 28px;
+      position: sticky;
+      top: 12px;
+      z-index: 100;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    }
+    .global-bar .volume-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+    }
+    input[type=range] {
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .category-section {
+      margin-bottom: 30px;
+    }
+    .category-title {
+      color: var(--text-bright);
+      font-size: 18px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-left: 4px solid var(--accent);
+      padding-left: 12px;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+      gap: 16px;
+    }
+    @media (max-width: 600px) {
+      .card-grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.15s ease, transform 0.1s ease;
+      position: relative;
+    }
+    .card.selected-card {
+      border: 1px solid #3fb95088;
+      background: #14221d;
+    }
+    .card:hover {
+      border-color: #8ce2be88;
+    }
+    .card.playing {
+      border-color: var(--accent);
+      box-shadow: 0 0 14px rgba(140, 226, 190, 0.35);
+    }
+    .card-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .card-title {
+      font-weight: 600;
+      font-size: 15.5px;
+      color: var(--text-bright);
+    }
+    .status-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+    .tag-selected {
+      background: rgba(63, 185, 80, 0.2);
+      color: #3fb950;
+      border: 1px solid rgba(63, 185, 80, 0.4);
+    }
+    .tag-candidate {
+      background: rgba(241, 224, 90, 0.15);
+      color: #f1e05a;
+      border: 1px solid rgba(241, 224, 90, 0.3);
+    }
+    .duration-tag {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--tag-bg);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .card-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      flex-grow: 1;
+    }
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #233644;
+    }
+    .btn-play {
+      background: var(--accent);
+      color: #0b151d;
+      border: none;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, transform 0.05s;
+    }
+    .btn-play:hover {
+      background: var(--accent-hover);
+    }
+    .btn-play:active {
+      transform: scale(0.96);
+    }
+    .btn-b58 {
+      background: var(--tag-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-b58:hover {
+      background: #2f475a;
+      color: var(--text-bright);
+    }
+    .file-tag {
+      font-family: monospace;
+      font-size: 12px;
+      color: #8ce2be;
+      margin-left: auto;
+    }
+    audio { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>
+        格式塔 (Gestalt) - 音效试听选型面板
+        <span class="badge">第3轮聚焦微调</span>
+      </h1>
+      <p class="subtitle">
+        已成功锁定 8 大核心音效（包含复制器选C、抑制器选A组）；本轮重点提供：彻底去除气声的硬质删除/摧毁器音效，以及 180BPM 极速上扬欢乐狂欢的胜利庆典！
+      </p>
+    </header>
+
+    <div class="global-bar">
+      <div class="volume-ctrl">
+        <span>试听主音量:</span>
+        <input type="range" id="global-volume" min="0" max="1" step="0.05" value="0.8">
+        <span id="vol-label">80%</span>
+      </div>
+      <div>
+        <span style="font-size:13px; color:var(--text-muted);">
+          绿色为<b>已锁定确认项</b>，黄色为<b>本轮重点试听项</b>（点击即可试听）
+        </span>
+      </div>
+    </div>
+
+    
+      <section class="category-section">
+        <h2 class="category-title">1. UI 点击 (UI Click)</h2>
+        <div class="card-grid">
+          
+            <div class="card selected-card" id="card-ui_click_wood">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">UI点击 - 原木方块轻敲 (已选定 ✓)</div>
+                    <span class="status-tag tag-selected">
+                      已确认
+                    </span>
+                  </div>
+                  <span class="duration-tag">50 ms</span>
+                </div>
+                <div class="card-desc">温润质朴的木块轻击声，无尖锐高频，极度耐听舒适。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('ui_click_wood')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#57uBnWgprtjGCAEsaNs5AUKgJeobVsB9KU5DtFiCgqEwVXcEx62o2nw8vWHuY8ByhmfFcxuY1wqgtiDcNMA7awgoaVcXRRfX8h7B8C7XdbjFjtcC1jkyizexX" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">ui_click_wood.wav</span>
+              </div>
+              <audio id="audio-ui_click_wood" src="ui_click_wood.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">2. 滑动条音效 (Slider Sound)</h2>
+        <div class="card-grid">
+          
+            <div class="card selected-card" id="card-ui_slider_marimba">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">滑动条 - 拇指琴微拨 (已选定 ✓)</div>
+                    <span class="status-tag tag-selected">
+                      已确认
+                    </span>
+                  </div>
+                  <span class="duration-tag">25 ms</span>
+                </div>
+                <div class="card-desc">极弱温和的清脆微音(~25ms)，连续滑动时如滑过拇指琴琴键，柔和舒缓。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('ui_slider_marimba')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#57uBnWcURsYJn3xxkasc5LjTdLyY31X5Lu9nUWW8sVdvfLpfFb8edwmXfejS1nVkipzJbwnPhU4jKJ2xNqpBpnTVp21rnUWuzWJR7zeScYMwrvA8znZmNh4zT" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">ui_slider_marimba.wav</span>
+              </div>
+              <audio id="audio-ui_slider_marimba" src="ui_slider_marimba.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">3. 细胞放置 (Cell Placement)</h2>
+        <div class="card-grid">
+          
+            <div class="card selected-card" id="card-cell_place_jelly">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">细胞放置 - 萌弹果冻着陆 (已选定 ✓)</div>
+                    <span class="status-tag tag-selected">
+                      已确认
+                    </span>
+                  </div>
+                  <span class="duration-tag">88 ms</span>
+                </div>
+                <div class="card-desc">软糯果冻细胞轻轻落座的弹性音，伴随微小共鸣滑音，软萌生动。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('cell_place_jelly')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#57uBnWSzi74Nj4wyH9FgfSvhQCTvF2PQrUc6EHLd8iHsdtVXkfExp6x7vCKWo7yYCpvCthg8UyE25T8iWDCHHtMbqqBpxhFsBKw79dun81h3Y3q2FsN1jP3iX" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">cell_place_jelly.wav</span>
+              </div>
+              <audio id="audio-cell_place_jelly" src="cell_place_jelly.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">4. 细胞删除 (Cell Deletion - 硬质无气声)</h2>
+        <div class="card-grid">
+          
+            <div class="card " id="card-cell_delete_woodsnap">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">细胞删除 - 原木解嵌清脆咔嗒 (硬质候选 A - 干脆榫卯脱扣)</div>
+                    <span class="status-tag tag-candidate">
+                      重点试听
+                    </span>
+                  </div>
+                  <span class="duration-tag">35 ms</span>
+                </div>
+                <div class="card-desc">彻底去除气声！纯正正弦波硬质下沉微击（托~），模拟原木榫卯积木被清脆拔下脱扣的瞬间，极度干脆爽快。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('cell_delete_woodsnap')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#57uBnWV6nWXKoFPFQAwADgWZ2KvWwT7n8hHwqCKU4Ki6opVhSsHRiAz548aN7AfqkoQNX7KWwVaeNqhvh75LwAvACaMaUBkoYpsoWqiF3JEYMt5dDWWfD1u2w" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">cell_delete_woodsnap.wav</span>
+              </div>
+              <audio id="audio-cell_delete_woodsnap" src="cell_delete_woodsnap.wav" preload="auto"></audio>
+            </div>
+          
+            <div class="card " id="card-cell_delete_hardpop">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">细胞删除 - 坚实弹脱卡簧响 (硬质候选 B - 紧致弹扣)</div>
+                    <span class="status-tag tag-candidate">
+                      重点试听
+                    </span>
+                  </div>
+                  <span class="duration-tag">30 ms</span>
+                </div>
+                <div class="card-desc">带有轻度低通滤波的方波硬质弹脱声（克嗒~），清脆结实，像拆下紧扣的乐高积木。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('cell_delete_hardpop')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#11111BFZZ5bsQuoRCLt96zQeq2AHJNEaaGY3NDpLYHtUSZmj2hyC8VdjQQJGyVNpLUPmhuya7QWr5rRvnFYXDp2bVsGTixJL6goe5vZDLbyjUwC6urftx1n7" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">cell_delete_hardpop.wav</span>
+              </div>
+              <audio id="audio-cell_delete_hardpop" src="cell_delete_hardpop.wav" preload="auto"></audio>
+            </div>
+          
+            <div class="card " id="card-cell_delete_plink">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">细胞删除 - 清朗弹脱短音 (硬质候选 C - 纯净脆弹)</div>
+                    <span class="status-tag tag-candidate">
+                      重点试听
+                    </span>
+                  </div>
+                  <span class="duration-tag">25 ms</span>
+                </div>
+                <div class="card-desc">略带高音的短促下行纯音跳水，像手指轻轻弹下一块积木小磁铁，清澈无杂音。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('cell_delete_plink')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#57uBnWcURsYH6yTUH8aiXYDR33xoZBr1BFjxn39V2egUAWA47hpqEhwQmFakMMDZysVnqMfJ5LcQ8d5aWHnsis7P1U1XkeECw6m4aw9NXJ52jqJWxPzLyckg7" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">cell_delete_plink.wav</span>
+              </div>
+              <audio id="audio-cell_delete_plink" src="cell_delete_plink.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">5. 推进器工作 (Pusher / Thruster)</h2>
+        <div class="card-grid">
+          
+            <div class="card selected-card" id="card-pusher_spring">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">推进器 - 卡通弹簧推搡 (已选定 ✓)</div>
+                    <span class="status-tag tag-selected">
+                      已确认
+                    </span>
+                  </div>
+                  <span class="duration-tag">163 ms</span>
+                </div>
+                <div class="card-desc">卡通弹簧机关欢快向前一顶（噔咚~），俏皮活泼，赋予推进器蓬勃生机。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('pusher_spring')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#57uBnWcURsYM1VYpmw6HGyfy3REGJBKREFJRDXFdLR2RCY4g1BAPDSuUzriz2NywxeLDBDYn5P5D4edfEKAnHugNFfApyJQK13qHLMHVqfUKgGUpvtv7VXGgX" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">pusher_spring.wav</span>
+              </div>
+              <audio id="audio-pusher_spring" src="pusher_spring.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">6. 复制器工作 (Replicator / Mitosis)</h2>
+        <div class="card-grid">
+          
+            <div class="card selected-card" id="card-replicator_gentle_bubble">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">复制器 - 软弹双水珠分瓣 (已选定 ✓ 用户选C)</div>
+                    <span class="status-tag tag-selected">
+                      已确认
+                    </span>
+                  </div>
+                  <span class="duration-tag">280 ms</span>
+                </div>
+                <div class="card-desc">柔和舒缓的两次水珠分生声，间距宽松柔和（咕嘟-咕嘟），治愈可爱。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('replicator_gentle_bubble')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                <span class="file-tag">replicator_gentle_bubble.wav</span>
+              </div>
+              <audio id="audio-replicator_gentle_bubble" src="replicator_gentle_bubble.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">7. 怪物行动 (Wanderer / Monster)</h2>
+        <div class="card-grid">
+          
+            <div class="card selected-card" id="card-monster_waddle">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">怪物 - 呆萌小步蹒跚 (已选定 ✓)</div>
+                    <span class="status-tag tag-selected">
+                      已确认
+                    </span>
+                  </div>
+                  <span class="duration-tag">109 ms</span>
+                </div>
+                <div class="card-desc">像小企鹅或小仓鼠憨态可掬迈出一步的圆润轻响（噗哒~），可爱呆萌，毫不恐怖。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('monster_waddle')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#57uBnWj167Bw94Y6QH4963cDG9eyzeSzKvcS3S3tET73sRR555gVJNdzXZMnvM1XmWY1PiwLYxEmtyEBohq5bJzYiiCSzp25EtjY1ZH9Gqp4ZyqieDdMKfQUP" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">monster_waddle.wav</span>
+              </div>
+              <audio id="audio-monster_waddle" src="monster_waddle.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">8. 摧毁器工作 (Destroyer - 硬质无气声)</h2>
+        <div class="card-grid">
+          
+            <div class="card " id="card-destroyer_nutcracker">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">摧毁器 - 坚实核桃夹脆裂 (硬质候选 A - 硬核夹碎)</div>
+                    <span class="status-tag tag-candidate">
+                      重点试听
+                    </span>
+                  </div>
+                  <span class="duration-tag">66 ms</span>
+                </div>
+                <div class="card-desc">彻底去除气声！结实硬朗的木夹/坚果夹击破声（喀嚓-邦！），冲击力十足，极具打击感与破坏满足感。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('destroyer_nutcracker')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#11111BFZ5ubzVg8eC2v6J8FLSAuAmj4d3YCFiq6Gg6qVQaUnRBtAuvjjkqHc96AEDnGrJBEEFh5YKZAsDPXnfqoobTZBb9wtwx7kXN3vrcawQZHs2SgVSZHR" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">destroyer_nutcracker.wav</span>
+              </div>
+              <audio id="audio-destroyer_nutcracker" src="destroyer_nutcracker.wav" preload="auto"></audio>
+            </div>
+          
+            <div class="card " id="card-destroyer_clamp_smash">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">摧毁器 - 机械重钳咬合打击 (硬质候选 B - 饱满重击)</div>
+                    <span class="status-tag tag-candidate">
+                      重点试听
+                    </span>
+                  </div>
+                  <span class="duration-tag">240 ms</span>
+                </div>
+                <div class="card-desc">低频沉重打底+上方脆硬卡咬的复合硬质音效（铿-嗒！），硬朗干脆，咬碎感极为明显。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('destroyer_clamp_smash')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                <span class="file-tag">destroyer_clamp_smash.wav</span>
+              </div>
+              <audio id="audio-destroyer_clamp_smash" src="destroyer_clamp_smash.wav" preload="auto"></audio>
+            </div>
+          
+            <div class="card " id="card-destroyer_hard_chomp">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">摧毁器 - 卡通硬壳大口咬下 (硬质候选 C - 紧凑大嚼)</div>
+                    <span class="status-tag tag-candidate">
+                      重点试听
+                    </span>
+                  </div>
+                  <span class="duration-tag">50 ms</span>
+                </div>
+                <div class="card-desc">紧凑利落的硬朗卡通大口咬击（咔嘣！），干爽无风声，兼顾硬朗打击度与游戏趣味性。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('destroyer_hard_chomp')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#11111FbzaGYH29qLNQmY57bDiDa9k3R4Ut2XhR8E76rGqnut7R3Y8NNjR7gFRM45V4AsQKcuHaDo2YkQH3quBQrbPyNcQd3kTrymWKnfCwVDojh56h3oBARV" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">destroyer_hard_chomp.wav</span>
+              </div>
+              <audio id="audio-destroyer_hard_chomp" src="destroyer_hard_chomp.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">9. 转向器工作 (Rotator)</h2>
+        <div class="card-grid">
+          
+            <div class="card selected-card" id="card-rotator_spin">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">转向器 - 纸风车旋转回鸣 (已选定 ✓)</div>
+                    <span class="status-tag tag-selected">
+                      已确认
+                    </span>
+                  </div>
+                  <span class="duration-tag">96 ms</span>
+                </div>
+                <div class="card-desc">微风吹拂纸风车转过一圈的轻快扬起音，自然流畅。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('rotator_spin')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#5CxZM79ZdQErBb2RgfpNbzyMzTQ5hCD1qoAn2yQ7Au5hyszmbdHVjhhPtMi6cBhtfTvb9Mt9YTeAWxbXzU58N9Y5f1eV43x5MfgAEwa7oaH4vJE2WXmd43BRh" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">rotator_spin.wav</span>
+              </div>
+              <audio id="audio-rotator_spin" src="rotator_spin.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">10. 抑制器状态切换 (Inhibitor Engage & Release)</h2>
+        <div class="card-grid">
+          
+            <div class="card selected-card" id="card-inhibitor_engage_sleep">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">抑制器 - 阻断生效/休眠 (已选定 ✓ A组对音1)</div>
+                    <span class="status-tag tag-selected">
+                      已确认
+                    </span>
+                  </div>
+                  <span class="duration-tag">320 ms</span>
+                </div>
+                <div class="card-desc">突触阻断信号生效时的温和下行提示音（咪-多~），像给后方方块盖上宁静休眠小被子。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('inhibitor_engage_sleep')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                <span class="file-tag">inhibitor_engage_sleep.wav</span>
+              </div>
+              <audio id="audio-inhibitor_engage_sleep" src="inhibitor_engage_sleep.wav" preload="auto"></audio>
+            </div>
+          
+            <div class="card selected-card" id="card-inhibitor_release_wake">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">抑制器 - 阻断解除/苏醒 (已选定 ✓ A组对音2)</div>
+                    <span class="status-tag tag-selected">
+                      已确认
+                    </span>
+                  </div>
+                  <span class="duration-tag">320 ms</span>
+                </div>
+                <div class="card-desc">阻断解除时的欢快上行唤醒音（多-唆~），象征后方方块苏醒恢复机能。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('inhibitor_release_wake')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                <span class="file-tag">inhibitor_release_wake.wav</span>
+              </div>
+              <audio id="audio-inhibitor_release_wake" src="inhibitor_release_wake.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">11. 宝藏收集 (Treasure Collect)</h2>
+        <div class="card-grid">
+          
+            <div class="card selected-card" id="card-treasure_chime">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">宝藏 - 晶莹风铃微响 (已选定 ✓)</div>
+                    <span class="status-tag tag-selected">
+                      已确认
+                    </span>
+                  </div>
+                  <span class="duration-tag">290 ms</span>
+                </div>
+                <div class="card-desc">微风拂过高能营养核时清透纯净的双音水晶铃鸣。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('treasure_chime')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                  <a class="btn-b58" href="https://sfxr.me/#57uBnWSzhdtP4b658KpdzuZMfLHD6cUh8Yq7GXja5SbhbVNxCA7P9LxY2DUcbQhM9LvFsiSGvQmSUXFBGvXroKnpcm4fF6EQgENjBj3c8VcWaZ4xkCYvAueb9" target="_blank" title="在 sfxr.me 在线打开并调整参数">
+                    sfxr.me 调音
+                  </a>
+                
+                <span class="file-tag">treasure_chime.wav</span>
+              </div>
+              <audio id="audio-treasure_chime" src="treasure_chime.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+      <section class="category-section">
+        <h2 class="category-title">12. 关卡胜利庆典 (Level Victory - 极速上扬欢乐短曲)</h2>
+        <div class="card-grid">
+          
+            <div class="card " id="card-victory_joyful_rush">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">关卡胜利 - 极速雀跃狂欢乐章 (全新候选 A - 180BPM 快乐飞扬)</div>
+                    <span class="status-tag tag-candidate">
+                      重点试听
+                    </span>
+                  </div>
+                  <span class="duration-tag">1900 ms</span>
+                </div>
+                <div class="card-desc">节奏极快、一路向上狂飙的超快乐庆祝短曲！十六分音符滚奏阶梯上扬，小马里奥/星之卡比通关般的爆棚快乐感与盛大高音和声（~1.8秒）。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('victory_joyful_rush')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                <span class="file-tag">victory_joyful_rush.wav</span>
+              </div>
+              <audio id="audio-victory_joyful_rush" src="victory_joyful_rush.wav" preload="auto"></audio>
+            </div>
+          
+            <div class="card " id="card-victory_bouncy_carnival">
+              <div>
+                <div class="card-header">
+                  <div style="display:flex; align-items:center;">
+                    <div class="card-title">关卡胜利 - 阳光欢跳嘉年华 (全新候选 B - 170BPM 弹跳狂欢)</div>
+                    <span class="status-tag tag-candidate">
+                      重点试听
+                    </span>
+                  </div>
+                  <span class="duration-tag">2200 ms</span>
+                </div>
+                <div class="card-desc">弹跳节奏极强的快节奏八音盒大狂欢！附点跳音持续拔高，带着感染力十足的欢呼律动升入高空（~2.1秒）。</div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="playSound('victory_bouncy_carnival')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  播放试听
+                </button>
+                
+                <span class="file-tag">victory_bouncy_carnival.wav</span>
+              </div>
+              <audio id="audio-victory_bouncy_carnival" src="victory_bouncy_carnival.wav" preload="auto"></audio>
+            </div>
+          
+        </div>
+      </section>
+      
+  </div>
+
+  <script>
+    const volSlider = document.getElementById('global-volume');
+    const volLabel = document.getElementById('vol-label');
+
+    volSlider.addEventListener('input', (e) => {
+      volLabel.textContent = Math.round(e.target.value * 100) + '%';
+    });
+
+    function playSound(name) {
+      const audio = document.getElementById('audio-' + name);
+      const card = document.getElementById('card-' + name);
+      if (!audio) return;
+
+      audio.volume = parseFloat(volSlider.value);
+      audio.currentTime = 0;
+      audio.play().catch(e => console.error(e));
+
+      document.querySelectorAll('.card').forEach(c => c.classList.remove('playing'));
+      card.classList.add('playing');
+
+      audio.onended = () => {
+        card.classList.remove('playing');
+      };
+    }
+  </script>
+</body>
+</html>

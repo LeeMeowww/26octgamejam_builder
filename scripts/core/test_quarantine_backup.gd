@@ -6,6 +6,7 @@ const SOLUTION = [[2,-11,-6,0],[4,-10,-6,0],[3,-11,-5,0],[3,-10,-5,0],[1,-11,-7,
 var checks := 0
 var failures: Array[String] = []
 func _initialize() -> void:
+	create_timer(15.0).timeout.connect(func(): printerr("TEST WATCHDOG TIMEOUT!"); quit(1))
 	call_deferred("run")
 func verify(ok: bool, message: String) -> void:
 	checks += 1

@@ -1,0 +1,31 @@
+{
+  "author": "造物主",
+  "blocks": [
+    {
+      "dir": 0.0,
+      "hp": 2.0,
+      "id": 245177.0,
+      "is_world_block": true,
+      "max_hp": 2.0,
+      "origin_id": 245177.0,
+      "pos_x": 2.0,
+      "pos_y": -1.0,
+      "structure_id": 0.0,
+      "sub_mode": 0.0,
+      "texture_variant": 0.0,
+      "type": 8.0
+    }
+  ],
+  "cg_theme": "cyan_core",
+  "description": "完成关卡任务：摧毁所有污染源，将所有宝藏回收至建造区。",
+  "level_id": "custom_level_78552",
+  "level_name": "1-1：拾取-1",
+  "order_index": 11,
+  "player_build_area": {
+    "h": 8,
+    "w": 5,
+    "x": -5,
+    "y": -4
+  },
+  "tutorial": {}
+}

@@ -77,10 +77,10 @@ func _build_ui() -> void:
 	var chapter_bar := HBoxContainer.new()
 	chapter_bar.add_theme_constant_override("separation", 10)
 	chapter_scroll.add_child(chapter_bar)
-	for i in range(5):
-		if i == 4 and not _has_custom_levels(): continue
+	for i in range(Campaign.CHAPTERS.size() + 1):
+		if i == Campaign.CHAPTERS.size() and not _has_custom_levels(): continue
 		var button := Button.new()
-		button.text = ("%02d  %s" % [i, Campaign.CHAPTERS[i][0]]) if i < 4 else "自由工坊"
+		button.text = ("%02d  %s" % [i, Campaign.CHAPTERS[i][0]]) if i < Campaign.CHAPTERS.size() else "自由工坊"
 		button.custom_minimum_size = Vector2(170, 46)
 		button.pressed.connect(_show_chapter.bind(i))
 		chapter_bar.add_child(button)
@@ -145,8 +145,8 @@ func _show_chapter(index: int) -> void:
 	detail_title.text = "选择一个节点"
 	detail_body.text = "点击地图上的关卡，查看目标与核心机制。\n\n主线帮助你逐步掌握构装，支线可以随时尝试。"
 	author_label.hide()
-	chapter_title.text = Campaign.CHAPTERS[index][1] if index < 4 else "自由工坊"
-	chapter_description.text = Campaign.CHAPTERS[index][2] if index < 4 else "未编入章节的自制关卡也会保留在这里。"
+	chapter_title.text = Campaign.CHAPTERS[index][1] if index < Campaign.CHAPTERS.size() else "自由工坊"
+	chapter_description.text = Campaign.CHAPTERS[index][2] if index < Campaign.CHAPTERS.size() else "未编入章节的自制关卡也会保留在这里。"
 	for i in range(chapter_buttons.size()):
 		chapter_buttons[i].modulate = Color("91e6c8") if i == index else Color.WHITE
 	for child in map.get_children():
@@ -163,12 +163,12 @@ func _show_chapter(index: int) -> void:
 		var data := Campaign.info(level.level_id)
 		if data[0] != index: continue
 		if progress.has(level.level_id): completed_count += 1
-		var column: int = data[2] if index < 4 else count % 4
-		var row: int = data[3] if index < 4 else count / 4
-		var position := Vector2(20 + column * 145, 60 + row * 170)
+		var column: int = data[2] if index < Campaign.CHAPTERS.size() else count % 4
+		var row: int = data[3] if index < Campaign.CHAPTERS.size() else floori(count / 4.0)
+		var node_position := Vector2(20 + column * 145, 60 + row * 170)
 		var button := Button.new()
 		button.toggle_mode = true
-		button.position = position
+		button.position = node_position
 		button.size = Vector2(130, 98)
 		button.text = "%s %s\n%s" % [data[1], "✓" if progress.has(level.level_id) else "", Campaign.title(level)]
 		button.add_theme_font_size_override("font_size", 15)
@@ -180,9 +180,9 @@ func _show_chapter(index: int) -> void:
 		button.pressed.connect(_select_level.bind(i))
 		map.add_child(button)
 		node_buttons[level.level_id] = button
-		positions[level.level_id] = position + button.size * 0.5
+		positions[level.level_id] = node_position + button.size * 0.5
 		count += 1
-	map.custom_minimum_size = Vector2(750, maxf(350, ceilf(count / 4.0) * 170 + 100) if index == 4 else 350)
+	map.custom_minimum_size = Vector2(750, maxf(350.0, ceilf(count / 4.0) * 170 + 100.0) if index >= Campaign.CHAPTERS.size() else 350.0)
 	for id in positions:
 		var next: String = Campaign.info(id)[7]
 		if positions.has(next): map.routes.append([positions[id], positions[next], false])
