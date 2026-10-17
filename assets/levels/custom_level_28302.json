@@ -1,0 +1,16 @@
+{
+  "author": "造物主",
+  "blocks": [],
+  "cg_theme": "cyan_core",
+  "description": "完成关卡任务：摧毁所有污染源，将所有宝藏回收至建造区。",
+  "level_id": "custom_level_28302",
+  "level_name": "新建自定关卡",
+  "order_index": 12,
+  "player_build_area": {
+    "h": 8,
+    "w": 5,
+    "x": -5,
+    "y": -4
+  },
+  "tutorial": {}
+}
