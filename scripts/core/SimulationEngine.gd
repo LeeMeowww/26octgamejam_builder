@@ -124,7 +124,8 @@ func step_tick() -> TickResult:
 	# -------------------------------------------------------------
 	# 3. Pushers (推动器) & Structure Movement
 	# -------------------------------------------------------------
-	var pusher_destinations := _simulate_pushers(snap, result)
+	var consumed_by_destroyer: Dictionary = {}
+	var pusher_destinations := _simulate_pushers(snap, result, consumed_by_destroyer)
 
 	# -------------------------------------------------------------
 	# 4. Wanderers (游荡怪物)
@@ -139,7 +140,7 @@ func step_tick() -> TickResult:
 	# -------------------------------------------------------------
 	# 6. Destroyers (摧毁器) & Simultaneous Clash Resolution
 	# -------------------------------------------------------------
-	_simulate_destroyers(snap, result, wanderers_attacked)
+	_simulate_destroyers(snap, result, wanderers_attacked, consumed_by_destroyer)
 
 	# -------------------------------------------------------------
 	# 7. Check Treasure Collection & Victory
@@ -301,7 +302,7 @@ func _simulate_rotators(snap: GridWorld, result: TickResult) -> void:
 # -----------------------------------------------------------------
 # Pusher & Structure Movement Resolution
 # -----------------------------------------------------------------
-func _simulate_pushers(snap: GridWorld, result: TickResult) -> Dictionary:
+func _simulate_pushers(snap: GridWorld, result: TickResult, consumed_by_destroyer: Dictionary = {}) -> Dictionary:
 	# Group current blocks into entities:
 	# - Structure (structure_id > 0)
 	# - Single block (structure_id == 0)
@@ -442,6 +443,32 @@ func _simulate_pushers(snap: GridWorld, result: TickResult) -> Dictionary:
 						if occupant.block_type == BlockData.Type.HARD:
 							can_move = false
 							break
+
+						# Check if b is a destroyer that will consume occupant at t0:
+						var is_destroyer_consuming := false
+						if b.block_type == BlockData.Type.DESTROYER and not b.is_inhibited and b.get_forward_vec() == delta:
+							var occ_snap := snap.get_block(next_pos)
+							if occ_snap != null and occ_snap.block_id == occupant.block_id and not occupant.is_immune():
+								var is_fatal_clash := false
+								if occ_snap.block_type == BlockData.Type.DESTROYER and not occ_snap.is_inhibited:
+									if occ_snap.grid_pos + occ_snap.get_forward_vec() == b.grid_pos:
+										is_fatal_clash = true # Mutual destroyer annihilation at original positions
+								elif occ_snap.block_type == BlockData.Type.WANDERER:
+									var w_horiz := Vector2i.RIGHT if (occ_snap.direction == BlockData.Direction.RIGHT or occ_snap.direction == BlockData.Direction.DOWN) else Vector2i.LEFT
+									if occ_snap.grid_pos + w_horiz == b.grid_pos and b.hp <= 1:
+										is_fatal_clash = true
+								if not is_fatal_clash:
+									is_destroyer_consuming = true
+
+						if is_destroyer_consuming:
+							# Occupant will be consumed! It does not block b, but occupant itself cannot move
+							var occ_ent = block_to_entity.get(occupant, null)
+							if occ_ent != null and entity_deltas.get(occ_ent, Vector2i.ZERO) != Vector2i.ZERO:
+								entity_deltas[occ_ent] = Vector2i.ZERO
+								blockage_changed = true
+								resolving = true
+							continue
+
 						# If occupant is stopped or moving in conflicting direction, blocked!
 						var occ_ent = block_to_entity.get(occupant, null)
 						var occ_delta: Vector2i = entity_deltas.get(occ_ent, Vector2i.ZERO)
@@ -506,6 +533,33 @@ func _simulate_pushers(snap: GridWorld, result: TickResult) -> Dictionary:
 							resolving = true
 
 	# Apply valid movements
+	# Remove any occupants consumed by advancing destroyers before moving blocks
+	for ent in entities:
+		var delta: Vector2i = entity_deltas[ent]
+		if delta != Vector2i.ZERO:
+			for b: BlockData in ent:
+				if b.block_type == BlockData.Type.DESTROYER and not b.is_inhibited and b.get_forward_vec() == delta:
+					var target_p := b.grid_pos + delta
+					var occ := world.get_block(target_p)
+					if occ != null and occ not in ent and not occ.is_immune():
+						if not consumed_by_destroyer.has(occ.block_id):
+							consumed_by_destroyer[occ.block_id] = true
+							if occ.block_type == BlockData.Type.PROTECTED:
+								destroyed_protected_count += 1
+							if occ.block_type == BlockData.Type.WANDERER:
+								var w_horiz := Vector2i.RIGHT if (occ.direction == BlockData.Direction.RIGHT or occ.direction == BlockData.Direction.DOWN) else Vector2i.LEFT
+								if occ.grid_pos + w_horiz == b.grid_pos:
+									var old_hp := b.hp
+									b.hp = maxi(0, b.hp - 1)
+									result.damaged_blocks.append({
+										"id": b.block_id,
+										"old_hp": old_hp,
+										"new_hp": b.hp
+									})
+							world.remove_block_at(occ.grid_pos)
+							result.destroyed_blocks.append(occ)
+							_record_destroyer_action(result, b.block_id, b.direction, occ.block_id)
+
 	# To prevent overwriting when swapping cells, sort or remove from grid first then re-insert
 	var pusher_destinations: Dictionary = {} # Vector2i -> BlockData
 	var moved_entries: Array[Dictionary] = []
@@ -574,7 +628,8 @@ func _simulate_wanderers(snap: GridWorld, result: TickResult, pusher_destination
 				"wanderer": b,
 				"snap_wanderer": snap_b,
 				"horiz_dir": horiz_dir,
-				"forward_pos": forward_pos
+				"forward_pos": forward_pos,
+				"target_snap": target_snap
 			})
 		else:
 			# Forward is empty: check floor directly in front (ground_1)
@@ -655,10 +710,16 @@ func _simulate_wanderers(snap: GridWorld, result: TickResult, pusher_destination
 		var snap_w: BlockData = item["snap_wanderer"]
 		var horiz_dir: Vector2i = item["horiz_dir"]
 		var forward_pos: Vector2i = item["forward_pos"]
+		var target_snap: BlockData = item["target_snap"]
 
-		# Contact damage to obstacle
-		var target_world := world.get_block(forward_pos)
-		if target_world != null and not target_world.is_immune():
+		# Contact damage to obstacle (strictly damage target_snap if still at forward_pos)
+		var target_world: BlockData = null
+		for cur_wb in world.get_all_blocks():
+			if cur_wb.block_id == target_snap.block_id:
+				target_world = cur_wb
+				break
+
+		if target_world != null and target_world.grid_pos == forward_pos and not target_world.is_immune():
 			wanderers_attacked[wb.block_id] = true
 			var old_hp := target_world.hp
 			target_world.hp = maxi(0, target_world.hp - 1)
@@ -755,7 +816,7 @@ func _simulate_replicators(snap: GridWorld, result: TickResult) -> void:
 # -----------------------------------------------------------------
 # Destroyer (摧毁器) Simulation
 # -----------------------------------------------------------------
-func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacked: Dictionary = {}) -> void:
+func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacked: Dictionary = {}, consumed_by_destroyer: Dictionary = {}) -> void:
 	var to_destroy: Dictionary = {} # block_id -> BlockData
 	var destroyers_hit_by_wanderer: Dictionary = {} # destroyer_id -> bool
 
@@ -766,49 +827,29 @@ func _simulate_destroyers(snap: GridWorld, result: TickResult, wanderers_attacke
 				if wb.block_id == snap_b.block_id:
 					cur_d = wb
 					break
-			if cur_d == null:
-				continue
 
 			var target_pos := snap_b.grid_pos + snap_b.get_forward_vec()
 			var target_snap := snap.get_block(target_pos)
-			if target_snap != null and not target_snap.is_immune():
-				to_destroy[target_snap.block_id] = target_snap
-				_record_destroyer_action(result, snap_b.block_id, snap_b.direction, target_snap.block_id)
+			if target_snap != null and not target_snap.is_immune() and not consumed_by_destroyer.has(target_snap.block_id):
+				if cur_d != null or wanderers_attacked.has(target_snap.block_id):
+					to_destroy[target_snap.block_id] = target_snap
+					_record_destroyer_action(result, snap_b.block_id, snap_b.direction, target_snap.block_id)
 
-			# Also check current front position if destroyer moved
-			var cur_front := cur_d.grid_pos + cur_d.get_forward_vec()
-			var cur_target := world.get_block(cur_front)
-			if cur_target != null and not cur_target.is_immune() and cur_target.block_id != cur_d.block_id:
-				to_destroy[cur_target.block_id] = cur_target
-				_record_destroyer_action(result, cur_d.block_id, cur_d.direction, cur_target.block_id)
-
-			# Mutual facing clash with Wanderer:
-			var candidates: Array[BlockData] = []
-			if cur_target != null and cur_target.block_type == BlockData.Type.WANDERER:
-				candidates.append(cur_target)
-			if target_snap != null and target_snap.block_type == BlockData.Type.WANDERER and target_snap != cur_target:
-				candidates.append(target_snap)
-
-			for w in candidates:
-				var cur_w: BlockData = w
-				for wb in world.get_all_blocks():
-					if wb.block_id == w.block_id:
-						cur_w = wb
-						break
-				var w_horiz := Vector2i.RIGHT if (cur_w.direction == BlockData.Direction.RIGHT or cur_w.direction == BlockData.Direction.DOWN) else Vector2i.LEFT
-				if cur_w.grid_pos + w_horiz == cur_d.grid_pos:
-					# Head-on clash!
-					if not wanderers_attacked.has(cur_w.block_id) and not destroyers_hit_by_wanderer.has(cur_d.block_id):
-						destroyers_hit_by_wanderer[cur_d.block_id] = true
-						var old_hp := cur_d.hp
-						cur_d.hp = maxi(0, cur_d.hp - 1)
-						result.damaged_blocks.append({
-							"id": cur_d.block_id,
-							"old_hp": old_hp,
-							"new_hp": cur_d.hp
-						})
-						if cur_d.hp <= 0:
-							to_destroy[cur_d.block_id] = cur_d
+				# Head-on clash with Wanderer facing destroyer at t0:
+				if cur_d != null and target_snap.block_type == BlockData.Type.WANDERER:
+					var w_horiz := Vector2i.RIGHT if (target_snap.direction == BlockData.Direction.RIGHT or target_snap.direction == BlockData.Direction.DOWN) else Vector2i.LEFT
+					if target_snap.grid_pos + w_horiz == snap_b.grid_pos:
+						if not wanderers_attacked.has(target_snap.block_id) and not destroyers_hit_by_wanderer.has(cur_d.block_id):
+							destroyers_hit_by_wanderer[cur_d.block_id] = true
+							var old_hp := cur_d.hp
+							cur_d.hp = maxi(0, cur_d.hp - 1)
+							result.damaged_blocks.append({
+								"id": cur_d.block_id,
+								"old_hp": old_hp,
+								"new_hp": cur_d.hp
+							})
+							if cur_d.hp <= 0:
+								to_destroy[cur_d.block_id] = cur_d
 
 	for tid in to_destroy.keys():
 		for wb in world.get_all_blocks():
