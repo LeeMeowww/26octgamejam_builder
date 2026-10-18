@@ -80,7 +80,7 @@ func _build_ui() -> void:
 	for i in range(Campaign.CHAPTERS.size() + 1):
 		if i == Campaign.CHAPTERS.size() and not _has_custom_levels(): continue
 		var button := Button.new()
-		button.text = ("%02d  %s" % [i, Campaign.CHAPTERS[i][0]]) if i < Campaign.CHAPTERS.size() else "自由工坊"
+		button.text = ("%02d  %s" % [i + 1, Campaign.CHAPTERS[i][0]]) if i < Campaign.CHAPTERS.size() else "自由工坊"
 		button.custom_minimum_size = Vector2(170, 46)
 		button.pressed.connect(_show_chapter.bind(i))
 		chapter_bar.add_child(button)
@@ -170,7 +170,15 @@ func _show_chapter(index: int) -> void:
 		button.toggle_mode = true
 		button.position = node_position
 		button.size = Vector2(130, 98)
-		button.text = "%s %s\n%s" % [data[1], "✓" if progress.has(level.level_id) else "", Campaign.title(level)]
+		var level_title := Campaign.title(level)
+		if level_title == data[1]:
+			var subtitle: String = str(data[6])
+			if not subtitle.is_empty():
+				button.text = "%s %s\n%s" % [data[1], "✓" if progress.has(level.level_id) else "", subtitle.get_slice(" · ", 0)]
+			else:
+				button.text = "%s %s" % [data[1], "✓" if progress.has(level.level_id) else ""]
+		else:
+			button.text = "%s %s\n%s" % [data[1], "✓" if progress.has(level.level_id) else "", level_title]
 		button.add_theme_font_size_override("font_size", 15)
 		var accent := Color("d9ad72") if data[4] else Color("62bfae")
 		button.add_theme_stylebox_override("normal", _style(Color("19303a"), accent))
@@ -199,7 +207,11 @@ func _select_level(index: int) -> void:
 	var level := levels[index]
 	for id in node_buttons: node_buttons[id].set_pressed_no_signal(id == level.level_id)
 	var data := Campaign.info(level.level_id)
-	detail_title.text = "%s  %s" % [data[1], Campaign.title(level)]
+	var level_title := Campaign.title(level)
+	if level_title == data[1]:
+		detail_title.text = "%s  %s" % [data[1], data[6]] if not str(data[6]).is_empty() else data[1]
+	else:
+		detail_title.text = "%s  %s" % [data[1], level_title]
 	var status := "已通关" if Campaign.completed().has(level.level_id) else "未通关"
 	var goal := level.description
 	if level.level_id in ["level_04", "custom_level_81605"]: goal = "清除所有污染源。怪物是障碍，不要求全部消灭。"

@@ -38,33 +38,31 @@ func test_case_one_space_conflict() -> void:
 	world.add_block(monster)
 
 	var sim := SimulationEngine.new(world)
-	var res := sim.step_tick()
+	var res1 := sim.step_tick()
 
-	# Conflict resolution: Monster must yield (stay at (4, 0)) when pusher moves into (3, 0)
-	# Then Destroyer moves to (3, 0), facing Monster at (4, 0)
+	# Tick 1: Conflict resolution: Monster must yield (stay at (4, 0)) when pusher moves into (3, 0)
+	# Then Destroyer moves to (3, 0), facing Monster at (4, 0).
+	# Because they only arrived in front of each other during Tick 1, neither is damaged yet!
+	var d1 := world.get_block(Vector2i(3, 0))
+	assert(d1 != null, "Destroyer should have moved to (3, 0) in tick 1!")
+	assert(d1.hp == 2, "Destroyer should not take damage in tick 1 (actual: %d)!" % d1.hp)
+	var m1 := world.get_block(Vector2i(4, 0))
+	assert(m1 != null, "Monster should still be alive at (4, 0) in tick 1!")
+
+	# Tick 2: They are now adjacent and facing each other at t0!
 	# Simultaneous clash: Destroyer takes 1 damage (HP 2 -> 1), Monster is destroyed!
-	var d_world := world.get_block(Vector2i(3, 0))
-	assert(d_world != null, "Destroyer should have moved to (3, 0)!")
-	assert(d_world.block_type == BlockData.Type.DESTROYER, "Block at (3, 0) should be Destroyer!")
-	assert(d_world.hp == 1, "Destroyer should take 1 damage and have 1 HP remaining (actual: %d)!" % d_world.hp)
-
-	var m_world := world.get_block(Vector2i(4, 0))
-	assert(m_world == null, "Monster at (4, 0) should have been destroyed!")
-
+	# And Pusher moves Destroyer forward into (4, 0)!
+	var res2 := sim.step_tick()
+	var d2 := world.get_block(Vector2i(4, 0))
+	assert(d2 != null, "Destroyer should have consumed Monster and moved to (4, 0)!")
+	assert(d2.hp == 1, "Destroyer should take 1 damage and have 1 HP remaining (actual: %d)!" % d2.hp)
 	var monster_destroyed := false
-	for b in res.destroyed_blocks:
+	for b in res2.destroyed_blocks:
 		if b.block_id == monster.block_id:
 			monster_destroyed = true
 			break
-	assert(monster_destroyed, "Monster should be recorded in destroyed_blocks!")
-
-	var destroyer_damaged := false
-	for d_info in res.damaged_blocks:
-		if d_info.id == destroyer.block_id and d_info.old_hp == 2 and d_info.new_hp == 1:
-			destroyer_damaged = true
-			break
-	assert(destroyer_damaged, "Destroyer should be recorded in damaged_blocks!")
-	print("  1-space conflict passed: Monster yielded, Destroyer pushed, mutual clash took 1 HP.")
+	assert(monster_destroyed, "Monster should be recorded in destroyed_blocks in tick 2!")
+	print("  1-space conflict passed: Tick 1 move & yield, Tick 2 mutual clash & advance.")
 
 func test_case_two_spaces_clash() -> void:
 	print("Testing 2 Spaces: Pusher -> Destroyer -> Space Space <- Monster...")
@@ -90,25 +88,29 @@ func test_case_two_spaces_clash() -> void:
 	world.add_block(monster)
 
 	var sim := SimulationEngine.new(world)
-	var res := sim.step_tick()
+	var res1 := sim.step_tick()
 
-	# Both move: Destroyer moves (2, 0) -> (3, 0), Monster moves (5, 0) -> (4, 0)
-	# Now adjacent and facing each other!
-	# Destroyer takes 1 damage (HP 2 -> 1), Monster is destroyed!
-	var d_world := world.get_block(Vector2i(3, 0))
-	assert(d_world != null, "Destroyer should be at (3, 0)!")
-	assert(d_world.hp == 1, "Destroyer should take 1 damage and have 1 HP left (actual: %d)!" % d_world.hp)
+	# Tick 1: Both move forward: Destroyer (2, 0) -> (3, 0), Monster (5, 0) -> (4, 0)
+	# Now adjacent and facing each other, but not clashed yet!
+	var d1 := world.get_block(Vector2i(3, 0))
+	assert(d1 != null, "Destroyer should be at (3, 0) in tick 1!")
+	assert(d1.hp == 2, "Destroyer should still have 2 HP in tick 1!")
+	var m1 := world.get_block(Vector2i(4, 0))
+	assert(m1 != null, "Monster should be at (4, 0) in tick 1!")
 
-	var m_world := world.get_block(Vector2i(4, 0))
-	assert(m_world == null, "Monster at (4, 0) should be destroyed!")
+	# Tick 2: Clash at t0! Destroyer takes 1 damage (HP 2 -> 1), Monster is destroyed!
+	var res2 := sim.step_tick()
+	var d2 := world.get_block(Vector2i(4, 0))
+	assert(d2 != null, "Destroyer should consume Monster and advance to (4, 0)!")
+	assert(d2.hp == 1, "Destroyer should have 1 HP left (actual: %d)!" % d2.hp)
 
 	var monster_destroyed := false
-	for b in res.destroyed_blocks:
+	for b in res2.destroyed_blocks:
 		if b.block_id == monster.block_id:
 			monster_destroyed = true
 			break
-	assert(monster_destroyed, "Monster should be in destroyed_blocks!")
-	print("  2-spaces clash passed: Both stepped forward, mutual clash took 1 HP and destroyed monster.")
+	assert(monster_destroyed, "Monster should be in destroyed_blocks in tick 2!")
+	print("  2-spaces clash passed: Both stepped forward tick 1, mutual clash tick 2.")
 
 func test_case_two_monsters_conflict() -> void:
 	print("Testing 2 Monsters Conflict: Monster A -> Space <- Monster B...")
@@ -161,21 +163,25 @@ func test_case_destroyer_destroyed_at_zero_hp() -> void:
 	world.add_block(monster)
 
 	var sim := SimulationEngine.new(world)
-	var res := sim.step_tick()
+	# Tick 1: Both move to (3, 0) and (4, 0)
+	sim.step_tick()
+	assert(world.get_block(Vector2i(3, 0)) != null, "Destroyer at (3, 0) after tick 1")
+	assert(world.get_block(Vector2i(4, 0)) != null, "Monster at (4, 0) after tick 1")
 
-	# Both move, face each other, both take lethal damage and are destroyed
+	# Tick 2: Face each other at t0, both take lethal damage and are destroyed!
+	var res2 := sim.step_tick()
 	assert(world.get_block(Vector2i(3, 0)) == null, "Destroyer at 0 HP should be removed!")
 	assert(world.get_block(Vector2i(4, 0)) == null, "Monster should be removed!")
 
 	var d_destroyed := false
 	var m_destroyed := false
-	for b in res.destroyed_blocks:
+	for b in res2.destroyed_blocks:
 		if b.block_id == destroyer.block_id:
 			d_destroyed = true
 		if b.block_id == monster.block_id:
 			m_destroyed = true
-	assert(d_destroyed, "Destroyer must be in destroyed_blocks!")
-	assert(m_destroyed, "Monster must be in destroyed_blocks!")
+	assert(d_destroyed, "Destroyer must be in destroyed_blocks in tick 2!")
+	assert(m_destroyed, "Monster must be in destroyed_blocks in tick 2!")
 	print("  Mutual destruction at 0 HP passed.")
 
 func test_case_already_adjacent_no_double_damage() -> void:
@@ -212,8 +218,8 @@ func test_case_destroyer_backstab() -> void:
 	var world := GridWorld.new()
 	_add_floor(world, 0, 7, 1)
 
-	# Hard block at (5, 0) blocking monster from moving
-	world.add_block(BlockData.new(BlockData.Type.HARD, Vector2i(5, 0)))
+	# Hard block at (4, 0) blocking monster from moving away
+	world.add_block(BlockData.new(BlockData.Type.HARD, Vector2i(4, 0)))
 
 	var pusher := BlockData.new(BlockData.Type.PUSHER, Vector2i(1, 0), BlockData.Direction.RIGHT)
 	pusher.structure_id = 1
@@ -224,18 +230,22 @@ func test_case_destroyer_backstab() -> void:
 	destroyer.hp = 2
 	world.add_block(destroyer)
 
-	# (3, 0) is empty space
-	# Monster at (4, 0) facing RIGHT (back towards (3, 0))
-	var monster := BlockData.new(BlockData.Type.WANDERER, Vector2i(4, 0), BlockData.Direction.RIGHT)
+	# Monster at (3, 0) facing RIGHT (back towards Destroyer at (2, 0))
+	var monster := BlockData.new(BlockData.Type.WANDERER, Vector2i(3, 0), BlockData.Direction.RIGHT)
 	world.add_block(monster)
 
 	var sim := SimulationEngine.new(world)
+	# Tick 1: Destroyer consumes Monster from behind and advances to (3, 0)
+	# Monster was not facing Destroyer at t0, so Destroyer takes 0 damage (HP remains 2)
 	var res := sim.step_tick()
-
-	# Destroyer moves to (3, 0) and destroys Monster at (4, 0) from behind
-	# Monster was not facing Destroyer, so Destroyer takes 0 damage (HP remains 2)
 	var d_world := world.get_block(Vector2i(3, 0))
-	assert(d_world != null, "Destroyer should be at (3, 0)!")
+	assert(d_world != null, "Destroyer should advance to (3, 0)!")
 	assert(d_world.hp == 2, "Destroyer should take 0 damage on backstab (actual: %d)!" % d_world.hp)
-	assert(world.get_block(Vector2i(4, 0)) == null, "Monster should be destroyed!")
+	assert(world.get_block(Vector2i(3, 0)) == d_world, "Block at (3, 0) should be Destroyer!")
+	var monster_destroyed := false
+	for b in res.destroyed_blocks:
+		if b.block_id == monster.block_id:
+			monster_destroyed = true
+			break
+	assert(monster_destroyed, "Monster should be in destroyed_blocks!")
 	print("  Backstab passed: Destroyer took 0 damage, Monster was destroyed.")

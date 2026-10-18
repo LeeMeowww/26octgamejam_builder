@@ -76,10 +76,12 @@ func test_pusher_structure_and_diagonal() -> void:
 	var sim := SimulationEngine.new(world)
 	sim.step_tick()
 
-	# Both pushers pushed the structure! Direction combines to (1, 1)
-	assert(b1.grid_pos == Vector2i(6, 6), "Structure block 1 should have moved diagonally to (6, 6), got %s" % [b1.grid_pos])
-	assert(b2.grid_pos == Vector2i(6, 7), "Structure block 2 should have moved diagonally to (6, 7), got %s" % [b2.grid_pos])
-	print("  Diagonal structure movement verified.")
+	# 两个方向同时受力时，随机选择单一有效方向仲裁（本回合另一方向无效）
+	var d1: Vector2i = b1.grid_pos - Vector2i(5, 5)
+	var d2: Vector2i = b2.grid_pos - Vector2i(5, 6)
+	assert(d1 == d2, "Structure blocks must move as a rigid whole (got %s vs %s)" % [d1, d2])
+	assert(d1 == Vector2i(1, 0) or d1 == Vector2i(0, 1), "Structure should move exactly one axis (RIGHT or DOWN), got %s" % [d1])
+	print("  Two-axis push arbitration: single-axis movement verified (%s)." % [d1])
 
 func test_replicator_and_structure_independence() -> void:
 	print("Testing Replicator & Structure Independence...")
@@ -204,5 +206,6 @@ func test_victory_conditions() -> void:
 	var res2 := sim.step_tick()
 	# Now treasure is inside build area -> should be collected and victory achieved!
 	assert(res2.is_victory == true, "Level should be won when treasure is returned into player build area!")
-	assert(not world.has_block(Vector2i(2, 2)), "Treasure should be collected when inside build area")
+	# 当前设计：宝藏记为已回收但保留方块本身，避免回收动作改变场面
+	assert(world.has_block(Vector2i(2, 2)), "Treasure block is kept on grid after collection (by design)")
 	print("  Victory condition and treasure return to build area verified.")

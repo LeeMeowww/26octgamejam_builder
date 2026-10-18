@@ -44,8 +44,8 @@ var build_area_warning_label: Label
 var is_simulating: bool = false
 var is_animating_tick: bool = false
 var has_simulated: bool = false
-var sim_speed_multiplier: float = 1.0 # 0.2x ~ 2.0x
-var base_tick_duration: float = 0.65 # seconds; leaves room for rotator-then-target sequencing
+var sim_speed_multiplier: float = 1.0 # 0.2x ~ 20.0x
+var base_tick_duration: float = 0.35 # seconds
 var ui_layer: CanvasLayer
 
 # Selection & Editing state
@@ -66,10 +66,10 @@ var is_right_panning: bool = false
 var right_mouse_down_pos: Vector2 = Vector2.ZERO
 var right_pan_drag_threshold: float = 6.0
 
-# Undo / Redo history
+# Undo / Redo history（至少保留最近 100 步，超出后仅丢弃更早的记录）
 var undo_stack: Array[GridWorld] = []
 var redo_stack: Array[GridWorld] = []
-const MAX_UNDO_STACK := 50
+const MAX_UNDO_STACK := 100
 
 func record_undo() -> void:
 	if is_simulating or is_animating_tick or has_simulated:
@@ -348,7 +348,7 @@ func _build_ui_layout() -> void:
 	var sep2 := VSeparator.new()
 	row2_hbox.add_child(sep2)
 
-	# Speed slider: 0.2x to 2.0x
+	# Speed slider: 0.2x to 20.0x (Logarithmic scale)
 	var speed_hbox := HBoxContainer.new()
 	speed_hbox.add_theme_constant_override("separation", 6)
 	row2_hbox.add_child(speed_hbox)
@@ -360,8 +360,9 @@ func _build_ui_layout() -> void:
 	speed_slider = HSlider.new()
 	speed_slider.focus_mode = Control.FOCUS_NONE
 	speed_slider.min_value = 0.2
-	speed_slider.max_value = 2.0
-	speed_slider.step = 0.1
+	speed_slider.max_value = 20.0
+	speed_slider.step = 0.05
+	speed_slider.exp_edit = true
 	speed_slider.value = 1.0
 	speed_slider.custom_minimum_size = Vector2(80, 20)
 	speed_slider.value_changed.connect(func(val: float):
@@ -1476,22 +1477,38 @@ func _on_toolbar_block_selected(btype: int) -> void:
 			grid_view.cancel_multi_ghost()
 
 func _on_toolbar_variant_changed(variant_idx: int) -> void:
-	if not selected_blocks.is_empty():
-		for b in selected_blocks:
-			if not b.is_world_block:
-				b.texture_variant = variant_idx
-				var v := grid_view.get_view(b.block_id)
-				if v != null:
-					v.update_appearance()
+	var any_changed := false
+	for b in selected_blocks:
+		if not b.is_world_block and b.texture_variant != variant_idx:
+			any_changed = true
+			break
+	if not any_changed:
+		return
+	record_undo()
+	for b in selected_blocks:
+		if not b.is_world_block:
+			b.texture_variant = variant_idx
+			var v := grid_view.get_view(b.block_id)
+			if v != null:
+				v.update_appearance()
+	_update_initial_snapshot()
 
 func _on_toolbar_sub_mode_toggled(sub_mode: int) -> void:
-	if not selected_blocks.is_empty():
-		for b in selected_blocks:
-			if not b.is_world_block and b.block_type == BlockData.Type.ROTATOR:
-				b.sub_mode = sub_mode
-				var v := grid_view.get_view(b.block_id)
-				if v != null:
-					v.update_appearance()
+	var any_changed := false
+	for b in selected_blocks:
+		if not b.is_world_block and b.block_type == BlockData.Type.ROTATOR and b.sub_mode != sub_mode:
+			any_changed = true
+			break
+	if not any_changed:
+		return
+	record_undo()
+	for b in selected_blocks:
+		if not b.is_world_block and b.block_type == BlockData.Type.ROTATOR:
+			b.sub_mode = sub_mode
+			var v := grid_view.get_view(b.block_id)
+			if v != null:
+				v.update_appearance()
+	_update_initial_snapshot()
 
 func _on_toolbar_direction_changed(_dir: int) -> void:
 	pass

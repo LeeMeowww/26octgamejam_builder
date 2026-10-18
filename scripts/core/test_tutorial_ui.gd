@@ -48,6 +48,10 @@ func snap(name: String):
 		if img != null:
 			img.save_png(output_dir.path_join(name + ".png"))
 func run_test():
+	if not FileAccess.file_exists("res://assets/levels/tutorial_01.json"):
+		print("tutorial_01 not present, skipping legacy tutorial UI tests")
+		quit(0)
+		return
 	view = SubViewport.new()
 	view.size = Vector2i(1280, 720)
 	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS

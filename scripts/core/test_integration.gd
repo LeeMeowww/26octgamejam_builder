@@ -48,7 +48,7 @@ func test_level_select_scene() -> void:
 	scene._ready()
 	assert(scene.map != null, "Campaign map should exist")
 	assert(scene.chapter_buttons.size() >= 4, "Four chapters should be available")
-	assert(scene.node_buttons.size() == 5, "Teaching chapter should contain five nodes")
+	assert(scene.node_buttons.size() == 3, "Gun chapter should contain three nodes")
 	scene.queue_free()
 	print("   LevelSelect scene initialized successfully.")
 
@@ -59,10 +59,10 @@ func test_level_manager_scene() -> void:
 	scene._ready()
 	assert(scene.level_item_list != null, "ItemList should exist")
 	assert(scene.level_item_list.item_count >= 4, "Should display levels in list")
-	# Select fourth chapter level
+	# Select custom_level_80400
 	for i in range(scene.levels.size()):
-		if scene.levels[i].level_id == "level_04": scene._select_level(i)
-	assert(scene.name_edit.text == SaveManager.load_level("level_04").level_name, "Should load the selected level name into form")
+		if scene.levels[i].level_id == "custom_level_80400": scene._select_level(i)
+	assert(scene.name_edit.text == SaveManager.load_level("custom_level_80400").level_name, "Should load the selected level name into form")
 	scene.queue_free()
 	print("   LevelManager scene initialized successfully.")
 
@@ -102,20 +102,20 @@ func test_level_player_scene() -> void:
 	var scene: LevelPlayer = load("res://scenes/ui/LevelPlayer.tscn").instantiate()
 	root.add_child(scene)
 	scene._ready()
-	scene.load_level_data(SaveManager.load_level("level_04"))
+	scene.load_level_data(SaveManager.load_level("custom_level_80400"))
 	assert(scene.current_level_data != null, "Level should be loaded")
 	assert(scene.sim_engine != null, "Sim engine should be active")
 	
 	# Place a player pusher and destroyer
 	scene.toolbar.select_type(BlockData.Type.PUSHER)
 	scene.toolbar.rotate_direction(0) # RIGHT
-	scene._try_place_block(Vector2i(-6, 0))
+	scene._try_place_block(Vector2i(-4, -4))
 	scene.toolbar.select_type(BlockData.Type.DESTROYER)
-	scene._try_place_block(Vector2i(-5, 0))
+	scene._try_place_block(Vector2i(-3, -4))
 	
 	# Group them into a structure
-	var b1 = scene.world.get_block(Vector2i(-6, 0))
-	var b2 = scene.world.get_block(Vector2i(-5, 0))
+	var b1 = scene.world.get_block(Vector2i(-4, -4))
+	var b2 = scene.world.get_block(Vector2i(-3, -4))
 	assert(b1 != null and b2 != null, "Blocks should be placed")
 	scene.selected_blocks = [b1, b2]
 	scene.group_selected_blocks()
@@ -128,14 +128,14 @@ func test_level_player_scene() -> void:
 	
 	# Test step simulation
 	scene.step_single_tick()
-	# Pusher and Destroyer should have moved forward to (-5, 0) and (-4, 0)
-	assert(b1.grid_pos == Vector2i(-5, 0), "Pusher should move to (-5, 0), got %s" % [b1.grid_pos])
-	assert(b2.grid_pos == Vector2i(-4, 0), "Destroyer should move to (-4, 0), got %s" % [b2.grid_pos])
+	# Pusher and Destroyer should have moved forward to (-3, -4) and (-2, -4)
+	assert(b1.grid_pos == Vector2i(-3, -4), "Pusher should move to (-3, -4), got %s" % [b1.grid_pos])
+	assert(b2.grid_pos == Vector2i(-2, -4), "Destroyer should move to (-2, -4), got %s" % [b2.grid_pos])
 	
 	# Test Reset simulation
 	scene.reset_simulation()
-	var b1_reset = scene.world.get_block(Vector2i(-6, 0))
-	assert(b1_reset != null, "Reset should restore player machine to original location (-6, 0)")
+	var b1_reset = scene.world.get_block(Vector2i(-4, -4))
+	assert(b1_reset != null, "Reset should restore player machine to original location (-4, -4)")
 	
 	scene.queue_free()
 	print("   LevelPlayer mechanics, structure grouping, borders, and simulation verified.")

@@ -47,8 +47,8 @@
   "cg_theme": "cyan_core",
   "description": "完成关卡任务：摧毁所有污染源，将所有宝藏回收至建造区。",
   "level_id": "custom_level_78513",
-  "level_name": "1-2：拾取-2",
-  "order_index": 12,
+  "level_name": "获取-1",
+  "order_index": 4,
   "player_build_area": {
     "h": 18,
     "w": 11,
