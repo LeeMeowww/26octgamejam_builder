@@ -11,7 +11,7 @@ const CELL_ART_SCALE := 60.0 / 64.0
 const RED_TINT := Color(1.0, 0.035, 0.035, 1.0)
 
 var body: Sprite2D
-var eye: Sprite2D
+var eye: EyeAnimator
 var eat: Sprite2D
 var _idle_time := 0.0
 var _eye_time := 0.0
@@ -27,7 +27,9 @@ func _ready() -> void:
 	body = _make_strip("Body", "res://scenes/animation/idle_animate.png", IDLE_FRAMES)
 	body.material = red_material
 	body.scale = Vector2.ONE * CELL_ART_SCALE
-	eye = _make_strip("Eye", "res://scenes/animation/eye_blink(1).png", EYE_FRAMES)
+	eye = EyeAnimator.new()
+	eye.name = "Eye"
+	add_child(eye)
 	eye.scale = Vector2.ONE * CELL_ART_SCALE
 	eat = _make_strip("Eat", "res://scenes/animation/eat.png", EAT_FRAMES)
 	# eat.png is authored as 16 frames of 128x64: exactly two idle cells.
@@ -51,12 +53,11 @@ func _make_strip(node_name: String, path: String, frame_count: int) -> Sprite2D:
 
 func _process(delta: float) -> void:
 	_idle_time += delta
-	_eye_time += delta
 	body.frame = int(_idle_time * IDLE_FPS) % IDLE_FRAMES
-	eye.frame = int(_eye_time * EYE_FPS) % EYE_FRAMES
 	if _eating:
 		body.visible = false
 		eye.visible = true
+		eye.set_action_locked(true)
 		_eat_time += delta
 		eat.frame = mini(int(_eat_time * EAT_FPS), EAT_FRAMES - 1)
 		if _eat_time >= float(EAT_FRAMES) / EAT_FPS:
@@ -64,6 +65,7 @@ func _process(delta: float) -> void:
 			eat.visible = false
 			body.visible = true
 			eye.visible = true
+			eye.set_action_locked(false)
 
 func play_eat() -> void:
 	if _eating:
@@ -74,6 +76,7 @@ func play_eat() -> void:
 	eat.visible = true
 	body.visible = false
 	eye.visible = true
+	eye.set_action_locked(true)
 
 func set_direction(direction: int) -> void:
 	rotation = posmod(direction, 4) * (PI / 2.0)

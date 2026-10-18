@@ -11,7 +11,7 @@ const CELL_ART_SCALE := 60.0 / 64.0
 const YELLOW_TINT := Color(1.0, 0.82, 0.035, 1.0)
 
 var body: Sprite2D
-var eye: Sprite2D
+var eye: EyeAnimator
 var _push_time := 0.0
 var _eye_time := 0.0
 var _pushing := false
@@ -26,7 +26,9 @@ func _ready() -> void:
 	body = _make_strip("Body", "res://scenes/animation/push.png", PUSH_FRAMES)
 	body.material = yellow_material
 	body.scale = Vector2.ONE * CELL_ART_SCALE
-	eye = _make_strip("Eye", "res://scenes/animation/eye_blink(1).png", EYE_FRAMES)
+	eye = EyeAnimator.new()
+	eye.name = "Eye"
+	add_child(eye)
 	eye.scale = Vector2.ONE * CELL_ART_SCALE
 	eye.z_index = 2
 
@@ -42,16 +44,16 @@ func _make_strip(node_name: String, path: String, frame_count: int) -> Sprite2D:
 	return sprite
 
 func _process(delta: float) -> void:
-	_eye_time += delta
-	eye.frame = int(_eye_time * EYE_FPS) % EYE_FRAMES
 	if not _pushing:
 		body.frame = 0
 		return
+	eye.set_action_locked(true)
 	_push_time += delta
 	body.frame = mini(int(_push_time * PUSH_FPS), PUSH_FRAMES - 1)
 	if _push_time >= float(PUSH_FRAMES) / PUSH_FPS:
 		_pushing = false
 		body.frame = 0
+		eye.set_action_locked(false)
 		push_finished.emit()
 
 func play_push() -> void:
@@ -60,6 +62,7 @@ func play_push() -> void:
 	_pushing = true
 	_push_time = 0.0
 	body.frame = 0
+	eye.set_action_locked(true)
 
 func set_direction(direction: int) -> void:
 	rotation = posmod(direction, 4) * (PI / 2.0)
