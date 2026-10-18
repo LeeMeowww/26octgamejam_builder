@@ -9,5 +9,4 @@ func _draw() -> void:
 	for route in routes:
 		var a: Vector2 = route[0]
 		var b: Vector2 = route[1]
-		if route[2]: draw_dashed_line(a, b, Color("d9ad72"), 3, 9)
-		else: draw_line(a, b, Color("62bfae"), 4, true)
+		draw_line(a, b, Color("62bfae"), 4, true)

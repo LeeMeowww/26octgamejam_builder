@@ -101,7 +101,7 @@ func _build_ui() -> void:
 	map = MapScript.new()
 	map.custom_minimum_size = Vector2(750, 350)
 	map_scroll.add_child(map)
-	_label(left, "实线：主线    虚线：可选支线    ✓：已通关\n点击节点查看详情 · 所有关卡可自由探索 · 地图可滚动", 14, Color("96b0b8"))
+	_label(left, "✓：已通关\n点击节点查看详情", 14, Color("96b0b8"))
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size.x = 330
 	panel.add_theme_stylebox_override("panel", _style(Color("152630"), Color("35545c")))
@@ -143,7 +143,7 @@ func _show_chapter(index: int) -> void:
 	selected_index = -1
 	enter_button.disabled = true
 	detail_title.text = "选择一个节点"
-	detail_body.text = "点击地图上的关卡，查看目标与核心机制。\n\n主线帮助你逐步掌握构装，支线可以随时尝试。"
+	detail_body.text = "点击地图上的关卡，查看关卡目标。"
 	author_label.hide()
 	chapter_title.text = Campaign.CHAPTERS[index][1] if index < Campaign.CHAPTERS.size() else "自由工坊"
 	chapter_description.text = Campaign.CHAPTERS[index][2] if index < Campaign.CHAPTERS.size() else "未编入章节的自制关卡也会保留在这里。"
@@ -171,16 +171,10 @@ func _show_chapter(index: int) -> void:
 		button.position = node_position
 		button.size = Vector2(130, 98)
 		var level_title := Campaign.title(level)
-		if level_title == data[1]:
-			var subtitle: String = str(data[6])
-			if not subtitle.is_empty():
-				button.text = "%s %s\n%s" % [data[1], "✓" if progress.has(level.level_id) else "", subtitle.get_slice(" · ", 0)]
-			else:
-				button.text = "%s %s" % [data[1], "✓" if progress.has(level.level_id) else ""]
-		else:
-			button.text = "%s %s\n%s" % [data[1], "✓" if progress.has(level.level_id) else "", level_title]
+		var display_title: String = data[1] if level_title == data[1] else level_title
+		button.text = "%s %s" % [display_title, "✓" if progress.has(level.level_id) else ""]
 		button.add_theme_font_size_override("font_size", 15)
-		var accent := Color("d9ad72") if data[4] else Color("62bfae")
+		var accent := Color("62bfae")
 		button.add_theme_stylebox_override("normal", _style(Color("19303a"), accent))
 		button.add_theme_stylebox_override("focus", _style(Color("294751"), Color("efffe8")))
 		button.add_theme_stylebox_override("hover", _style(Color("294751"), accent))
@@ -193,9 +187,7 @@ func _show_chapter(index: int) -> void:
 	map.custom_minimum_size = Vector2(750, maxf(350.0, ceilf(count / 4.0) * 170 + 100.0) if index >= Campaign.CHAPTERS.size() else 350.0)
 	for id in positions:
 		var next: String = Campaign.info(id)[7]
-		if positions.has(next): map.routes.append([positions[id], positions[next], false])
-	for edge in Campaign.BRANCHES:
-		if positions.has(edge[0]) and positions.has(edge[1]): map.routes.append([positions[edge[0]], positions[edge[1]], true])
+		if positions.has(next): map.routes.append([positions[id], positions[next]])
 	if count == 0: detail_body.text = "此章节暂无可用关卡。可切换章节或在关卡管理中添加内容。"
 	chapter_description.text += "   ·   已完成 %d / %d" % [completed_count, count]
 	map.queue_redraw()
@@ -208,22 +200,13 @@ func _select_level(index: int) -> void:
 	for id in node_buttons: node_buttons[id].set_pressed_no_signal(id == level.level_id)
 	var data := Campaign.info(level.level_id)
 	var level_title := Campaign.title(level)
-	if level_title == data[1]:
-		detail_title.text = "%s  %s" % [data[1], data[6]] if not str(data[6]).is_empty() else data[1]
-	else:
-		detail_title.text = "%s  %s" % [data[1], level_title]
+	detail_title.text = level_title if not level_title.is_empty() else data[1]
 	var status := "已通关" if Campaign.completed().has(level.level_id) else "未通关"
 	var goal := level.description
 	if level.level_id in ["level_04", "custom_level_81605"]: goal = "清除所有污染源。怪物是障碍，不要求全部消灭。"
 	detail_body.clear()
-	detail_body.add_text("%s  ·  %s\n\n" % ["支线" if data[4] else "主线", status])
-	for section in [["目标", goal], ["核心机制", data[6]]]:
-		detail_body.push_font_size(18)
-		detail_body.push_color(Color("b2e9d6"))
-		detail_body.add_text(str(section[0]))
-		detail_body.pop()
-		detail_body.pop()
-		detail_body.add_text("\n" + str(section[1]) + "\n\n")
+	detail_body.add_text(status + "\n\n")
+	detail_body.add_text(goal)
 	author_label.text = "作者  " + (level.author if not level.author.is_empty() else "佚名")
 	author_label.show()
 	enter_button.disabled = false

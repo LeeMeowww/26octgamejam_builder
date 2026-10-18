@@ -56,7 +56,7 @@ func _build_ui() -> void:
 	actions.add_theme_constant_override("separation", 16)
 	card.add_child(actions)
 	UI.label(actions, "开始一次构装", 24)
-	UI.label(actions, "循着主线学习，也可以探索支线。", 15, UI.MUTED)
+	UI.label(actions, "从第一关出发，随时回访任何章节。", 15, UI.MUTED)
 	var play := _button(actions, "探索章节地图  →")
 	UI.primary(play)
 	play.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn"))
@@ -78,11 +78,6 @@ func _build_ui() -> void:
 	settings_menu = SettingsMenu.new()
 	settings_menu.visible = false
 	add_child(settings_menu)
-
-	var footer := UI.label(self, "自由构装解谜   /   鼠标与键盘操作   /   关内可随时查看操作帮助", 14, UI.MUTED)
-	footer.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
-	footer.offset_top = -50
-	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func _button(parent: Node, text: String) -> Button:
 	var button := Button.new()

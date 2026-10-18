@@ -30,12 +30,11 @@ const NODES = {
 	"custom_level_33847": [3, "计数器-2", 1, 0, false, 5, "状态记忆 · 周期计数", "custom_level_80850"],
 	"custom_level_80850": [3, "计数器-3", 2, 0, false, 5, "多阶时序 · 终极逻辑", ""]
 }
-const BRANCHES = []
 const PROGRESS_PATH = "user://campaign_progress.cfg"
 static var active_level := ""
 
 static func info(id: String) -> Array:
-	return NODES.get(id, [CHAPTERS.size(), "自选", 0, 0, true, 0, "自由构装", ""])
+	return NODES.get(id, [CHAPTERS.size(), "自选", 0, 0, false, 0, "", ""])
 
 static func title(level: LevelData) -> String:
 	return level.level_name.get_slice("：", 1) if level.level_name.contains("：") else level.level_name
