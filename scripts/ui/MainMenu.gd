@@ -62,7 +62,7 @@ func _build_ui() -> void:
 	play.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn"))
 	var learn := _button(actions, "第一次来？从基础开始")
 	learn.pressed.connect(func():
-		Campaign.active_level = "tutorial_01"
+		Campaign.active_level = "custom_level_80400"
 		get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn")
 	)
 	actions.add_child(HSeparator.new())

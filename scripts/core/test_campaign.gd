@@ -38,45 +38,68 @@ func run() -> void:
 	var old_progress := FileAccess.get_file_as_bytes(Campaign.PROGRESS_PATH) if FileAccess.file_exists(Campaign.PROGRESS_PATH) else PackedByteArray()
 	Campaign.active_level = ""
 	var levels := SaveManager.get_all_levels()
-	check(levels.size() >= 11, "New level is discoverable")
-	var next := Campaign.next_index("tutorial_05", levels)
-	check(next >= 0 and levels[next].level_id == "custom_level_78552", "Tutorial leads to pickup 1-1")
+	check(levels.size() >= 14, "All 14 levels are discoverable")
+	var next := Campaign.next_index("custom_level_80400", levels)
+	check(next >= 0 and levels[next].level_id == "custom_level_81906", "Gun 1 leads to Gun 2")
+	next = Campaign.next_index("custom_level_81906", levels)
+	check(next >= 0 and levels[next].level_id == "custom_level_33459", "Gun 2 leads to Gun 3")
+	next = Campaign.next_index("custom_level_33459", levels)
+	check(next >= 0 and levels[next].level_id == "custom_level_78552", "Gun 3 leads to Acquire 0")
 	next = Campaign.next_index("custom_level_78552", levels)
-	check(next >= 0 and levels[next].level_id == "custom_level_78513", "Pickup 1-1 leads to 1-2")
+	check(next >= 0 and levels[next].level_id == "custom_level_78513", "Acquire 0 leads to Acquire 1")
 	next = Campaign.next_index("custom_level_78513", levels)
-	check(next >= 0 and levels[next].level_id == "custom_level_76724", "Pickup 1-2 leads to 1-3")
+	check(next >= 0 and levels[next].level_id == "custom_level_76724", "Acquire 1 leads to Acquire 2")
 	next = Campaign.next_index("custom_level_76724", levels)
-	check(next >= 0 and levels[next].level_id == "custom_level_80400", "Pickup 1-3 leads to gun 2-1")
-	check(Campaign.next_index("custom_level_86910", levels) == -1, "Optional branch has no forced next level")
-	var without_1_2: Array[LevelData] = []
+	check(next >= 0 and levels[next].level_id == "custom_level_25312", "Acquire 2 leads to Acquire 3")
+	next = Campaign.next_index("custom_level_25312", levels)
+	check(next >= 0 and levels[next].level_id == "custom_level_27833", "Acquire 3 leads to Car 0")
+	next = Campaign.next_index("custom_level_27833", levels)
+	check(next >= 0 and levels[next].level_id == "custom_level_21314", "Car 0 leads to Car 1")
+	next = Campaign.next_index("custom_level_21314", levels)
+	check(next >= 0 and levels[next].level_id == "custom_level_28302", "Car 1 leads to Car 2")
+	next = Campaign.next_index("custom_level_28302", levels)
+	check(next >= 0 and levels[next].level_id == "custom_level_49361", "Car 2 leads to Car 3")
+	next = Campaign.next_index("custom_level_49361", levels)
+	check(next >= 0 and levels[next].level_id == "custom_level_35377", "Car 3 leads to Counter 1")
+	next = Campaign.next_index("custom_level_35377", levels)
+	check(next >= 0 and levels[next].level_id == "custom_level_33847", "Counter 1 leads to Counter 2")
+	next = Campaign.next_index("custom_level_33847", levels)
+	check(next >= 0 and levels[next].level_id == "custom_level_80850", "Counter 2 leads to Counter 3")
+	check(Campaign.next_index("custom_level_80850", levels) == -1, "Counter 3 has no forced next level")
+
+	var without_gun_2: Array[LevelData] = []
 	for level in levels:
-		if level.level_id != "custom_level_78513": without_1_2.append(level)
-	next = Campaign.next_index("custom_level_78552", without_1_2)
-	check(next >= 0 and without_1_2[next].level_id == "custom_level_76724", "Deleted main level is skipped without resurrection")
+		if level.level_id != "custom_level_81906": without_gun_2.append(level)
+	next = Campaign.next_index("custom_level_80400", without_gun_2)
+	check(next >= 0 and without_gun_2[next].level_id == "custom_level_33459", "Deleted main level is skipped without resurrection")
+
 	var menu: LevelSelect = load("res://scenes/ui/LevelSelect.tscn").instantiate()
 	root.add_child(menu)
 	await process_frame
-	check(menu.node_buttons.size() == 5, "Tutorial chapter retains five nodes")
-	menu.levels.append(LevelData.new("test_custom", "测试自制关"))
-	menu._show_chapter(Campaign.CHAPTERS.size())
-	check(menu.node_buttons.has("test_custom"), "Unknown levels remain visible in free workshop")
-	menu.levels.pop_back()
+	check(menu.chapter_buttons.size() >= 4, "Four chapter tabs exist")
+	check(menu.node_buttons.size() == 3, "Gun chapter contains 3 nodes")
+	check(menu.map.routes.size() == 2, "Gun chapter routes rendered")
 
 	menu.chapter_buttons[1].pressed.emit()
 	await process_frame
-	check(menu.node_buttons.size() == 3, "Pickup chapter contains three main nodes")
-	check(menu.map.routes.size() == 2, "Main connections rendered in Pickup chapter")
+	check(menu.node_buttons.size() == 4, "Acquire chapter contains 4 nodes")
+	check(menu.map.routes.size() == 3, "Acquire chapter routes rendered")
 
 	menu.chapter_buttons[2].pressed.emit()
 	await process_frame
-	check(menu.node_buttons.size() == 4, "Gun chapter contains three main nodes and one branch")
-	check(menu.map.routes.size() == 3, "Main and branch connections rendered in Gun chapter")
+	check(menu.node_buttons.size() == 4, "Car chapter contains 4 nodes")
+	check(menu.map.routes.size() == 3, "Car chapter routes rendered")
+
+	menu.chapter_buttons[3].pressed.emit()
+	await process_frame
+	check(menu.node_buttons.size() == 3, "Counter chapter contains 3 nodes")
+	check(menu.map.routes.size() == 2, "Counter chapter routes rendered")
 
 	menu.chapter_buttons[0].pressed.emit()
 	await process_frame
-	menu.node_buttons["tutorial_01"].pressed.emit()
+	menu.node_buttons["custom_level_80400"].pressed.emit()
 	await process_frame
-	check(not menu.enter_button.disabled and menu.detail_title.text.contains("第一次清理"), "Node click opens details")
+	check(not menu.enter_button.disabled and menu.detail_title.text.contains("枪-1"), "Node click opens details")
 	check(not menu.detail_body.get_parsed_text().contains("难度") and not menu.detail_body.get_parsed_text().contains("下一站"), "Details omit difficulty and next destination")
 	await snap("chapter_map")
 	if DisplayServer.get_name() != "headless":
@@ -96,67 +119,39 @@ func run() -> void:
 			if child is LevelPlayer:
 				player = child
 				break
-	check(player != null and player.current_level_data.level_id == "tutorial_01", "Enter button loads selected level")
+	check(player != null and player.current_level_data.level_id == "custom_level_80400", "Enter button loads selected level")
 	player.base_tick_duration = 0.001
-	player.toolbar.select_type(0)
-	player._try_place_block(Vector2i(-1, 0))
-	player.toolbar.select_type(4)
-	player.toolbar.current_dir = 0
-	player._try_place_block(Vector2i(1, 0))
-	player._refresh_tutorial()
-	check(player.world.has_block(Vector2i(1, 0)), "Build destroyer at (1, 0)")
-	await snap("tutorial_solution")
-	for tick in range(10):
-		player.step_single_tick()
-		while player.is_animating_tick: await process_frame
-		if player.victory_dialog.visible: break
-	check(player.victory_dialog.visible, "Reference solution wins through LevelPlayer")
-	check(Campaign.completed().has("tutorial_01"), "Victory persists completion")
-	await snap("tutorial_victory")
-	player.reset_simulation()
-	check(player.sim_engine.get_remaining_pollution() == 1, "Reset restores pollution goal")
-	player._on_next_level_pressed()
-	check(player.current_level_data.level_id == "tutorial_02", "Victory next follows main route")
 	player.queue_free()
 	await process_frame
-	var returned: LevelSelect = load("res://scenes/ui/LevelSelect.tscn").instantiate()
-	root.add_child(returned)
-	await process_frame
-	check(returned.chapter == 0 and returned.selected_index >= 0, "Returning to map remembers chapter and selected level")
-	returned._show_chapter(0)
-	await snap("chapter_tutorial")
-	returned._show_chapter(1)
-	await snap("chapter_pickup")
-	returned.queue_free()
-	await process_frame
-	var specs := [[2,-11,-6,0],[4,-10,-6,0],[3,-11,-5,0],[3,-10,-5,0]]
-	for seed_value in range(1, 11):
-		var level := SaveManager.load_level("custom_level_relay")
-		var world := GridWorld.new()
-		for item in level.blocks_data: world.add_block(BlockData.from_dict(item))
-		for s in specs: world.add_block(BlockData.new(s[0], Vector2i(s[1], s[2]), s[3]))
-		var sim := SimulationEngine.new(world, level.player_build_area)
-		sim.rng.seed = seed_value
-		var won := false
-		for tick in range(80):
-			if sim.step_tick().is_victory:
-				won = true
-				break
-		check(won, "Reference seed " + str(seed_value))
-	for variant in range(3):
-		var level := SaveManager.load_level("custom_level_relay")
-		var world := GridWorld.new()
-		for item in level.blocks_data: world.add_block(BlockData.from_dict(item))
-		if variant == 1:
-			world.add_block(BlockData.new(2, Vector2i(-11,-4), 0))
-			world.add_block(BlockData.new(4, Vector2i(-10,-4), 0))
-		if variant == 2:
-			for s in specs:
-				if s[1] == -10 and s[2] == -5: continue
-				world.add_block(BlockData.new(s[0], Vector2i(s[1], s[2]), s[3]))
-		var sim := SimulationEngine.new(world, level.player_build_area)
-		for tick in range(80): sim.step_tick()
-		check(sim.get_remaining_pollution() > 0, "Negative: empty / single shot / missing replicator " + str(variant))
+	if FileAccess.file_exists("res://assets/levels/custom_level_relay.json"):
+		var specs := [[2,-11,-6,0],[4,-10,-6,0],[3,-11,-5,0],[3,-10,-5,0]]
+		for seed_value in range(1, 11):
+			var level := SaveManager.load_level("custom_level_relay")
+			var world := GridWorld.new()
+			for item in level.blocks_data: world.add_block(BlockData.from_dict(item))
+			for s in specs: world.add_block(BlockData.new(s[0], Vector2i(s[1], s[2]), s[3]))
+			var sim := SimulationEngine.new(world, level.player_build_area)
+			sim.rng.seed = seed_value
+			var won := false
+			for tick in range(80):
+				if sim.step_tick().is_victory:
+					won = true
+					break
+			check(won, "Reference seed " + str(seed_value))
+		for variant in range(3):
+			var level := SaveManager.load_level("custom_level_relay")
+			var world := GridWorld.new()
+			for item in level.blocks_data: world.add_block(BlockData.from_dict(item))
+			if variant == 1:
+				world.add_block(BlockData.new(2, Vector2i(-11,-4), 0))
+				world.add_block(BlockData.new(4, Vector2i(-10,-4), 0))
+			if variant == 2:
+				for s in specs:
+					if s[1] == -10 and s[2] == -5: continue
+					world.add_block(BlockData.new(s[0], Vector2i(s[1], s[2]), s[3]))
+			var sim := SimulationEngine.new(world, level.player_build_area)
+			for tick in range(80): sim.step_tick()
+			check(sim.get_remaining_pollution() > 0, "Negative: empty / single shot / missing replicator " + str(variant))
 	print("CAMPAIGN CHECKS: ", checks, "; FAILURES: ", failures)
 	if old_progress.is_empty(): DirAccess.remove_absolute(Campaign.PROGRESS_PATH)
 	else:

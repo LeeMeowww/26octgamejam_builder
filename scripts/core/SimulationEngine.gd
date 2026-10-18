@@ -293,10 +293,9 @@ func _simulate_rotators(snap: GridWorld, result: TickResult) -> void:
 						"old_dir": old_dir,
 						"new_dir": new_dir
 					})
-				for sb in snap.get_all_blocks():
-					if sb.block_id == tid:
-						sb.direction = new_dir
-						break
+				# 旋转结果写入世界（本回合末状态）；快照保持 t0 原貌，摧毁器瞄准/
+				# 复制器写入/怪物行动仍按 t0 感知。唯一例外是推进：推进阶段读取
+				# 世界的旋转后朝向（推进-旋转次序：新朝向当回合即生效于推进）。
 				break
 
 # -----------------------------------------------------------------
@@ -332,7 +331,14 @@ func _simulate_pushers(snap: GridWorld, result: TickResult, consumed_by_destroye
 
 	for snap_b in snap.get_all_blocks():
 		if snap_b.block_type == BlockData.Type.PUSHER and not snap_b.is_inhibited:
-			var fwd := snap_b.get_forward_vec()
+			var own_block: BlockData = null
+			for wb in all_blocks:
+				if wb.block_id == snap_b.block_id:
+					own_block = wb
+					break
+			# 推进-旋转次序：转向器本回合旋转出的新朝向，立刻作用于本回合的推进方向
+			# （推进器从世界读取旋转后朝向；摧毁器瞄准/复制器写入/怪物行动仍按 t0 快照）
+			var fwd := own_block.get_forward_vec() if own_block != null else snap_b.get_forward_vec()
 			var target_pos := snap_b.grid_pos + fwd
 			var target_snap_block := snap.get_block(target_pos)
 
@@ -342,12 +348,6 @@ func _simulate_pushers(snap: GridWorld, result: TickResult, consumed_by_destroye
 					if wb.block_id == target_snap_block.block_id:
 						target_block = wb
 						break
-
-			var own_block: BlockData = null
-			for wb in all_blocks:
-				if wb.block_id == snap_b.block_id:
-					own_block = wb
-					break
 
 			var target_entity = block_to_entity.get(target_block, null)
 			var own_entity = block_to_entity.get(own_block, null)
@@ -444,7 +444,8 @@ func _simulate_pushers(snap: GridWorld, result: TickResult, consumed_by_destroye
 							can_move = false
 							break
 
-						# Check if b is a destroyer that will consume occupant at t0:
+						# Check if b is a destroyer that will consume occupant:
+						# （推进-旋转次序：判定用旋转后的世界朝向，与推进方向保持一致）
 						var is_destroyer_consuming := false
 						if b.block_type == BlockData.Type.DESTROYER and not b.is_inhibited and b.get_forward_vec() == delta:
 							var occ_snap := snap.get_block(next_pos)
@@ -618,6 +619,11 @@ func _simulate_wanderers(snap: GridWorld, result: TickResult, pusher_destination
 		if b == null:
 			continue
 
+		# 严格同时性：若怪物本回合被推进器移动过（当前位置 != t0 位置），
+		# 按"怪物退让"规则本回合不再行动（不走路、不跳跃、不攻击、不转向）。
+		if b.grid_pos != snap_b.grid_pos:
+			continue
+
 		# Wanderer horizontal direction (only Left or Right)
 		var horiz_dir := Vector2i.RIGHT if (snap_b.direction == BlockData.Direction.RIGHT or snap_b.direction == BlockData.Direction.DOWN) else Vector2i.LEFT
 		var forward_pos := snap_b.grid_pos + horiz_dir
@@ -655,13 +661,7 @@ func _simulate_wanderers(snap: GridWorld, result: TickResult, pusher_destination
 				else:
 					# Higher than 1 block (ground_1 and ground_2 both empty):
 					# "怪物不会走下高于一格的台子:若前方一格且向下一格为空(无地面 且再往下一格也为空 应当掉头)"
-					var old_dir := b.direction
-					b.direction = BlockData.Direction.LEFT if horiz_dir == Vector2i.RIGHT else BlockData.Direction.RIGHT
-					result.rotated_blocks.append({
-						"id": b.block_id,
-						"old_dir": old_dir,
-						"new_dir": b.direction
-					})
+					_apply_wanderer_turn_around(b, snap_b, horiz_dir, result)
 
 	# Conflict Resolution:
 	# 1. Yield if pusher entity is moving into target_pos ("当怪物与其他东西冲突时 怪物退让(不动作)")
@@ -749,15 +749,24 @@ func _simulate_wanderers(snap: GridWorld, result: TickResult, pusher_destination
 			})
 		else:
 			# Turn around
-			var old_dir := wb.direction
-			wb.direction = BlockData.Direction.LEFT if horiz_dir == Vector2i.RIGHT else BlockData.Direction.RIGHT
-			result.rotated_blocks.append({
-				"id": wb.block_id,
-				"old_dir": old_dir,
-				"new_dir": wb.direction
-			})
+			_apply_wanderer_turn_around(wb, snap_w, horiz_dir, result)
 
 	return wanderers_attacked
+
+# 怪物掉头：基于 t0 朝向取反向，并叠加本回合转向器对它施加的旋转量
+# （同时性：转向器的旋转与怪物自身掉头同时生效，互不覆盖）
+func _apply_wanderer_turn_around(b: BlockData, snap_b: BlockData, horiz_dir: Vector2i, result: TickResult) -> void:
+	var turn_dir: int = BlockData.Direction.LEFT if horiz_dir == Vector2i.RIGHT else BlockData.Direction.RIGHT
+	var rot_delta := posmod(b.direction - snap_b.direction, 4) # 转向器本回合已写入的旋转量
+	var new_dir := posmod(turn_dir + rot_delta, 4)
+	var old_dir := snap_b.direction
+	if old_dir != new_dir:
+		b.direction = new_dir
+		result.rotated_blocks.append({
+			"id": b.block_id,
+			"old_dir": old_dir,
+			"new_dir": new_dir
+		})
 
 # -----------------------------------------------------------------
 # Replicator (复制器) Simulation
@@ -782,16 +791,15 @@ func _simulate_replicators(snap: GridWorld, result: TickResult) -> void:
 					# 受保护方块直接不允许复制
 					continue
 
-				# Replicator's current location in world (in case it was pushed)
-				var rep_curr_pos := snap_b.grid_pos
-				for wb in world.get_all_blocks():
-					if wb.block_id == snap_b.block_id:
-						rep_curr_pos = wb.grid_pos
-						break
+				# 严格同时性：写入位置 = 复制器 t0 位置 + t0 朝向的前方
+				# （"上一回合前方为空的那个格子"），与复制器本回合是否被推动无关。
+				var dest_pos := snap_b.grid_pos + snap_b.get_forward_vec()
 
-				var dest_pos := rep_curr_pos + snap_b.get_forward_vec()
+				# t0 时前方必须为空（"上一回合复制器前方为空"）
+				if snap.has_block(dest_pos):
+					continue
 
-				# Destination must currently be unoccupied in world
+				# 写入时该格当前也不能被占用（如本回合有方块移入、或复制器自身被推入）
 				if world.has_block(dest_pos):
 					continue
 

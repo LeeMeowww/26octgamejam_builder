@@ -594,7 +594,7 @@
   "description": "完成关卡任务：摧毁所有污染源，将所有宝藏回收至建造区。",
   "level_id": "custom_level_33847",
   "level_name": "计数器-2",
-  "order_index": 4,
+  "order_index": 12,
   "player_build_area": {
     "h": 11,
     "w": 14,

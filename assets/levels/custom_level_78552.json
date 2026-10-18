@@ -20,7 +20,7 @@
   "description": "完成关卡任务：摧毁所有污染源，将所有宝藏回收至建造区。",
   "level_id": "custom_level_78552",
   "level_name": "获取-0",
-  "order_index": 6,
+  "order_index": 3,
   "player_build_area": {
     "h": 8,
     "w": 5,
