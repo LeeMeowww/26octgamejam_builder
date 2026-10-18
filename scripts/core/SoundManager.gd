@@ -114,11 +114,11 @@ func _preload_streams() -> void:
 		PATH_PUSHER, PATH_REPLICATOR, PATH_MONSTER, PATH_DESTROYER, PATH_ROTATOR,
 		PATH_INHIBITOR_ENGAGE, PATH_INHIBITOR_RELEASE, PATH_TREASURE, PATH_VICTORY
 	]
-	for p in paths:
-		if ResourceLoader.exists(p):
-			_streams[p] = load(p)
+	for sound_path in paths:
+		if ResourceLoader.exists(sound_path):
+			_streams[sound_path] = load(sound_path)
 		else:
-			push_warning("SoundManager: 未找到音效文件: " + p)
+			push_warning("SoundManager: 未找到音效文件: " + sound_path)
 
 func _init_voice_pool() -> void:
 	# 1. 专用 UI 点击播放器（常驻预热）
@@ -152,14 +152,14 @@ func _get_free_voice() -> AudioStreamPlayer:
 	# 优先寻找未在播放的声道
 	for i in range(POOL_SIZE):
 		var idx := (_voice_index + i) % POOL_SIZE
-		var p: AudioStreamPlayer = _voice_pool[idx]
-		if not p.playing:
+		var voice_player: AudioStreamPlayer = _voice_pool[idx]
+		if not voice_player.playing:
 			_voice_index = (idx + 1) % POOL_SIZE
-			return p
+			return voice_player
 	# 全部在播放时轮转复用最老的声道
-	var p: AudioStreamPlayer = _voice_pool[_voice_index]
+	var recycled_player: AudioStreamPlayer = _voice_pool[_voice_index]
 	_voice_index = (_voice_index + 1) % POOL_SIZE
-	return p
+	return recycled_player
 
 # -------------------------------------------------------------
 # 空间化音量衰减计算

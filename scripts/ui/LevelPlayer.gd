@@ -45,7 +45,7 @@ var is_simulating: bool = false
 var is_animating_tick: bool = false
 var has_simulated: bool = false
 var sim_speed_multiplier: float = 1.0 # 0.2x ~ 2.0x
-var base_tick_duration: float = 0.35 # seconds
+var base_tick_duration: float = 0.65 # seconds; leaves room for rotator-then-target sequencing
 var ui_layer: CanvasLayer
 
 # Selection & Editing state
@@ -523,16 +523,21 @@ func _run_sim_loop() -> void:
 
 func _execute_tick() -> void:
 	is_animating_tick = true
-	var res := sim_engine.step_tick()
+	# One UI click contains both phases: rotation first, then all other
+	# mechanisms. The simulation advances the step counter only once.
+	var rotation_res := sim_engine.step_tick(true, false, true)
+	var movement_res := sim_engine.step_tick(false, true, false)
 	_update_goal_display()
 
 	var duration := base_tick_duration / sim_speed_multiplier
-	grid_view.play_tick_animation(res, duration, func():
-		is_animating_tick = false
-		if res.is_victory:
-			pause_simulation()
-		elif is_simulating:
-			_run_sim_loop()
+	grid_view.play_tick_animation(rotation_res, duration, func():
+		grid_view.play_tick_animation(movement_res, duration, func():
+			is_animating_tick = false
+			if movement_res.is_victory:
+				pause_simulation()
+			elif is_simulating:
+				_run_sim_loop()
+		)
 	)
 
 func _on_level_won() -> void:

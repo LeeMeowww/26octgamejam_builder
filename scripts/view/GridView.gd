@@ -4,8 +4,14 @@ extends Node2D
 const CELL_SIZE: float = 64.0
 const HALF_CELL: float = CELL_SIZE * 0.5
 const SoundManager = preload("res://scripts/core/SoundManager.gd")
+const BACKGROUND_VIEW_SCRIPT = preload("res://scripts/view/BackgroundView.gd")
 var grid_world: GridWorld
-var player_build_area: Rect2i = Rect2i(0, 0, 0, 0)
+var player_build_area: Rect2i = Rect2i(0, 0, 0, 0):
+	set(value):
+		player_build_area = value
+		if background_view != null:
+			background_view.set_bounds(grid_world, player_build_area)
+		queue_redraw()
 var is_level_editor_mode: bool = false # If true, can place anywhere regardless of build area
 var tutorial_target: Dictionary = {}
 var blocks_outside_build_area: Array[Vector2i] = []
@@ -15,6 +21,7 @@ var _views: Dictionary = {}
 # Destroyer id -> last target id already used to trigger an eat animation.
 # This prevents a repeated simulation refresh from rewinding the same action.
 var _destroyer_eat_targets: Dictionary = {}
+var background_view: BackgroundView
 
 # Ghost preview for placing
 var preview_active: bool = false
@@ -41,6 +48,10 @@ var multi_ghost_mouse_pos: Vector2i = Vector2i.ZERO
 var multi_ghost_has_conflict: bool = false
 
 func _ready() -> void:
+	background_view = BACKGROUND_VIEW_SCRIPT.new()
+	background_view.name = "Background"
+	add_child(background_view)
+	background_view.set_bounds(grid_world, player_build_area)
 	_ensure_preview_block_view()
 	_ensure_multi_ghost_root()
 
@@ -70,6 +81,8 @@ func set_world(p_world: GridWorld) -> void:
 	grid_world = p_world
 	_clear_all_views()
 	_destroyer_eat_targets.clear()
+	if background_view != null:
+		background_view.set_bounds(grid_world, player_build_area)
 
 	if grid_world != null:
 		grid_world.block_added.connect(_on_block_added)
@@ -128,7 +141,8 @@ func _refresh_neighbor_borders(pos: Vector2i) -> void:
 			nv.update_appearance()
 
 func get_view(block_id: int) -> BlockView:
-	return _views.get(block_id, null)
+	var block_view: BlockView = _views.get(block_id, null)
+	return block_view
 
 # Coordinate conversion
 func world_to_grid(world_pos: Vector2) -> Vector2i:
@@ -178,9 +192,9 @@ func _draw() -> void:
 			player_build_area.size.x * CELL_SIZE,
 			player_build_area.size.y * CELL_SIZE
 		)
-		# Soft green/cyan tinted zone
-		draw_rect(area_rect, Color(0.0, 0.8, 0.5, 0.08), true)
-		draw_rect(area_rect, Color(0.0, 0.9, 0.6, 0.6), false, 2.5)
+		# Orange is complementary to the blue background, keeping the build area visible.
+		draw_rect(area_rect, Color(1.0, 0.45, 0.05, 0.08), true)
+		draw_rect(area_rect, Color(1.0, 0.62, 0.08, 0.85), false, 2.5)
 
 	# Draw warning highlight for player blocks outside build area
 	if not blocks_outside_build_area.is_empty():
@@ -402,12 +416,18 @@ func get_multi_ghost_blocks_to_place(mouse_grid: Vector2i) -> Array[BlockData]:
 # Tick Animation Player
 # -------------------------------------------------------------
 func play_tick_animation(result: SimulationEngine.TickResult, duration: float, on_finish: Callable) -> void:
-	# 1. Rotations
-	for rot in result.rotated_blocks:
-		var v := get_view(rot["id"])
-		if v != null:
-			v.animate_rotation(rot["new_dir"], duration)
-			SoundManager.play_block_rotator(v.global_position)
+	# 1. Play rotators first. The target blocks are rotated after this phase.
+	var rotator_views: Array[BlockView] = []
+	for rotator_id in result.active_rotator_ids:
+		var rotator_view := get_view(rotator_id)
+		if rotator_view != null:
+			rotator_views.append(rotator_view)
+			SoundManager.play_block_rotator(rotator_view.global_position)
+	for rotator_view in rotator_views:
+		rotator_view.play_rotator_turn()
+
+	# The rotator and the block directly in front of it rotate together.
+	_play_target_rotations(result, duration)
 
 	# 2. Movements
 	for mov in result.moved_blocks:
@@ -444,6 +464,12 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 		v.animate_spawn(duration)
 		SoundManager.play_block_replicator(v.global_position)
 
+	for action in result.replicator_actions:
+		var replicator_view := get_view(action["id"])
+		var spawned_view := get_view(action["spawned_id"])
+		if replicator_view != null and spawned_view != null:
+			replicator_view.play_replicator_breed(spawned_view.block_data)
+
 	# 6. Destructions & Collections
 	for action in result.destroyer_actions:
 		var destroyer_id: int = action["id"]
@@ -475,12 +501,21 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 			)
 			_views.erase(tr_block.block_id)
 
-	# Wait duration then call on_finish
+	# Wait until both the rotator artwork and the target rotation are complete.
+	var rotation_duration := 1.0 if not rotator_views.is_empty() else 0.0
 	var t := create_tween()
-	t.tween_interval(duration)
+	t.tween_interval(maxf(rotation_duration, duration))
 	t.tween_callback(func():
 		# Refresh borders after animations complete
 		for v: BlockView in _views.values():
 			v.border_node.queue_redraw()
 		on_finish.call()
 	)
+
+func _play_target_rotations(result: SimulationEngine.TickResult, duration: float) -> void:
+	for rot in result.rotated_blocks:
+		var v := get_view(rot["id"])
+		if v != null:
+			v.animate_rotation(rot["new_dir"], duration)
+			SoundManager.play_block_rotator(v.global_position)
+

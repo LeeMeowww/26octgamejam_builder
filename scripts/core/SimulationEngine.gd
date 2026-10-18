@@ -9,12 +9,16 @@ class TickResult extends RefCounted:
 	var inhibited_blocks: Array[int] = [] # block_ids
 	# Array of { "id": int, "old_dir": int, "new_dir": int }
 	var rotated_blocks: Array[Dictionary] = []
+	# Rotators that had a block in front of them during this tick.
+	var active_rotator_ids: Array[int] = []
 	# Array of { "id": int, "old_pos": Vector2i, "new_pos": Vector2i }
 	var moved_blocks: Array[Dictionary] = []
 	# Array of { "id": int, "old_hp": int, "new_hp": int }
 	var damaged_blocks: Array[Dictionary] = []
 	# Array of BlockData
 	var spawned_blocks: Array[BlockData] = []
+	# Array of { "id": int, "spawned_id": int }
+	var replicator_actions: Array[Dictionary] = []
 	# Array of BlockData
 	var destroyed_blocks: Array[BlockData] = []
 	# Array of { "id": int, "direction": int, "target_id": int }
@@ -101,9 +105,11 @@ func has_collected_all_treasures() -> bool:
 			return false
 	return true
 
-# Performs one discrete simulation tick
-func step_tick() -> TickResult:
-	step_count += 1
+# Performs one discrete simulation tick. When rotation_only is true, only
+# rotators are evaluated; when skip_rotators is true, all other mechanisms run.
+func step_tick(rotation_only: bool = false, skip_rotators: bool = false, advance_step: bool = true) -> TickResult:
+	if advance_step:
+		step_count += 1
 	var result := TickResult.new()
 	result.step_number = step_count
 
@@ -119,7 +125,13 @@ func step_tick() -> TickResult:
 	# -------------------------------------------------------------
 	# 2. Rotators (转向器)
 	# -------------------------------------------------------------
-	_simulate_rotators(snap, result)
+	if not skip_rotators:
+		_simulate_rotators(snap, result)
+
+	if rotation_only:
+		world.suppress_events = false
+		tick_completed.emit(result)
+		return result
 
 	# -------------------------------------------------------------
 	# 3. Pushers (推动器) & Structure Movement
@@ -276,6 +288,7 @@ func _simulate_rotators(snap: GridWorld, result: TickResult) -> void:
 			var target_pos := snap_b.grid_pos + snap_b.get_forward_vec()
 			var target_snap := snap.get_block(target_pos)
 			if target_snap != null:
+				result.active_rotator_ids.append(snap_b.block_id)
 				var delta := 1 if snap_b.sub_mode == 0 else -1
 				rotation_deltas[target_snap.block_id] = rotation_deltas.get(target_snap.block_id, 0) + delta
 
@@ -736,12 +749,17 @@ func _simulate_replicators(snap: GridWorld, result: TickResult) -> void:
 
 				if not write_candidates.has(dest_pos):
 					write_candidates[dest_pos] = []
-				write_candidates[dest_pos].append(src_block)
+				write_candidates[dest_pos].append({
+					"source": src_block,
+					"replicator_id": snap_b.block_id
+				})
 
 	for dest_pos in write_candidates.keys():
 		var candidates: Array = write_candidates[dest_pos]
 		# True RNG selection if multiple replicators conflict on same dest_pos
-		var chosen_src: BlockData = candidates[rng.randi_range(0, candidates.size() - 1)]
+		var chosen: Dictionary = candidates[rng.randi_range(0, candidates.size() - 1)]
+		var chosen_src: BlockData = chosen["source"]
+		var replicator_id: int = chosen["replicator_id"]
 
 		var replica := chosen_src.duplicate_block(true)
 		replica.grid_pos = dest_pos
@@ -751,6 +769,7 @@ func _simulate_replicators(snap: GridWorld, result: TickResult) -> void:
 		replica.origin_id = chosen_src.origin_id if chosen_src.origin_id != 0 else chosen_src.block_id
 		world.add_block(replica)
 		result.spawned_blocks.append(replica)
+		result.replicator_actions.append({"id": replicator_id, "spawned_id": replica.block_id})
 
 # -----------------------------------------------------------------
 # Destroyer (摧毁器) Simulation

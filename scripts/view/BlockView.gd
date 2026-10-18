@@ -6,12 +6,18 @@ const HALF_CELL: float = CELL_SIZE * 0.5
 const BASIC_ARTWORK: PackedScene = preload("res://scenes/animation/BasicArtwork.tscn")
 const DESTROYER_ARTWORK: PackedScene = preload("res://scenes/animation/DestroyerArtwork.tscn")
 const PUSHER_ARTWORK: PackedScene = preload("res://scenes/animation/PusherArtwork.tscn")
+const MONSTER_ARTWORK: PackedScene = preload("res://scenes/animation/MonsterArtwork.tscn")
+const ROTATOR_ARTWORK: PackedScene = preload("res://scenes/animation/RotatorArtwork.tscn")
+const REPLICATOR_ARTWORK: PackedScene = preload("res://scenes/animation/ReplicatorArtwork.tscn")
 
 ## Disable to compare with the original SVG artwork.
 @export var use_basic_idle: bool = true
 var basic_artwork: Node2D
 var destroyer_artwork: DestroyerArtwork
 var pusher_artwork: PusherArtwork
+var monster_artwork: MonsterArtwork
+var rotator_artwork: RotatorArtwork
+var replicator_artwork: ReplicatorArtwork
 
 var block_data: BlockData
 var grid_world: GridWorld
@@ -55,6 +61,15 @@ func _init(p_block: BlockData, p_world: GridWorld) -> void:
 	pusher_artwork.visible = false
 	pusher_artwork.push_finished.connect(_on_pusher_push_finished)
 	add_child(pusher_artwork)
+	monster_artwork = MONSTER_ARTWORK.instantiate() as MonsterArtwork
+	monster_artwork.visible = false
+	add_child(monster_artwork)
+	rotator_artwork = ROTATOR_ARTWORK.instantiate() as RotatorArtwork
+	rotator_artwork.visible = false
+	add_child(rotator_artwork)
+	replicator_artwork = REPLICATOR_ARTWORK.instantiate() as ReplicatorArtwork
+	replicator_artwork.visible = false
+	add_child(replicator_artwork)
 
 	# 3. Inhibited overlay sprite
 	inhibited_sprite = Sprite2D.new()
@@ -86,9 +101,14 @@ func update_appearance() -> void:
 	# Pushers always use the PNG artwork. While idle, PusherArtwork holds
 	# the first push frame; during movement it plays the full sequence.
 	var show_pusher := block_data.block_type == BlockData.Type.PUSHER
+	# All enemy types share the supplied monster artwork. Their simulation and
+	# movement rules remain distinct; only the visual representation is unified.
+	var show_monster := block_data.block_type == BlockData.Type.WANDERER or block_data.block_type == BlockData.Type.POLLUTION
+	var show_rotator := block_data.block_type == BlockData.Type.ROTATOR
+	var show_replicator := block_data.block_type == BlockData.Type.REPLICATOR
 	# Hide only the SVG fallback for the two PNG-driven artworks.
 	# Keep the parent visible so its child artwork remains visible.
-	if show_destroyer:
+	if show_destroyer or show_monster or show_rotator or show_replicator:
 		inner_sprite.texture = null
 		inner_sprite.scale = Vector2.ONE
 		inner_sprite.self_modulate.a = 1.0
@@ -98,6 +118,13 @@ func update_appearance() -> void:
 	destroyer_artwork.visible = show_destroyer
 	pusher_artwork.visible = show_pusher
 	pusher_artwork.set_direction(block_data.direction)
+	monster_artwork.visible = show_monster
+	monster_artwork.set_direction(block_data.direction)
+	rotator_artwork.visible = show_rotator
+	rotator_artwork.set_direction(block_data.direction)
+	rotator_artwork.set_sub_mode(block_data.sub_mode)
+	replicator_artwork.visible = show_replicator
+	replicator_artwork.set_direction(block_data.direction)
 	# Cancel the SVG-dependent scale so PNG pixels fit the cell consistently.
 	basic_artwork.scale = Vector2.ONE * ((CELL_SIZE - 4.0) / 64.0) / inner_sprite.scale
 	# DestroyerArtwork owns the one-cell/two-cell artwork scales internally.
@@ -232,8 +259,19 @@ func animate_rotation(new_dir: int, duration: float) -> void:
 
 	var t := create_tween()
 	t.tween_property(inner_sprite, "rotation", end_angle, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	for artwork in [pusher_artwork, rotator_artwork, replicator_artwork]:
+		if artwork != null and artwork.visible:
+			t.tween_property(artwork, "rotation", end_angle, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if monster_artwork != null and monster_artwork.visible:
+		var monster_end_angle := monster_artwork.get_direction_rotation(new_dir)
+		t.tween_property(monster_artwork, "rotation", monster_end_angle, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_callback(func():
-		inner_sprite.rotation = posmod(new_dir, 4) * (PI / 2.0)
+		var final_angle := posmod(new_dir, 4) * (PI / 2.0)
+		inner_sprite.rotation = final_angle
+		pusher_artwork.rotation = final_angle
+		monster_artwork.set_direction(new_dir)
+		rotator_artwork.rotation = final_angle
+		replicator_artwork.rotation = final_angle
 	)
 
 func animate_spawn(duration: float) -> void:
@@ -263,6 +301,19 @@ func play_pusher_push() -> void:
 	pusher_artwork.set_direction(block_data.direction)
 	update_appearance()
 	pusher_artwork.play_push()
+
+func play_rotator_turn() -> void:
+	if block_data == null or block_data.block_type != BlockData.Type.ROTATOR:
+		return
+	rotator_artwork.set_direction(block_data.direction)
+	rotator_artwork.set_sub_mode(block_data.sub_mode)
+	rotator_artwork.play_turn()
+
+func play_replicator_breed(source_block: BlockData) -> void:
+	if block_data == null or block_data.block_type != BlockData.Type.REPLICATOR:
+		return
+	replicator_artwork.set_direction(block_data.direction)
+	replicator_artwork.play_breed(source_block)
 
 func _on_pusher_push_finished() -> void:
 	_pushing = false
