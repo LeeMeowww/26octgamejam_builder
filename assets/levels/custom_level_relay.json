@@ -1,7 +1,7 @@
 {
   "level_id": "custom_level_relay",
   "level_name": "2-1：接力发射",
-  "order_index": 3,
+  "order_index": 103,
   "author": "格式塔工坊",
   "cg_theme": "cyan_core",
   "description": "补全预设节拍器，让弹丸连续出发，清除远端两处污染。第一发会与拦截器同归于尽，后续弹丸才能穿过。",

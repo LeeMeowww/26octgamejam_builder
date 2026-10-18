@@ -15,6 +15,7 @@ import json
 import argparse
 import socket
 import ssl
+import signal
 import subprocess
 import webbrowser
 from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -222,12 +223,21 @@ def generate_self_signed_cert(cert_dir):
             return None, None
     return cert_path, key_path
 
+class GestaltServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        exc_type = sys.exc_info()[0]
+        if exc_type in (BrokenPipeError, ConnectionResetError):
+            return
+        super().handle_error(request, client_address)
+
 def run_server(web_dir, port=8060, use_https=False, open_browser=True):
     actual_port = find_available_port(port)
     handler = lambda *args, **kwargs: GodotWebHandler(*args, directory=web_dir, **kwargs)
 
     try:
-        httpd = ThreadingHTTPServer(('0.0.0.0', actual_port), handler)
+        httpd = GestaltServer(('0.0.0.0', actual_port), handler)
     except Exception as e:
         print(f"❌ 启动 Web 服务器失败: {e}")
         return
@@ -259,6 +269,18 @@ def run_server(web_dir, port=8060, use_https=False, open_browser=True):
     print(f"  🛑 按 Ctrl + C 停止服务")
     print(f"=======================================================\n")
 
+    def shutdown_server(sig=None, frame=None):
+        print("\n正在关闭 Web 调试服务器...")
+        try:
+            httpd.server_close()
+        except Exception:
+            pass
+        print("✓ Web 服务器已安全退出。")
+        os._exit(0)
+
+    signal.signal(signal.SIGINT, shutdown_server)
+    signal.signal(signal.SIGTERM, shutdown_server)
+
     if open_browser:
         try:
             webbrowser.open(url)
@@ -267,10 +289,8 @@ def run_server(web_dir, port=8060, use_https=False, open_browser=True):
 
     try:
         httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\n正在关闭 Web 调试服务器...")
-        httpd.server_close()
-        print("✓ Web 服务器已安全退出。")
+    except (KeyboardInterrupt, SystemExit):
+        shutdown_server()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gestalt Godot 4 Web Debug Server")

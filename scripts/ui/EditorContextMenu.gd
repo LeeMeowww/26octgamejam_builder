@@ -40,7 +40,11 @@ func _build_items() -> void:
 	action_buttons.clear()
 
 	var items: Array[Dictionary] = [
+		{ "action": "undo", "label": "撤销", "key_action": "undo" },
+		{ "action": "redo", "label": "重做", "key_action": "redo" },
+		{ "type": "sep" },
 		{ "action": "copy", "label": "复制", "key_action": "copy" },
+		{ "action": "cut", "label": "剪切", "key_action": "cut" },
 		{ "action": "paste", "label": "粘贴", "key_action": "paste" },
 		{ "action": "delete", "label": "删除", "key_action": "delete" },
 		{ "type": "sep" },
@@ -109,11 +113,21 @@ func update_shortcuts() -> void:
 		var lbl: Label = data["shortcut_label"]
 		lbl.text = KeybindManager.get_action_display_name(key_act)
 
-func popup_at(screen_pos: Vector2, can_paste: bool = true) -> void:
+func popup_at(screen_pos: Vector2, can_paste: bool = true, can_copy_or_cut: bool = true, can_undo: bool = false, can_redo: bool = false) -> void:
 	update_shortcuts()
+	if action_buttons.has("undo"):
+		action_buttons["undo"]["button"].disabled = not can_undo
+	if action_buttons.has("redo"):
+		action_buttons["redo"]["button"].disabled = not can_redo
 	if action_buttons.has("paste"):
 		var btn: Button = action_buttons["paste"]["button"]
 		btn.disabled = not can_paste
+	if action_buttons.has("copy"):
+		var btn: Button = action_buttons["copy"]["button"]
+		btn.disabled = not can_copy_or_cut
+	if action_buttons.has("cut"):
+		var btn: Button = action_buttons["cut"]["button"]
+		btn.disabled = not can_copy_or_cut
 
 	visible = true
 	# Measure size

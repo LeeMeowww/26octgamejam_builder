@@ -5,6 +5,9 @@
 
 set -e
 
+# 捕获 Ctrl+C (SIGINT) 与 SIGTERM，确保中断时立即退出
+trap 'echo -e "\n已收到中断信号，退出。"; exit 130' INT TERM
+
 PORT=8060
 USE_HTTPS=false
 NO_EXPORT=false
@@ -117,4 +120,4 @@ if [ "$NO_BROWSER" = true ]; then
     SERVER_ARGS+=(--no-browser)
 fi
 
-python3 "$PROJECT_DIR/scripts/tools/web_server.py" "${SERVER_ARGS[@]}"
+exec python3 "$PROJECT_DIR/scripts/tools/web_server.py" "${SERVER_ARGS[@]}"

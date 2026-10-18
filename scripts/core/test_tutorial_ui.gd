@@ -5,6 +5,7 @@ var failures: Array = []
 var checks := 0
 var output_dir: String = OS.get_environment("BLOCKBOUND_TEST_OUTPUT") if not OS.get_environment("BLOCKBOUND_TEST_OUTPUT").is_empty() else "/tmp/tutorial-tests"
 func _initialize():
+	create_timer(12.0).timeout.connect(func(): printerr("TEST WATCHDOG TIMEOUT!"); quit(1))
 	DirAccess.make_dir_recursive_absolute(output_dir)
 	call_deferred("run_test")
 func verify(ok: bool, label: String):
@@ -53,9 +54,11 @@ func run_test():
 	root.add_child(view)
 	player = load("res://scenes/ui/LevelPlayer.tscn").instantiate()
 	view.add_child(player)
+	player.base_tick_duration = 0.001
 	await frames(15)
 	for i in range(5):
 		player.load_level_by_index(i)
+		player.base_tick_duration = 0.001
 		await frames(8)
 		var level := player.current_level_data
 		verify(level.level_id == "tutorial_%02d" % (i + 1), "lesson_order_" + str(i))
@@ -75,14 +78,18 @@ func run_test():
 		await snap("lesson_%02d_ready" % (i + 1))
 		for tick in range(10):
 			await click(player.step_btn.get_global_rect().get_center())
-			await create_timer(0.4).timeout
+			while player.is_animating_tick: await process_frame
+			await frames(2)
 			if player.victory_dialog.visible: break
 		verify(player.victory_dialog.visible, "mouse_step_wins_" + str(i))
 		verify(Rect2(Vector2.ZERO, Vector2(view.size)).encloses(player.victory_dialog.get_global_rect()), "victory_in_view_" + str(i))
 		await snap("lesson_%02d_complete" % (i + 1))
 		await click(player.victory_dialog.next_btn.get_global_rect().get_center())
-		verify(player.current_level_index == i + 1, "next_lesson_" + str(i))
-	verify(player.current_level_data.level_id == "level_04", "tutorials_lead_to_first_chapter")
+		if i < 4:
+			verify(player.current_level_index == i + 1, "next_lesson_" + str(i))
+		else:
+			verify(player.current_level_data.level_id == "custom_level_78552", "next_lesson_" + str(i))
+	verify(player.current_level_data.level_id == "custom_level_78552", "tutorials_lead_to_first_chapter")
 	verify(not player.tutorial_guide.visible, "ordinary_chapter_hides_guide")
 	DirAccess.make_dir_recursive_absolute(output_dir)
 	var f := FileAccess.open(output_dir.path_join("visual-results.json"), FileAccess.WRITE)

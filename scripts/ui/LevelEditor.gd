@@ -38,6 +38,7 @@ var is_animating_tick: bool = false
 # Mouse interaction
 var is_mouse_placing: bool = false
 var is_mouse_erasing: bool = false
+var last_editor_grid: Vector2i = Vector2i(-999999, -999999)
 var is_box_selecting: bool = false
 var selected_blocks: Array[BlockData] = []
 var box_select_start_world: Vector2 = Vector2.ZERO
@@ -52,6 +53,51 @@ var is_right_panning: bool = false
 var right_mouse_down_pos: Vector2 = Vector2.ZERO
 var right_pan_drag_threshold: float = 6.0
 
+# Undo / Redo history
+var undo_stack: Array[GridWorld] = []
+var redo_stack: Array[GridWorld] = []
+const MAX_UNDO_STACK := 50
+
+func record_undo() -> void:
+	if is_simulating or is_animating_tick:
+		return
+	undo_stack.append(world.clone())
+	if undo_stack.size() > MAX_UNDO_STACK:
+		undo_stack.pop_front()
+	redo_stack.clear()
+
+func can_undo() -> bool:
+	return not is_simulating and not is_animating_tick and not undo_stack.is_empty()
+
+func can_redo() -> bool:
+	return not is_simulating and not is_animating_tick and not redo_stack.is_empty()
+
+func undo() -> void:
+	if not can_undo():
+		return
+	redo_stack.append(world.clone())
+	var prev_world: GridWorld = undo_stack.pop_back()
+	world = prev_world.clone()
+	initial_snapshot = world.clone()
+	sim_engine = SimulationEngine.new(world)
+	_clear_selection()
+	if grid_view != null:
+		grid_view.cancel_multi_ghost()
+		grid_view.set_world(world)
+
+func redo() -> void:
+	if not can_redo():
+		return
+	undo_stack.append(world.clone())
+	var next_world: GridWorld = redo_stack.pop_back()
+	world = next_world.clone()
+	initial_snapshot = world.clone()
+	sim_engine = SimulationEngine.new(world)
+	_clear_selection()
+	if grid_view != null:
+		grid_view.cancel_multi_ghost()
+		grid_view.set_world(world)
+
 func _ready() -> void:
 	theme = UI.get_theme()
 	RenderingServer.set_default_clear_color(UI.BG)
@@ -63,6 +109,8 @@ func _ready() -> void:
 		load_level(new_lvl)
 
 func load_level(lvl: LevelData) -> void:
+	undo_stack.clear()
+	redo_stack.clear()
 	current_level_data = lvl
 	if level_name_lbl != null:
 		level_name_lbl.text = "【关卡编辑】: %s" % lvl.level_name
@@ -467,8 +515,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 
-		# Mouse Wheel cycles current tool when building
-		if event is InputEventMouseButton and event.pressed:
+	# Ctrl + Mouse Wheel cycles current block tool (Plain wheel zooms camera)
+	if toolbar != null and event is InputEventMouseButton and event.pressed:
+		var is_ctrl: bool = event.ctrl_pressed or Input.is_key_pressed(KEY_CTRL)
+		if is_ctrl:
 			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 				toolbar.cycle_tool(-1)
 				get_viewport().set_input_as_handled()
@@ -477,6 +527,17 @@ func _unhandled_input(event: InputEvent) -> void:
 				toolbar.cycle_tool(1)
 				get_viewport().set_input_as_handled()
 				return
+
+	# Undo / Redo Shortcuts
+	if KeybindManager.is_action_just_pressed(event, "undo"):
+		undo()
+		get_viewport().set_input_as_handled()
+		return
+
+	if KeybindManager.is_action_just_pressed(event, "redo"):
+		redo()
+		get_viewport().set_input_as_handled()
+		return
 
 	# Simulation Controls
 	if KeybindManager.is_action_just_pressed(event, "toggle_sim"):
@@ -501,11 +562,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	# Copy & Paste Shortcuts
+	# Cut, Copy & Paste Shortcuts
+	if KeybindManager.is_action_just_pressed(event, "cut"):
+		if not selected_blocks.is_empty():
+			cut_selected_blocks()
+			get_viewport().set_input_as_handled()
+			return
+
 	if KeybindManager.is_action_just_pressed(event, "copy"):
 		if not selected_blocks.is_empty():
 			EditorClipboard.copy(selected_blocks)
-			_clear_selection()
 			get_viewport().set_input_as_handled()
 			return
 
@@ -574,7 +640,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
 				if toolbar.is_placing:
+					record_undo()
 					is_mouse_placing = true
+					last_editor_grid = grid_pos
 					_place_block_editor(grid_pos)
 				else:
 					# Selection mode
@@ -608,6 +676,7 @@ func _unhandled_input(event: InputEvent) -> void:
 								grid_view.queue_redraw()
 			else:
 				is_mouse_placing = false
+				last_editor_grid = Vector2i(-999999, -999999)
 				if is_box_selecting:
 					is_box_selecting = false
 					grid_view.is_box_selecting = false
@@ -617,7 +686,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			if event.pressed:
 				if toolbar.is_placing:
+					record_undo()
 					is_mouse_erasing = true
+					last_editor_grid = grid_pos
 					_erase_block_editor(grid_pos)
 				else:
 					# Selection Mode: Start right drag panning or context menu
@@ -627,13 +698,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				if toolbar.is_placing:
 					is_mouse_erasing = false
+					last_editor_grid = Vector2i(-999999, -999999)
 				else:
 					if is_right_mouse_down:
 						is_right_mouse_down = false
 						if not is_right_panning:
 							# Single right click without drag
-							if not selected_blocks.is_empty():
-								context_menu.popup_at(event.position, EditorClipboard.has_blocks())
+							var can_copy_or_cut := not selected_blocks.is_empty()
+							var can_paste := EditorClipboard.has_blocks()
+							if can_copy_or_cut or can_paste or can_undo() or can_redo():
+								context_menu.popup_at(event.position, can_paste, can_copy_or_cut, can_undo(), can_redo())
 						is_right_panning = false
 
 	elif event is InputEventMouseMotion:
@@ -657,19 +731,28 @@ func _unhandled_input(event: InputEvent) -> void:
 					v.position = grid_view.grid_to_world(preview_pos)
 			grid_view.queue_redraw()
 		elif is_mouse_placing:
-			_place_block_editor(grid_pos)
+			if grid_pos != last_editor_grid:
+				last_editor_grid = grid_pos
+				_place_block_editor(grid_pos)
 		elif is_mouse_erasing:
-			_erase_block_editor(grid_pos)
+			if grid_pos != last_editor_grid:
+				last_editor_grid = grid_pos
+				_erase_block_editor(grid_pos)
 		elif is_box_selecting:
 			grid_view.box_select_current = mouse_world
 			grid_view.queue_redraw()
 
 func _on_context_menu_action(action: String) -> void:
 	match action:
+		"undo":
+			undo()
+		"redo":
+			redo()
 		"copy":
 			if not selected_blocks.is_empty():
 				EditorClipboard.copy(selected_blocks)
-				_clear_selection()
+		"cut":
+			cut_selected_blocks()
 		"paste":
 			if EditorClipboard.has_blocks():
 				_start_paste_preview(EditorClipboard.get_blocks())
@@ -697,6 +780,7 @@ func _try_place_ghost_blocks(mouse_grid: Vector2i) -> void:
 	var new_blocks := grid_view.get_multi_ghost_blocks_to_place(mouse_grid)
 	if new_blocks.is_empty():
 		return
+	record_undo()
 
 	var sid_map: Dictionary = {}
 	for b in new_blocks:
@@ -711,9 +795,11 @@ func _try_place_ghost_blocks(mouse_grid: Vector2i) -> void:
 
 	grid_view.cancel_multi_ghost()
 	initial_snapshot = world.clone()
+	SoundManager.play_cell_place(grid_view.grid_to_world(mouse_grid))
 
 func _rotate_selected_blocks_cw() -> void:
 	if selected_blocks.is_empty(): return
+	record_undo()
 	var sum := Vector2.ZERO
 	for b in selected_blocks: sum += Vector2(b.grid_pos)
 	var center := sum / float(selected_blocks.size())
@@ -749,6 +835,7 @@ func _rotate_selected_blocks_cw() -> void:
 
 func _rotate_selected_blocks_ccw() -> void:
 	if selected_blocks.is_empty(): return
+	record_undo()
 	var sum := Vector2.ZERO
 	for b in selected_blocks: sum += Vector2(b.grid_pos)
 	var center := sum / float(selected_blocks.size())
@@ -784,6 +871,7 @@ func _rotate_selected_blocks_ccw() -> void:
 
 func _flip_selected_blocks_h() -> void:
 	if selected_blocks.is_empty(): return
+	record_undo()
 	var sum := Vector2.ZERO
 	for b in selected_blocks: sum += Vector2(b.grid_pos)
 	var center := sum / float(selected_blocks.size())
@@ -826,6 +914,7 @@ func _flip_selected_blocks_h() -> void:
 
 func _flip_selected_blocks_v() -> void:
 	if selected_blocks.is_empty(): return
+	record_undo()
 	var sum := Vector2.ZERO
 	for b in selected_blocks: sum += Vector2(b.grid_pos)
 	var center := sum / float(selected_blocks.size())
@@ -869,18 +958,26 @@ func _flip_selected_blocks_v() -> void:
 func _place_block_editor(grid_pos: Vector2i) -> void:
 	if is_simulating:
 		return
+	if world.has_block(grid_pos):
+		var existing := world.get_block(grid_pos)
+		if existing.block_type == toolbar.current_type and existing.direction == toolbar.current_dir and existing.texture_variant == toolbar.current_variant and existing.sub_mode == toolbar.current_sub_mode:
+			return
 	world.remove_block_at(grid_pos)
 	var new_block := BlockData.new(toolbar.current_type, grid_pos, toolbar.current_dir)
 	new_block.texture_variant = toolbar.current_variant
 	new_block.sub_mode = toolbar.current_sub_mode
 	new_block.is_world_block = true
 	world.add_block(new_block)
+	SoundManager.play_cell_place(grid_view.grid_to_world(grid_pos))
 	initial_snapshot = world.clone()
 
 func _erase_block_editor(grid_pos: Vector2i) -> void:
 	if is_simulating:
 		return
+	if not world.has_block(grid_pos):
+		return
 	world.remove_block_at(grid_pos)
+	SoundManager.play_cell_delete(grid_view.grid_to_world(grid_pos))
 	initial_snapshot = world.clone()
 
 func _clear_selection() -> void:
@@ -923,6 +1020,7 @@ func _finish_box_select() -> void:
 func group_selected_blocks() -> void:
 	if selected_blocks.is_empty():
 		return
+	record_undo()
 	world.group_blocks(selected_blocks)
 	for b in selected_blocks:
 		var v := grid_view.get_view(b.block_id)
@@ -930,10 +1028,23 @@ func group_selected_blocks() -> void:
 			v.update_appearance()
 	initial_snapshot = world.clone()
 
+func cut_selected_blocks() -> void:
+	if selected_blocks.is_empty():
+		return
+	EditorClipboard.copy(selected_blocks)
+	var blocks_to_paste := EditorClipboard.get_blocks()
+	delete_selected_blocks()
+	_start_paste_preview(blocks_to_paste)
+
 func delete_selected_blocks() -> void:
+	if selected_blocks.is_empty():
+		return
+	record_undo()
+	var delete_pos := grid_view.grid_to_world(selected_blocks[0].grid_pos)
 	for b in selected_blocks:
 		world.remove_block_at(b.grid_pos)
 	selected_blocks.clear()
+	SoundManager.play_cell_delete(delete_pos)
 	initial_snapshot = world.clone()
 
 func _get_selection_bounds() -> Rect2i:
@@ -951,6 +1062,7 @@ func _get_selection_bounds() -> Rect2i:
 func _apply_selection_drag(delta: Vector2i) -> void:
 	if selected_blocks.is_empty() or delta == Vector2i.ZERO:
 		return
+	record_undo()
 
 	var new_positions: Dictionary = {}
 	for b in selected_blocks:
@@ -986,6 +1098,7 @@ func _apply_selection_drag(delta: Vector2i) -> void:
 	initial_snapshot = world.clone()
 
 func clear_all_blocks() -> void:
+	record_undo()
 	world.clear()
 	selected_blocks.clear()
 	initial_snapshot = world.clone()

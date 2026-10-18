@@ -3,10 +3,7 @@ extends Node2D
 
 const CELL_SIZE: float = 64.0
 const HALF_CELL: float = CELL_SIZE * 0.5
-const DESTROYER_ARTWORK: PackedScene = preload("res://scenes/animation/DestroyerArtwork.tscn")
-const BASIC_ARTWORK: PackedScene = preload("res://scenes/animation/BasicArtwork.tscn")
-const PUSHER_ARTWORK: PackedScene = preload("res://scenes/animation/PusherArtwork.tscn")
-
+const SoundManager = preload("res://scripts/core/SoundManager.gd")
 var grid_world: GridWorld
 var player_build_area: Rect2i = Rect2i(0, 0, 0, 0)
 var is_level_editor_mode: bool = false # If true, can place anywhere regardless of build area
@@ -32,44 +29,35 @@ var is_box_selecting: bool = false
 var box_select_start: Vector2 = Vector2.ZERO
 var box_select_current: Vector2 = Vector2.ZERO
 
-var preview_sprite: Sprite2D
-var preview_destroyer: DestroyerArtwork
-var preview_basic: Node2D
-var preview_pusher: PusherArtwork
+var preview_block_data: BlockData
+var preview_block_view: BlockView
 
 # Multi-block Ghost preview for Paste / Load Blueprint
 var multi_ghost_root: Node2D
 var multi_ghost_active: bool = false
 var multi_ghost_blocks: Array[Dictionary] = []
-var multi_ghost_sprites: Array[Sprite2D] = []
+var multi_ghost_sprites: Array[BlockView] = []
 var multi_ghost_mouse_pos: Vector2i = Vector2i.ZERO
 var multi_ghost_has_conflict: bool = false
 
 func _ready() -> void:
-	preview_sprite = Sprite2D.new()
-	preview_sprite.modulate = Color(1.0, 1.0, 1.0, 0.5)
-	preview_sprite.z_index = 10
-	preview_sprite.visible = false
-	add_child(preview_sprite)
-	preview_destroyer = DESTROYER_ARTWORK.instantiate() as DestroyerArtwork
-	preview_destroyer.name = "DestroyerPreview"
-	preview_destroyer.z_index = 10
-	preview_destroyer.visible = false
-	add_child(preview_destroyer)
-	preview_basic = BASIC_ARTWORK.instantiate() as Node2D
-	preview_basic.name = "BasicPreview"
-	preview_basic.z_index = 10
-	preview_basic.visible = false
-	add_child(preview_basic)
-	preview_pusher = PUSHER_ARTWORK.instantiate() as PusherArtwork
-	preview_pusher.name = "PusherPreview"
-	preview_pusher.z_index = 10
-	preview_pusher.visible = false
-	add_child(preview_pusher)
+	_ensure_preview_block_view()
+	_ensure_multi_ghost_root()
 
-	multi_ghost_root = Node2D.new()
-	multi_ghost_root.z_index = 10
-	add_child(multi_ghost_root)
+func _ensure_preview_block_view() -> void:
+	if preview_block_view == null:
+		preview_block_data = BlockData.new(BlockData.Type.BASIC, Vector2i.ZERO)
+		preview_block_view = BlockView.new(preview_block_data, null)
+		preview_block_view.name = "PreviewBlockView"
+		preview_block_view.z_index = 10
+		preview_block_view.visible = false
+		add_child(preview_block_view)
+
+func _ensure_multi_ghost_root() -> void:
+	if multi_ghost_root == null:
+		multi_ghost_root = Node2D.new()
+		multi_ghost_root.z_index = 10
+		add_child(multi_ghost_root)
 
 func set_world(p_world: GridWorld) -> void:
 	if grid_world != null:
@@ -102,10 +90,13 @@ func _on_block_moved(b: BlockData, old_pos: Vector2i, new_pos: Vector2i) -> void
 	_refresh_neighbor_borders(new_pos)
 
 func _clear_all_views() -> void:
-	for child in get_children():
-		if child is BlockView:
-			child.queue_free()
+	for v in _views.values():
+		if is_instance_valid(v):
+			v.queue_free()
 	_views.clear()
+	for child in get_children():
+		if child is BlockView and child != preview_block_view:
+			child.queue_free()
 
 func _create_view_for_block(b: BlockData) -> BlockView:
 	var view := BlockView.new(b, grid_world)
@@ -220,96 +211,30 @@ func update_preview(active: bool, btype: int, dir: int, variant: int, sub_mode: 
 	preview_sub_mode = sub_mode
 	preview_grid_pos = grid_pos
 
-	if not active or preview_sprite == null:
-		if preview_sprite != null:
-			preview_sprite.visible = false
-		if preview_destroyer != null:
-			preview_destroyer.visible = false
-		if preview_basic != null:
-			preview_basic.visible = false
-		if preview_pusher != null:
-			preview_pusher.visible = false
+	_ensure_preview_block_view()
+
+	if not active:
+		preview_block_view.visible = false
 		return
 
-	preview_sprite.visible = true
-	preview_sprite.position = grid_to_world(grid_pos)
-	preview_sprite.rotation = dir * (PI / 2.0)
-	preview_destroyer.visible = false
-	preview_basic.visible = false
-	preview_pusher.visible = false
-	if btype == BlockData.Type.DESTROYER:
-		preview_sprite.visible = false
-		preview_destroyer.visible = true
-		preview_destroyer.position = grid_to_world(grid_pos)
-		preview_destroyer.rotation = dir * (PI / 2.0)
-		var preview_alpha := 0.6
-		var existing_destroyer := grid_world.get_block(grid_pos) if grid_world != null else null
-		if existing_destroyer != null and existing_destroyer.is_world_block and not is_level_editor_mode:
-			preview_alpha = 0.6
-		elif not is_in_build_area(grid_pos):
-			preview_destroyer.modulate = Color(1.0, 0.78, 0.2, preview_alpha)
-			return
-		preview_destroyer.modulate = Color(1.0, 1.0, 1.0, preview_alpha)
-		return
-	if btype == BlockData.Type.BASIC:
-		preview_sprite.visible = false
-		preview_basic.visible = true
-		preview_basic.position = grid_to_world(grid_pos)
-		preview_basic.rotation = dir * (PI / 2.0)
-		preview_basic.scale = Vector2.ONE * ((CELL_SIZE - 4.0) / 64.0)
-		var basic_preview_alpha := 0.6
-		if not is_in_build_area(grid_pos):
-			preview_basic.modulate = Color(1.0, 0.78, 0.2, basic_preview_alpha)
-		else:
-			preview_basic.modulate = Color(1.0, 1.0, 1.0, basic_preview_alpha)
-		return
-	if btype == BlockData.Type.PUSHER:
-		preview_sprite.visible = false
-		preview_pusher.visible = true
-		preview_pusher.position = grid_to_world(grid_pos)
-		preview_pusher.rotation = dir * (PI / 2.0)
-		preview_pusher.scale = Vector2.ONE
-		var pusher_preview_alpha := 0.6
-		if not is_in_build_area(grid_pos):
-			preview_pusher.modulate = Color(1.0, 0.78, 0.2, pusher_preview_alpha)
-		else:
-			preview_pusher.modulate = Color(1.0, 1.0, 1.0, pusher_preview_alpha)
-		return
-
-	var tex_path := _get_preview_texture_path(btype, variant, sub_mode)
-	var tex := BlockView._get_cached_texture(tex_path)
-	if tex != null:
-		preview_sprite.texture = tex
-		var scale_factor := (CELL_SIZE - 4.0) / tex.get_width()
-		preview_sprite.scale = Vector2(scale_factor, scale_factor)
+	preview_block_view.visible = true
+	preview_block_data.block_type = btype
+	preview_block_data.direction = dir
+	preview_block_data.texture_variant = variant
+	preview_block_data.sub_mode = sub_mode
+	preview_block_data.grid_pos = grid_pos
+	preview_block_view.position = grid_to_world(grid_pos)
+	preview_block_view.update_appearance()
 
 	var existing := grid_world.get_block(grid_pos) if grid_world != null else null
 	if existing != null and existing.is_world_block and not is_level_editor_mode:
 		# Protected world block: red
-		preview_sprite.modulate = Color(1.0, 0.25, 0.25, 0.6)
+		preview_block_view.modulate = Color(1.0, 0.25, 0.25, 0.65)
 	elif not is_in_build_area(grid_pos):
 		# Outside build area (allowed to place, but will require moving before sim): amber
-		preview_sprite.modulate = Color(1.0, 0.82, 0.3, 0.6)
+		preview_block_view.modulate = Color(1.0, 0.82, 0.3, 0.65)
 	else:
-		preview_sprite.modulate = Color(1.0, 1.0, 1.0, 0.6)
-
-func _get_preview_texture_path(btype: int, var_idx: int, sub_mode: int) -> String:
-	var v := posmod(var_idx, 3)
-	match btype:
-		BlockData.Type.BASIC: return "res://assets/textures/blocks/basic_%d.svg" % v
-		BlockData.Type.INHIBITOR: return "res://assets/textures/blocks/inhibitor_%d.svg" % v
-		BlockData.Type.PUSHER: return "res://assets/textures/blocks/pusher_%d.svg" % v
-		BlockData.Type.REPLICATOR: return "res://assets/textures/blocks/replicator_%d.svg" % v
-		BlockData.Type.DESTROYER: return "res://assets/textures/blocks/destroyer_%d.svg" % v
-		BlockData.Type.ROTATOR:
-			var mode_str := "rotator_cw" if sub_mode == 0 else "rotator_ccw"
-			return "res://assets/textures/blocks/%s_%d.svg" % [mode_str, v]
-		BlockData.Type.HARD: return "res://assets/textures/blocks/hard_%d.svg" % v
-		BlockData.Type.WANDERER: return "res://assets/textures/blocks/wanderer_%d.svg" % v
-		BlockData.Type.TREASURE: return "res://assets/textures/blocks/treasure_%d.svg" % v
-		BlockData.Type.POLLUTION: return "res://assets/textures/blocks/pollution_%d.svg" % v
-		BlockData.Type.PROTECTED: return "res://assets/textures/blocks/protected_%d.svg" % v
-		_: return "res://assets/textures/blocks/basic_0.svg"
+		preview_block_view.modulate = Color(1.0, 1.0, 1.0, 0.65)
 
 # -------------------------------------------------------------
 # Multi-block Ghost Preview (Paste & Load Blueprint)
@@ -339,25 +264,26 @@ func start_multi_ghost(blocks: Array[BlockData]) -> void:
 
 	multi_ghost_active = true
 	_create_multi_ghost_sprites()
+	if is_inside_tree():
+		multi_ghost_mouse_pos = world_to_grid(get_global_mouse_position())
 	update_multi_ghost_position(multi_ghost_mouse_pos)
-
-func _ensure_multi_ghost_root() -> void:
-	if multi_ghost_root == null:
-		multi_ghost_root = Node2D.new()
-		multi_ghost_root.z_index = 10
-		add_child(multi_ghost_root)
 
 func _create_multi_ghost_sprites() -> void:
 	_ensure_multi_ghost_root()
 	for s in multi_ghost_sprites:
-		s.queue_free()
+		if is_instance_valid(s):
+			s.queue_free()
 	multi_ghost_sprites.clear()
 
 	for d in multi_ghost_blocks:
-		var sprite := Sprite2D.new()
-		sprite.modulate = Color(1.0, 1.0, 1.0, 0.7)
-		multi_ghost_root.add_child(sprite)
-		multi_ghost_sprites.append(sprite)
+		var b := BlockData.new(d["type"], d["offset"], d["dir"])
+		b.texture_variant = d["variant"]
+		b.sub_mode = d["sub_mode"]
+		b.structure_id = d.get("structure_id", 0)
+		var view := BlockView.new(b, null)
+		view.modulate = Color(1.0, 1.0, 1.0, 0.65)
+		multi_ghost_root.add_child(view)
+		multi_ghost_sprites.append(view)
 
 	_refresh_multi_ghost_sprites()
 
@@ -366,14 +292,14 @@ func _refresh_multi_ghost_sprites() -> void:
 		if i >= multi_ghost_sprites.size():
 			break
 		var d: Dictionary = multi_ghost_blocks[i]
-		var s: Sprite2D = multi_ghost_sprites[i]
-
-		var tex_path := _get_preview_texture_path(d["type"], d["variant"], d["sub_mode"])
-		var tex := BlockView._get_cached_texture(tex_path)
-		if tex != null:
-			s.texture = tex
-			var scale_factor := (CELL_SIZE - 4.0) / tex.get_width()
-			s.scale = Vector2(scale_factor, scale_factor)
+		var view: BlockView = multi_ghost_sprites[i]
+		if view != null:
+			view.block_data.block_type = d["type"]
+			view.block_data.direction = d["dir"]
+			view.block_data.texture_variant = d["variant"]
+			view.block_data.sub_mode = d["sub_mode"]
+			view.block_data.structure_id = d.get("structure_id", 0)
+			view.update_appearance()
 
 	update_multi_ghost_position(multi_ghost_mouse_pos)
 
@@ -428,11 +354,12 @@ func update_multi_ghost_position(mouse_grid: Vector2i) -> void:
 		if i >= multi_ghost_sprites.size():
 			break
 		var d: Dictionary = multi_ghost_blocks[i]
-		var s: Sprite2D = multi_ghost_sprites[i]
+		var view: BlockView = multi_ghost_sprites[i]
+		if view == null:
+			continue
 
 		var target_pos: Vector2i = mouse_grid + d["offset"]
-		s.position = grid_to_world(target_pos)
-		s.rotation = d["dir"] * (PI / 2.0)
+		view.position = grid_to_world(target_pos)
 
 		var conflict := false
 		if grid_world != null and grid_world.has_block(target_pos):
@@ -442,9 +369,9 @@ func update_multi_ghost_position(mouse_grid: Vector2i) -> void:
 
 		if conflict:
 			multi_ghost_has_conflict = true
-			s.modulate = Color(1.0, 0.25, 0.25, 0.75)
+			view.modulate = Color(1.0, 0.25, 0.25, 0.75)
 		else:
-			s.modulate = Color(1.0, 1.0, 1.0, 0.7)
+			view.modulate = Color(1.0, 1.0, 1.0, 0.65)
 
 func can_place_multi_ghost() -> bool:
 	return multi_ghost_active and not multi_ghost_has_conflict
@@ -452,7 +379,8 @@ func can_place_multi_ghost() -> bool:
 func cancel_multi_ghost() -> void:
 	multi_ghost_active = false
 	for s in multi_ghost_sprites:
-		s.queue_free()
+		if is_instance_valid(s):
+			s.queue_free()
 	multi_ghost_sprites.clear()
 	multi_ghost_blocks.clear()
 
@@ -479,6 +407,7 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 		var v := get_view(rot["id"])
 		if v != null:
 			v.animate_rotation(rot["new_dir"], duration)
+			SoundManager.play_block_rotator(v.global_position)
 
 	# 2. Movements
 	for mov in result.moved_blocks:
@@ -486,6 +415,9 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 		if v != null:
 			if v.block_data.block_type == BlockData.Type.PUSHER:
 				v.play_pusher_push()
+				SoundManager.play_block_pusher(v.global_position)
+			elif v.block_data.block_type == BlockData.Type.WANDERER:
+				SoundManager.play_block_monster(v.global_position)
 			v.animate_to_pos(mov["new_pos"], duration)
 
 	# 3. Damages
@@ -496,7 +428,13 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 
 	# 4. Inhibitions
 	for v in _views.values():
-		v.inhibited_sprite.visible = v.block_data.is_inhibited
+		var was_inhibited: bool = v.inhibited_sprite.visible
+		var is_now_inhibited: bool = v.block_data.is_inhibited
+		v.inhibited_sprite.visible = is_now_inhibited
+		if not was_inhibited and is_now_inhibited:
+			SoundManager.play_block_inhibitor_engage(v.global_position)
+		elif was_inhibited and not is_now_inhibited:
+			SoundManager.play_block_inhibitor_release(v.global_position)
 
 	# 5. Spawns
 	for spawned_block in result.spawned_blocks:
@@ -504,6 +442,7 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 		if v == null:
 			v = _create_view_for_block(spawned_block)
 		v.animate_spawn(duration)
+		SoundManager.play_block_replicator(v.global_position)
 
 	# 6. Destructions & Collections
 	for action in result.destroyer_actions:
@@ -515,6 +454,7 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 		var destroyer_view := get_view(destroyer_id)
 		if destroyer_view != null:
 			destroyer_view.play_destroyer_eat()
+			SoundManager.play_block_destroyer(destroyer_view.global_position)
 
 	for dest_block in result.destroyed_blocks:
 		var v := get_view(dest_block.block_id)
@@ -528,6 +468,7 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 	for tr_block in result.collected_treasures:
 		var v := get_view(tr_block.block_id)
 		if v != null:
+			SoundManager.play_treasure_collect(v.global_position)
 			v.animate_destroy(duration * 0.8, func():
 				if is_instance_valid(v):
 					v.queue_free()
