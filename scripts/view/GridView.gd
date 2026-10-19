@@ -475,7 +475,7 @@ func _play_movement_and_effects(result: SimulationEngine.TickResult, duration: f
 			if source.block_type == BlockData.Type.REPLICATOR and source.grid_pos + source.get_forward_vec() == spawned_block.grid_pos:
 				var source_view := get_view(source.block_id)
 				if source_view != null:
-					source_view.play_replicator_breed()
+					source_view.play_replicator_breed(duration)
 
 	# 5. Destructions & Collections
 	for action in result.destroyer_actions:

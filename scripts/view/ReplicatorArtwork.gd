@@ -10,6 +10,7 @@ const GRAY_TINT := Color(0.86, 0.89, 0.93, 1.0)
 var body: Sprite2D
 var eye: EyeAnimator
 var _breed_time := 0.0
+var _breed_duration := float(BREED_PLAY_FRAMES) / BREED_FPS
 var _breeding := false
 
 func _ready() -> void:
@@ -38,8 +39,9 @@ func _process(delta: float) -> void:
 	if not _breeding:
 		return
 	_breed_time += delta
-	body.frame = mini(int(_breed_time * BREED_FPS), BREED_PLAY_FRAMES - 1)
-	if _breed_time >= float(BREED_PLAY_FRAMES) / BREED_FPS:
+	var progress := clampf(_breed_time / _breed_duration, 0.0, 1.0)
+	body.frame = mini(int(progress * BREED_PLAY_FRAMES), BREED_PLAY_FRAMES - 1)
+	if _breed_time >= _breed_duration:
 		_breeding = false
 		_breed_time = 0.0
 		body.frame = 0
@@ -48,8 +50,9 @@ func _process(delta: float) -> void:
 func set_direction(direction: int) -> void:
 	rotation = posmod(direction, 4) * (PI / 2.0)
 
-func play_breed() -> void:
+func play_breed(duration: float = 0.0) -> void:
 	_breeding = true
 	_breed_time = 0.0
+	_breed_duration = maxf(duration, 0.01) if duration > 0.0 else float(BREED_PLAY_FRAMES) / BREED_FPS
 	body.frame = 0
 	eye.set_action_locked(true)

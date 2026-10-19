@@ -356,10 +356,10 @@ func play_pusher_push() -> void:
 	update_appearance()
 	pusher_artwork.play_push()
 
-func play_replicator_breed() -> void:
+func play_replicator_breed(duration: float = 0.0) -> void:
 	if block_data == null or block_data.block_type != BlockData.Type.REPLICATOR:
 		return
-	replicator_artwork.play_breed()
+	replicator_artwork.play_breed(duration)
 
 func play_rotator_turn(duration: float = 1.0) -> void:
 	if block_data == null or block_data.block_type != BlockData.Type.ROTATOR:
