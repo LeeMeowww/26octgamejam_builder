@@ -22,6 +22,7 @@ driver/output_latency.web=25
 
 [autoload]
 
+OperationManual="*res://scripts/ui/OperationManual.gd"
 BGM="*res://scripts/core/MusicManager.gd"
 SFX="*res://scripts/core/SoundManager.gd"
 

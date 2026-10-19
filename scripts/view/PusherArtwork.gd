@@ -4,16 +4,14 @@ extends Node2D
 signal push_finished
 
 const PUSH_FRAMES := 15
-const EYE_FRAMES := 10
+const IDLE_FRAMES := 8
 const PUSH_FPS := 15.0
-const EYE_FPS := 10.0
 const CELL_ART_SCALE := 60.0 / 64.0
 const YELLOW_TINT := Color(1.0, 0.82, 0.035, 1.0)
 
 var body: Sprite2D
 var eye: EyeAnimator
 var _push_time := 0.0
-var _eye_time := 0.0
 var _pushing := false
 
 func _ready() -> void:
@@ -23,14 +21,15 @@ func _ready() -> void:
 	yellow_material.shader = yellow_shader
 	yellow_material.set_shader_parameter("tint", YELLOW_TINT)
 
-	body = _make_strip("Body", "res://scenes/animation/push.png", PUSH_FRAMES)
+	body = _make_strip("Body", "res://scenes/animation/push_idle(1).png", IDLE_FRAMES)
 	body.material = yellow_material
 	body.scale = Vector2.ONE * CELL_ART_SCALE
 	eye = EyeAnimator.new()
 	eye.name = "Eye"
-	add_child(eye)
+	eye.configure("res://scenes/animation/eye_idle(1).png", "res://scenes/animation/eye_blink(1).png", 10, 1)
 	eye.scale = Vector2.ONE * CELL_ART_SCALE
 	eye.z_index = 2
+	add_child(eye)
 
 func _make_strip(node_name: String, path: String, frame_count: int) -> Sprite2D:
 	var sprite := Sprite2D.new()
@@ -45,13 +44,17 @@ func _make_strip(node_name: String, path: String, frame_count: int) -> Sprite2D:
 
 func _process(delta: float) -> void:
 	if not _pushing:
+		if body.hframes != IDLE_FRAMES:
+			body.texture = load("res://scenes/animation/push_idle(1).png")
+			body.hframes = IDLE_FRAMES
 		body.frame = 0
 		return
-	eye.set_action_locked(true)
 	_push_time += delta
 	body.frame = mini(int(_push_time * PUSH_FPS), PUSH_FRAMES - 1)
 	if _push_time >= float(PUSH_FRAMES) / PUSH_FPS:
 		_pushing = false
+		body.texture = load("res://scenes/animation/push_idle(1).png")
+		body.hframes = IDLE_FRAMES
 		body.frame = 0
 		eye.set_action_locked(false)
 		push_finished.emit()
@@ -61,7 +64,10 @@ func play_push() -> void:
 		return
 	_pushing = true
 	_push_time = 0.0
-	body.frame = 0
+	if body != null:
+		body.texture = load("res://scenes/animation/push(2).png")
+		body.hframes = PUSH_FRAMES
+		body.frame = 0
 	eye.set_action_locked(true)
 
 func set_direction(direction: int) -> void:

@@ -3,6 +3,7 @@ extends Control
 
 const UI = preload("res://scripts/ui/UIStyle.gd")
 const Campaign = preload("res://scripts/core/Campaign.gd")
+const UI_ANIMATED_ICON = preload("res://scripts/ui/UIAnimatedIcon.gd")
 var title_label: Label
 var subtitle_label: Label
 var settings_menu: SettingsMenu
@@ -39,12 +40,16 @@ func _build_ui() -> void:
 	var cells := HBoxContainer.new()
 	cells.add_theme_constant_override("separation", 16)
 	intro.add_child(cells)
-	for texture in ["inhibitor_0", "pusher_0", "replicator_0", "destroyer_0"]:
-		var tile := TextureRect.new()
-		tile.texture = load("res://assets/textures/blocks/" + texture + ".svg")
+	var cover_icons: Array[Dictionary] = [
+		{"path": "res://scenes/animation/Invalidate_idle(1).png", "frames": 8},
+		{"path": "res://scenes/animation/push(2).png", "frames": 15, "tint": Color(1.0, 0.82, 0.035, 1.0)},
+		{"path": "res://scenes/animation/breed.png", "frames": 12, "tint": Color(0.86, 0.89, 0.93, 1.0)},
+		{"path": "res://scenes/animation/eating(1).png", "frames": 16, "tint": Color(1.0, 0.035, 0.035, 1.0)}
+	]
+	for icon_data in cover_icons:
+		var tile := UI_ANIMATED_ICON.new()
+		tile.configure(icon_data["path"], icon_data["frames"], 8.0, icon_data.get("tint", Color.WHITE))
 		tile.custom_minimum_size = Vector2(64, 64)
-		tile.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tile.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		cells.add_child(tile)
 	UI.label(intro, "搭建  →  观察  →  改进", 20, UI.ACCENT)
 	UI.label(intro, "没有唯一答案，只有你创造的下一种可能。", 16, UI.MUTED)
@@ -56,13 +61,13 @@ func _build_ui() -> void:
 	actions.add_theme_constant_override("separation", 16)
 	card.add_child(actions)
 	UI.label(actions, "开始一次构装", 24)
-	UI.label(actions, "循着主线学习，也可以探索支线。", 15, UI.MUTED)
+	UI.label(actions, "从第一关出发，随时回访任何章节。", 15, UI.MUTED)
 	var play := _button(actions, "探索章节地图  →")
 	UI.primary(play)
 	play.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn"))
 	var learn := _button(actions, "第一次来？从基础开始")
 	learn.pressed.connect(func():
-		Campaign.active_level = "custom_level_80400"
+		Campaign.active_level = Campaign.TUTORIAL_ORDER[0]
 		get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn")
 	)
 	actions.add_child(HSeparator.new())
@@ -72,17 +77,14 @@ func _build_ui() -> void:
 	settings_btn.pressed.connect(func():
 		settings_menu.visible = true
 	)
+	var manual := _button(actions, "操作手册 · F1")
+	manual.pressed.connect(func(): get_node("/root/OperationManual").open())
 	var quit_button := _button(actions, "退出游戏")
 	quit_button.pressed.connect(func(): get_tree().quit())
 
 	settings_menu = SettingsMenu.new()
 	settings_menu.visible = false
 	add_child(settings_menu)
-
-	var footer := UI.label(self, "自由构装解谜   /   鼠标与键盘操作   /   关内可随时查看操作帮助", 14, UI.MUTED)
-	footer.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
-	footer.offset_top = -50
-	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func _button(parent: Node, text: String) -> Button:
 	var button := Button.new()

@@ -2,68 +2,82 @@ class_name BackgroundView
 extends Node2D
 
 const CELL_SIZE := 64.0
-const TILE_CELLS := 2
-
-var _bounds := Rect2i(-2, -2, 4, 4)
-var _textures: Dictionary = {}
+const MAP_MARGIN := 2
+var _world: GridWorld
+var _build_area := Rect2i()
+var _tiles: Dictionary = {}
 
 func _ready() -> void:
-	z_index = -10
-	_load_textures()
+	z_index = -20
+	for tile_name in [
+		"mid", "horizontal edge_up", "horizontal edge_low",
+		"Vertical edge_left", "Vertical edge_right",
+		"left_up", "right_up", "left_low", "right_low"
+	]:
+		_tiles[tile_name] = load("res://scenes/animation/background/%s.png" % tile_name)
+
+func set_world(world: GridWorld, build_area: Rect2i) -> void:
+	_world = world
+	_build_area = build_area
 	queue_redraw()
 
-func set_bounds(world: GridWorld, build_area: Rect2i) -> void:
-	var source: Rect2i = world.get_bounds() if world != null else Rect2i()
-	if build_area.size != Vector2i.ZERO:
-		source = source.merge(build_area)
-	if source.size == Vector2i.ZERO:
-		source = Rect2i(0, 0, 1, 1)
-	var min_x := floori(float(source.position.x - TILE_CELLS) / TILE_CELLS) * TILE_CELLS
-	var min_y := floori(float(source.position.y - TILE_CELLS) / TILE_CELLS) * TILE_CELLS
-	var max_x := ceili(float(source.end.x + TILE_CELLS) / TILE_CELLS) * TILE_CELLS
-	var max_y := ceili(float(source.end.y + TILE_CELLS) / TILE_CELLS) * TILE_CELLS
-	_bounds = Rect2i(min_x, min_y, maxi(TILE_CELLS, max_x - min_x), maxi(TILE_CELLS, max_y - min_y))
+func set_build_area(build_area: Rect2i) -> void:
+	if _build_area == build_area:
+		return
+	_build_area = build_area
 	queue_redraw()
-
-func _load_textures() -> void:
-	var names := {
-		"left_up": "left_up.png",
-		"top": "horizontal edge_up.png",
-		"right_up": "right_up.png",
-		"left_low": "left_low.png",
-		"bottom": "horizontal edge_low.png",
-		"right_low": "right_low.png",
-		"left": "Vertical edge_left.png",
-		"mid": "mid.png",
-		"right": "Vertical edge_right.png"
-	}
-	for key in names:
-		_textures[key] = load("res://scenes/animation/background/" + names[key])
 
 func _draw() -> void:
-	var columns: int = int(_bounds.size.x / TILE_CELLS)
-	var rows: int = int(_bounds.size.y / TILE_CELLS)
-	for row in range(rows):
-		for column in range(columns):
-			var texture: Texture2D = _textures.get(_tile_key(column, row, columns, rows))
-			if texture == null:
-				continue
-			var cell_pos := Vector2(_bounds.position.x + column * TILE_CELLS, _bounds.position.y + row * TILE_CELLS)
-			draw_texture_rect(texture, Rect2(cell_pos * CELL_SIZE, Vector2.ONE * CELL_SIZE * TILE_CELLS), false)
+	var bounds := _get_bounds()
+	draw_rect(Rect2(Vector2(bounds.position) * CELL_SIZE, Vector2(bounds.size) * CELL_SIZE), Color("09151d"), true)
+	if _tiles.is_empty():
+		return
+	var min_x := bounds.position.x
+	var min_y := bounds.position.y
+	var max_x := bounds.end.x
+	var max_y := bounds.end.y
+	for y in range(min_y, max_y, 2):
+		for x in range(min_x, max_x, 2):
+			var at_left := x == min_x
+			var at_right := x + 2 >= max_x
+			var at_top := y == min_y
+			var at_bottom := y + 2 >= max_y
+			var tile_name := "mid"
+			if at_left and at_top:
+				tile_name = "left_up"
+			elif at_right and at_top:
+				tile_name = "right_up"
+			elif at_left and at_bottom:
+				tile_name = "left_low"
+			elif at_right and at_bottom:
+				tile_name = "right_low"
+			elif at_top:
+				tile_name = "horizontal edge_up"
+			elif at_bottom:
+				tile_name = "horizontal edge_low"
+			elif at_left:
+				tile_name = "Vertical edge_left"
+			elif at_right:
+				tile_name = "Vertical edge_right"
+			var tile: Texture2D = _tiles.get(tile_name)
+			if tile != null:
+				draw_texture_rect(tile, Rect2(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE * 2.0, CELL_SIZE * 2.0), false)
 
-func _tile_key(column: int, row: int, columns: int, rows: int) -> String:
-	if columns == 1 or rows == 1:
-		return "mid"
-	var top := row == 0
-	var bottom := row == rows - 1
-	var left := column == 0
-	var right := column == columns - 1
-	if top and left: return "left_up"
-	if top and right: return "right_up"
-	if bottom and left: return "left_low"
-	if bottom and right: return "right_low"
-	if top: return "top"
-	if bottom: return "bottom"
-	if left: return "left"
-	if right: return "right"
-	return "mid"
+func _get_bounds() -> Rect2i:
+	var points: Array[Vector2i] = []
+	if _world != null:
+		for block in _world.get_all_blocks():
+			points.append(block.grid_pos)
+	if _build_area.size != Vector2i.ZERO:
+		points.append(_build_area.position)
+		points.append(_build_area.end - Vector2i.ONE)
+	if points.is_empty():
+		return Rect2i(-MAP_MARGIN, -MAP_MARGIN, 16 + MAP_MARGIN * 2, 10 + MAP_MARGIN * 2)
+	var min_pos := points[0]
+	var max_pos := points[0]
+	for point in points:
+		min_pos = Vector2i(mini(min_pos.x, point.x), mini(min_pos.y, point.y))
+		max_pos = Vector2i(maxi(max_pos.x, point.x), maxi(max_pos.y, point.y))
+	min_pos -= Vector2i.ONE * MAP_MARGIN
+	max_pos += Vector2i.ONE * MAP_MARGIN
+	return Rect2i(min_pos, max_pos - min_pos + Vector2i.ONE)

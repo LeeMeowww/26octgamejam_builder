@@ -49,7 +49,7 @@ func set_action_locked(locked: bool) -> void:
 func configure(p_idle_texture_path: String, p_blink_texture_path: String, p_blink_frames: int, p_idle_frames: int = 1) -> void:
 	idle_texture_path = p_idle_texture_path
 	blink_texture_path = p_blink_texture_path
-	blink_frames = p_blink_frames
+	blink_frames = maxi(1, p_blink_frames)
 	idle_frames = maxi(1, p_idle_frames)
 	if is_inside_tree():
 		_set_idle_frame()

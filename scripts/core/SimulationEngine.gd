@@ -9,16 +9,14 @@ class TickResult extends RefCounted:
 	var inhibited_blocks: Array[int] = [] # block_ids
 	# Array of { "id": int, "old_dir": int, "new_dir": int }
 	var rotated_blocks: Array[Dictionary] = []
-	# Rotators that had a block in front of them during this tick.
-	var active_rotator_ids: Array[int] = []
+	# Array of { "id": int, "target_id": int }
+	var rotator_actions: Array[Dictionary] = []
 	# Array of { "id": int, "old_pos": Vector2i, "new_pos": Vector2i }
 	var moved_blocks: Array[Dictionary] = []
 	# Array of { "id": int, "old_hp": int, "new_hp": int }
 	var damaged_blocks: Array[Dictionary] = []
 	# Array of BlockData
 	var spawned_blocks: Array[BlockData] = []
-	# Array of { "id": int, "spawned_id": int }
-	var replicator_actions: Array[Dictionary] = []
 	# Array of BlockData
 	var destroyed_blocks: Array[BlockData] = []
 	# Array of { "id": int, "direction": int, "target_id": int }
@@ -30,6 +28,7 @@ class TickResult extends RefCounted:
 var world: GridWorld
 var player_build_area: Rect2i = Rect2i()
 var rng: RandomNumberGenerator
+var construction_inspection: bool = false
 var step_count: int = 0
 var initial_pollution_count: int = 0
 var initial_treasure_count: int = 0
@@ -105,11 +104,9 @@ func has_collected_all_treasures() -> bool:
 			return false
 	return true
 
-# Performs one discrete simulation tick. When rotation_only is true, only
-# rotators are evaluated; when skip_rotators is true, all other mechanisms run.
-func step_tick(rotation_only: bool = false, skip_rotators: bool = false, advance_step: bool = true) -> TickResult:
-	if advance_step:
-		step_count += 1
+# Performs one discrete simulation tick
+func step_tick() -> TickResult:
+	step_count += 1
 	var result := TickResult.new()
 	result.step_number = step_count
 
@@ -118,41 +115,37 @@ func step_tick(rotation_only: bool = false, skip_rotators: bool = false, advance
 	var snap := world.clone()
 
 	# -------------------------------------------------------------
-	# 1. Reset Transient Inhibition & Calculate Active Inhibitors
+	# 1. Rotators (转向器)
 	# -------------------------------------------------------------
-	_simulate_inhibitors(snap, result)
+	_simulate_rotators(snap, result)
 
 	# -------------------------------------------------------------
-	# 2. Rotators (转向器)
-	# -------------------------------------------------------------
-	if not skip_rotators:
-		_simulate_rotators(snap, result)
-
-	if rotation_only:
-		world.suppress_events = false
-		tick_completed.emit(result)
-		return result
-
-	# -------------------------------------------------------------
-	# 3. Pushers (推动器) & Structure Movement
+	# 2. Pushers (推动器) & Structure Movement
 	# -------------------------------------------------------------
 	var consumed_by_destroyer: Dictionary = {}
 	var pusher_destinations := _simulate_pushers(snap, result, consumed_by_destroyer)
 
 	# -------------------------------------------------------------
-	# 4. Wanderers (游荡怪物)
+	# 3. Wanderers (游荡怪物)
 	# -------------------------------------------------------------
 	var wanderers_attacked := _simulate_wanderers(snap, result, pusher_destinations)
 
 	# -------------------------------------------------------------
-	# 5. Replicators (复制器)
+	# 4. Replicators (复制器)
 	# -------------------------------------------------------------
 	_simulate_replicators(snap, result)
 
 	# -------------------------------------------------------------
-	# 6. Destroyers (摧毁器) & Simultaneous Clash Resolution
+	# 5. Destroyers (摧毁器) & Simultaneous Clash Resolution
 	# -------------------------------------------------------------
 	_simulate_destroyers(snap, result, wanderers_attacked, consumed_by_destroyer)
+
+	# -------------------------------------------------------------
+	# 6. Inhibition is evaluated after all other machines have run.
+	# Use the resulting world, rather than the pristine t0 snapshot, so moved,
+	# spawned, and removed blocks are reflected in the detector's final layout.
+	# -------------------------------------------------------------
+	_simulate_inhibitors(world, result)
 
 	# -------------------------------------------------------------
 	# 7. Check Treasure Collection & Victory
@@ -178,8 +171,9 @@ func _simulate_inhibitors(snap: GridWorld, result: TickResult) -> void:
 	for sb in all_snap_blocks:
 		block_by_id[sb.block_id] = sb
 
-	# Key: inhibitor block_id -> target block_id (if front has block and rear has block)
-	# Key: block_id -> Array[int] (ids of sensing inhibitors pointing to this block)
+	# Key: inhibitor block_id -> target block_id (sensed side occupied and
+	# suppression side occupied). The target follows the displayed direction.
+	# Key: block_id -> Array[int] (ids of sensing inhibitors targeting this block)
 	var inhibitor_targets: Dictionary = {} # int -> int
 	var incoming_inhibitors: Dictionary = {} # int -> Array[int]
 
@@ -188,11 +182,11 @@ func _simulate_inhibitors(snap: GridWorld, result: TickResult) -> void:
 
 	for sb in all_snap_blocks:
 		if sb.block_type == BlockData.Type.INHIBITOR:
-			var front_pos := sb.grid_pos + sb.get_forward_vec()
-			# Does this inhibitor detect any block in front at t0?
-			if snap.has_block(front_pos):
-				var rear_pos := sb.grid_pos + sb.get_backward_vec()
-				var target_b := snap.get_block(rear_pos)
+			var sensed_pos := sb.grid_pos + sb.get_backward_vec()
+			# The opposite block is sensed; the forward/displayed direction is suppressed.
+			if snap.has_block(sensed_pos):
+				var suppressed_pos := sb.grid_pos + sb.get_forward_vec()
+				var target_b := snap.get_block(suppressed_pos)
 				if target_b != null:
 					inhibitor_targets[sb.block_id] = target_b.block_id
 					if incoming_inhibitors.has(target_b.block_id):
@@ -289,8 +283,11 @@ func _simulate_rotators(snap: GridWorld, result: TickResult) -> void:
 			var target_pos := snap_b.grid_pos + snap_b.get_forward_vec()
 			var target_snap := snap.get_block(target_pos)
 			if target_snap != null:
-				result.active_rotator_ids.append(snap_b.block_id)
 				var delta := 1 if snap_b.sub_mode == 0 else -1
+				result.rotator_actions.append({
+					"id": snap_b.block_id,
+					"target_id": target_snap.block_id
+				})
 				rotation_deltas[target_snap.block_id] = rotation_deltas.get(target_snap.block_id, 0) + delta
 
 	for tid in rotation_deltas.keys():
@@ -818,17 +815,12 @@ func _simulate_replicators(snap: GridWorld, result: TickResult) -> void:
 
 				if not write_candidates.has(dest_pos):
 					write_candidates[dest_pos] = []
-				write_candidates[dest_pos].append({
-					"source": src_block,
-					"replicator_id": snap_b.block_id
-				})
+				write_candidates[dest_pos].append(src_block)
 
 	for dest_pos in write_candidates.keys():
 		var candidates: Array = write_candidates[dest_pos]
 		# True RNG selection if multiple replicators conflict on same dest_pos
-		var chosen: Dictionary = candidates[rng.randi_range(0, candidates.size() - 1)]
-		var chosen_src: BlockData = chosen["source"]
-		var replicator_id: int = chosen["replicator_id"]
+		var chosen_src: BlockData = candidates[rng.randi_range(0, candidates.size() - 1)]
 
 		var replica := chosen_src.duplicate_block(true)
 		replica.grid_pos = dest_pos
@@ -838,7 +830,6 @@ func _simulate_replicators(snap: GridWorld, result: TickResult) -> void:
 		replica.origin_id = chosen_src.origin_id if chosen_src.origin_id != 0 else chosen_src.block_id
 		world.add_block(replica)
 		result.spawned_blocks.append(replica)
-		result.replicator_actions.append({"id": replicator_id, "spawned_id": replica.block_id})
 
 # -----------------------------------------------------------------
 # Destroyer (摧毁器) Simulation
@@ -920,6 +911,7 @@ func _treasure_in_zone(b: BlockData) -> bool:
 	return false
 
 func _check_victory() -> bool:
+	if construction_inspection: return _connected_training_terminals()
 	# 严格胜利判定（所有条件 AND）：
 	# 1. 污染源当前数量必须为 0。
 	# 2. 每个初始宝藏谱系至少有一个副本曾进入建造区。
@@ -937,3 +929,26 @@ func _check_victory() -> bool:
 	# 必须有至少一个初始目标（污染源、宝藏或保护方块）才判定胜利
 	var has_any_objective: bool = (initial_pollution_count > 0 or initial_treasure_origin_ids.size() > 0 or initial_protected_count > 0)
 	return has_any_objective
+
+# Training-only building task. Any orthogonally connected basic-block route is valid.
+func _connected_training_terminals() -> bool:
+	var terminals: Array[Vector2i] = []
+	for block in world.get_all_blocks():
+		if block.block_type == BlockData.Type.PROTECTED: terminals.append(block.grid_pos)
+	if terminals.size() < 2: return false
+	var queue: Array[Vector2i] = [terminals[0]]
+	var seen := {terminals[0]: true}
+	var cursor := 0
+	while cursor < queue.size():
+		var pos := queue[cursor]
+		cursor += 1
+		for direction in BlockData.DIR_VECTORS:
+			var neighbor: Vector2i = pos + direction
+			if seen.has(neighbor): continue
+			var block := world.get_block(neighbor)
+			if block == null or block.block_type not in [BlockData.Type.BASIC, BlockData.Type.PROTECTED]: continue
+			seen[neighbor] = true
+			queue.append(neighbor)
+	for pos in terminals:
+		if not seen.has(pos): return false
+	return true

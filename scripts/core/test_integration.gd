@@ -1,13 +1,17 @@
 extends SceneTree
 
-func _init() -> void:
+func _initialize() -> void:
+	call_deferred("run")
+
+func run() -> void:
 	print("=== RUNNING FULL GESTALT INTEGRATION TEST ===")
 	test_save_manager_and_levels()
 	test_main_menu_scene()
 	test_level_select_scene()
 	test_level_manager_scene()
 	test_level_editor_scene()
-	test_level_player_scene()
+	await test_level_player_scene()
+	await process_frame
 	print("=== ALL INTEGRATION TESTS PASSED! ===")
 	quit(0)
 
@@ -36,7 +40,6 @@ func test_main_menu_scene() -> void:
 	print("2. Testing MainMenu Scene...")
 	var scene: MainMenu = load("res://scenes/ui/MainMenu.tscn").instantiate()
 	root.add_child(scene)
-	scene._ready()
 	assert(scene.title_label != null and scene.title_label.text.contains("格"), "Title should contain 格式塔")
 	scene.queue_free()
 	print("   MainMenu scene initialized successfully.")
@@ -45,10 +48,9 @@ func test_level_select_scene() -> void:
 	print("3. Testing LevelSelect Scene...")
 	var scene: LevelSelect = load("res://scenes/ui/LevelSelect.tscn").instantiate()
 	root.add_child(scene)
-	scene._ready()
 	assert(scene.map != null, "Campaign map should exist")
 	assert(scene.chapter_buttons.size() >= 4, "Four chapters should be available")
-	assert(scene.node_buttons.size() == 3, "Gun chapter should contain three nodes")
+	assert(scene.node_buttons.size() == 1, "Teaching chapter starts with one unlocked lesson")
 	scene.queue_free()
 	print("   LevelSelect scene initialized successfully.")
 
@@ -56,7 +58,6 @@ func test_level_manager_scene() -> void:
 	print("4. Testing LevelManager Scene...")
 	var scene: LevelManager = load("res://scenes/ui/LevelManager.tscn").instantiate()
 	root.add_child(scene)
-	scene._ready()
 	assert(scene.level_item_list != null, "ItemList should exist")
 	assert(scene.level_item_list.item_count >= 4, "Should display levels in list")
 	# Select custom_level_80400
@@ -70,7 +71,6 @@ func test_level_editor_scene() -> void:
 	print("5. Testing LevelEditor Scene...")
 	var scene: LevelEditor = load("res://scenes/ui/LevelEditor.tscn").instantiate()
 	root.add_child(scene)
-	scene._ready()
 	assert(scene.grid_view != null, "GridView should exist")
 	assert(scene.toolbar != null, "Toolbar should exist")
 	assert(scene.toolbar.type_buttons.size() == 11, "Editor toolbar should have all 11 block types")
@@ -101,7 +101,6 @@ func test_level_player_scene() -> void:
 	print("6. Testing LevelPlayer Scene...")
 	var scene: LevelPlayer = load("res://scenes/ui/LevelPlayer.tscn").instantiate()
 	root.add_child(scene)
-	scene._ready()
 	scene.load_level_data(SaveManager.load_level("custom_level_80400"))
 	assert(scene.current_level_data != null, "Level should be loaded")
 	assert(scene.sim_engine != null, "Sim engine should be active")
@@ -128,6 +127,7 @@ func test_level_player_scene() -> void:
 	
 	# Test step simulation
 	scene.step_single_tick()
+	while scene.is_animating_tick: await process_frame
 	# Pusher and Destroyer should have moved forward to (-3, -4) and (-2, -4)
 	assert(b1.grid_pos == Vector2i(-3, -4), "Pusher should move to (-3, -4), got %s" % [b1.grid_pos])
 	assert(b2.grid_pos == Vector2i(-2, -4), "Destroyer should move to (-2, -4), got %s" % [b2.grid_pos])

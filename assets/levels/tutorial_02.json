@@ -1,0 +1,230 @@
+{
+	"author": "塔洛斯博士",
+	"blocks": [
+		{
+			"dir": 0.0,
+			"hp": 2.0,
+			"id": 904000.0,
+			"is_world_block": true,
+			"max_hp": 2.0,
+			"origin_id": 904000.0,
+			"pos_x": 0.0,
+			"pos_y": 0.0,
+			"structure_id": 0.0,
+			"sub_mode": 0.0,
+			"texture_variant": 0.0,
+			"type": 4.0
+		},
+		{
+			"dir": 0.0,
+			"hp": 2.0,
+			"id": 904001.0,
+			"is_world_block": true,
+			"max_hp": 2.0,
+			"origin_id": 904001.0,
+			"pos_x": 3.0,
+			"pos_y": 0.0,
+			"structure_id": 0.0,
+			"sub_mode": 0.0,
+			"texture_variant": 0.0,
+			"type": 9.0
+		}
+	],
+	"cg_theme": "cyan_core",
+	"description": "摧毁远处污染。",
+	"level_id": "tutorial_02",
+	"level_name": "教学 05：推动",
+	"order_index": -60,
+	"player_build_area": {
+		"h": 8,
+		"w": 11,
+		"x": -4,
+		"y": -3
+	},
+	"tutorial": {
+		"act_title": "第一幕 · 逮虾户！",
+		"camera_offset_x": 180.0,
+		"camera_zoom": 0.85,
+		"dialogue_label": "培养皿通讯",
+		"dialogue_skip_text": "结束通讯",
+		"dialogue_start_text": "准备好了 →",
+		"dialogues": [
+			"剩下的污染离得更远了，光靠原地转向和增殖已经够不着。……我看你刚才就一直往那边凑，是想主动过去吗？",
+			"那就用推进细胞吧。运行的时候，它会顺着箭头方向自己往前走，同时把正前方挨着的细胞一起推着走。",
+			"把它放在摧毁细胞身后，箭头朝右。这样它就能推着摧毁细胞，一路送往远处的污染区。",
+			"你只管往前走，我会一直注视着你的。"
+		],
+		"equipment": {
+			"2": 1.0
+		},
+		"experiment": true,
+		"followup": {
+			"author": "塔洛斯博士",
+			"blocks": [
+				{
+					"dir": 3.0,
+					"hp": 2.0,
+					"id": 904100.0,
+					"is_world_block": true,
+					"max_hp": 2.0,
+					"origin_id": 904100.0,
+					"pos_x": -2.0,
+					"pos_y": 0.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"texture_variant": 0.0,
+					"type": 4.0
+				},
+				{
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 904101.0,
+					"is_world_block": true,
+					"max_hp": 2.0,
+					"origin_id": 904101.0,
+					"pos_x": 0.0,
+					"pos_y": -1.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"texture_variant": 0.0,
+					"type": 9.0
+				},
+				{
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 904102.0,
+					"is_world_block": true,
+					"max_hp": 2.0,
+					"origin_id": 904102.0,
+					"pos_x": 2.0,
+					"pos_y": -1.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"texture_variant": 0.0,
+					"type": 9.0
+				},
+				{
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 904103.0,
+					"is_world_block": true,
+					"max_hp": 2.0,
+					"origin_id": 904103.0,
+					"pos_x": 5.0,
+					"pos_y": -1.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"texture_variant": 0.0,
+					"type": 9.0
+				}
+			],
+			"cg_theme": "cyan_core",
+			"description": "清除全部污染。",
+			"level_id": "tutorial_02",
+			"level_name": "教学 05：推动",
+			"order_index": -60.0,
+			"player_build_area": {
+				"h": 8.0,
+				"w": 11.0,
+				"x": -4.0,
+				"y": -3.0
+			},
+			"tutorial": {
+				"act_title": "第二幕 · 跟上我的速度！",
+				"camera_offset_x": 180.0,
+				"camera_zoom": 0.85,
+				"dialogue_label": "培养皿通讯",
+				"dialogue_skip_text": "结束通讯",
+				"dialogue_start_text": "准备好了 →",
+				"dialogues": [
+					"很简单，只要从左往右推。你什么时候准备好了，自己动身就行。"
+				],
+				"equipment": {
+					"2": 1.0
+				},
+				"experiment": true,
+				"group_reference": false,
+				"hints": [
+					"推进器朝右，删除细胞保持朝上。不要把两枚细胞都转向右边。",
+					"删除细胞要从三处污染下方经过，才能逐个清除。",
+					"一种参考摆法：推进器 (-3,0) 朝右。"
+				],
+				"intro": "清除全部污染。",
+				"mechanism": "推进",
+				"portrait": "res://assets/portraits/doctor_teaching.png",
+				"reference": [
+					[
+						2.0,
+						-3.0,
+						0.0,
+						0.0,
+						0.0
+					]
+				],
+				"revision": 8,
+				"run_text": "清除全部污染。",
+				"speaker": "塔洛斯",
+				"steps": [],
+				"success": "很好，很好，这一路也清理得很干净。",
+				"title": "第二幕 · 跟上我的速度！",
+				"dialogue_portraits": [
+					"res://assets/portraits/doctor_teaching.png"
+				],
+				"success_dialogues": [
+					"很好，很好，这一路也清理得很干净。"
+				],
+				"success_portraits": [
+					"res://assets/portraits/doctor_smile.png"
+				],
+				"story_revision": 2
+			}
+		},
+		"followup_offset_x": 18.0,
+		"group_reference": false,
+		"hints": [
+			"推进器要贴着删除细胞的左侧，箭头朝右。",
+			"一种参考摆法：推进器 (-1,0) 朝右。"
+		],
+		"intro": "摧毁远处污染。",
+		"mechanism": "推进",
+		"portrait": "res://assets/portraits/doctor_thinking.png",
+		"reference": [
+			[
+				2.0,
+				-1.0,
+				0.0,
+				0.0,
+				0.0
+			]
+		],
+		"revision": 8,
+		"run_text": "摧毁远处污染。",
+		"speaker": "塔洛斯",
+		"steps": [],
+		"success": "等等，怎么一眨眼就推到那儿去了？",
+		"title": "第一幕 · 逮虾户！",
+		"transition_dialogues": [
+			"等等，怎么一眨眼就推到那儿去了？",
+			"……咳。没事，刚才把镜头的自动跟踪范围设得太窄了。我的问题。",
+			"旁边也有污染，顺手清掉吧。"
+		],
+		"story_revision": 2,
+		"dialogue_portraits": [
+			"res://assets/portraits/doctor_thinking.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_normal.png"
+		],
+		"transition_portraits": [
+			"res://assets/portraits/doctor_surprised.png",
+			"res://assets/portraits/doctor_shy.png",
+			"res://assets/portraits/doctor_normal.png"
+		],
+		"success_dialogues": [
+			"等等，怎么一眨眼就推到那儿去了？"
+		],
+		"success_portraits": [
+			"res://assets/portraits/doctor_surprised.png"
+		]
+	}
+}

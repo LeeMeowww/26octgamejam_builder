@@ -1,0 +1,150 @@
+{
+	"level_id": "tutorial_06",
+	"level_name": "教学 06：编组",
+	"description": "让两枚摧毁细胞随推进细胞一起移动，摧毁污染。",
+	"author": "塔洛斯博士",
+	"cg_theme": "cyan_core",
+	"order_index": -50,
+	"player_build_area": {
+		"x": -4,
+		"y": -3,
+		"w": 13,
+		"h": 8
+	},
+	"blocks": [
+		{
+			"type": 9,
+			"pos_x": 4,
+			"pos_y": 0,
+			"dir": 0,
+			"is_world_block": true,
+			"hp": 2,
+			"max_hp": 2,
+			"sub_mode": 0,
+			"structure_id": 0,
+			"texture_variant": 0,
+			"id": 905100,
+			"origin_id": 905100
+		},
+		{
+			"type": 9,
+			"pos_x": 7,
+			"pos_y": 0,
+			"dir": 0,
+			"is_world_block": true,
+			"hp": 2,
+			"max_hp": 2,
+			"sub_mode": 0,
+			"structure_id": 0,
+			"texture_variant": 0,
+			"id": 905101,
+			"origin_id": 905101
+		},
+		{
+			"type": 9,
+			"pos_x": 4,
+			"pos_y": 2,
+			"dir": 0,
+			"is_world_block": true,
+			"hp": 2,
+			"max_hp": 2,
+			"sub_mode": 0,
+			"structure_id": 0,
+			"texture_variant": 0,
+			"id": 905102,
+			"origin_id": 905102
+		},
+		{
+			"type": 9,
+			"pos_x": 7,
+			"pos_y": 2,
+			"dir": 0,
+			"is_world_block": true,
+			"hp": 2,
+			"max_hp": 2,
+			"sub_mode": 0,
+			"structure_id": 0,
+			"texture_variant": 0,
+			"id": 905103,
+			"origin_id": 905103
+		}
+	],
+	"tutorial": {
+		"equipment": {
+			"2": 1,
+			"0": 1,
+			"4": 2
+		},
+		"speaker": "塔洛斯",
+		"dialogues": [
+			"这里上下一共四处污染。但手头的推进细胞只有一个，如果只推着其中一枚摧毁细胞走，另一个就会被丢在原地。",
+			"所以，得把它们真正连成“同一具身体”。用普通细胞把推进细胞和上下两枚摧毁细胞接起来吧。",
+			"接好之后退出放置状态，从空白处拖框选中整个结构，点一下“编组”或者直接按 G。注意，光框选是不够的，只有完成编组，一个推进细胞才能牵动所有相连的细胞一起前进。",
+			"……Oops，好像有更简单的连接方式。应该很好发现，你自己看看吧。当然，照着我刚刚说的那样做也没有问题。"
+		],
+		"run_text": "让两枚摧毁细胞随推进细胞一起移动，摧毁污染。",
+		"title": "我来组成头部！",
+		"camera_zoom": 0.75,
+		"reference": [
+			[
+				2,
+				0,
+				1,
+				0,
+				0
+			],
+			[
+				0,
+				1,
+				1,
+				0,
+				0
+			],
+			[
+				4,
+				1,
+				0,
+				0,
+				0
+			],
+			[
+				4,
+				1,
+				2,
+				0,
+				0
+			]
+		],
+		"group_reference": true,
+		"hints": [
+			"用普通细胞把推进器与上下两枚删除细胞连在一起。",
+			"选中整个连通结构后还要编组。只多选，不会让它们一起运动。",
+			"一种参考摆法：推进器 (0,1) 朝右；普通 (1,1)；删除 (1,0) 朝右；删除 (1,2) 朝右。这些自建细胞需要全部编为同一组。"
+		],
+		"intro": "让两枚摧毁细胞随推进细胞一起移动，摧毁污染。",
+		"steps": [],
+		"success": "现在的你，对细胞的掌控力又上升了啊。",
+		"camera_offset_x": 180,
+		"experiment": true,
+		"portrait": "res://assets/portraits/doctor_thinking.png",
+		"act_title": "我来组成头部！",
+		"dialogue_label": "培养皿通讯",
+		"dialogue_start_text": "准备好了 →",
+		"dialogue_skip_text": "结束通讯",
+		"mechanism": "组合",
+		"revision": 8,
+		"dialogue_portraits": [
+			"res://assets/portraits/doctor_thinking.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_thinking.png"
+		],
+		"success_dialogues": [
+			"现在的你，对细胞的掌控力又上升了啊。"
+		],
+		"success_portraits": [
+			"res://assets/portraits/doctor_surprised.png"
+		],
+		"story_revision": 2
+	}
+}

@@ -19,10 +19,16 @@ var id_edit: LineEdit
 var name_edit: LineEdit
 var desc_edit: TextEdit
 var author_edit: LineEdit
-var theme_opt: OptionButton
-var build_area_summary_lbl: Label
 var save_prop_btn: Button
 var open_editor_btn: Button
+
+# Level file import / export
+var export_level_btn: Button
+var import_level_btn: Button
+var export_file_dialog: FileDialog
+var import_file_dialog: FileDialog
+var io_status_lbl: Label
+var _web_import_cb: JavaScriptObject
 
 func _ready() -> void:
 	theme = UI.get_theme()
@@ -140,6 +146,30 @@ func _build_ui() -> void:
 	add_child(delete_confirm)
 	reorder_hbox.add_child(delete_level_btn)
 
+	# Import / Export level files (JSON)
+	var io_hbox := HBoxContainer.new()
+	io_hbox.add_theme_constant_override("separation", 8)
+	left_vbox.add_child(io_hbox)
+
+	export_level_btn = Button.new()
+	export_level_btn.text = "⤓ 导出关卡"
+	export_level_btn.focus_mode = Control.FOCUS_NONE
+	export_level_btn.pressed.connect(_on_export_level)
+	io_hbox.add_child(export_level_btn)
+
+	import_level_btn = Button.new()
+	import_level_btn.text = "⤒ 导入关卡"
+	import_level_btn.focus_mode = Control.FOCUS_NONE
+	import_level_btn.pressed.connect(_on_import_level)
+	io_hbox.add_child(import_level_btn)
+
+	io_status_lbl = Label.new()
+	io_status_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	io_status_lbl.add_theme_color_override("font_color", Color(0.5, 0.85, 0.7))
+	left_vbox.add_child(io_status_lbl)
+
+	_build_file_dialogs()
+
 	# ----------------- RIGHT PANEL (Properties Form) -----------------
 	prop_panel = PanelContainer.new()
 	prop_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -209,29 +239,6 @@ func _build_ui() -> void:
 	desc_edit.custom_minimum_size = Vector2(0, 70)
 	form_vbox.add_child(desc_edit)
 
-	# CG / Theme Selection
-	var theme_box := HBoxContainer.new()
-	var theme_lbl := Label.new()
-	theme_lbl.text = "关卡CG/视觉主题: "
-	theme_lbl.custom_minimum_size = Vector2(120, 0)
-	theme_box.add_child(theme_lbl)
-	theme_opt = OptionButton.new()
-	theme_opt.add_item("青色微管核心 (Cyan Core)", 0)
-	theme_opt.add_item("紫电突触 (Purple Synapse)", 1)
-	theme_opt.add_item("蔚蓝纤毛涡流 (Azure Cilia)", 2)
-	theme_opt.add_item("异化毒瘴 (Toxic Magenta)", 3)
-	theme_box.add_child(theme_opt)
-	form_vbox.add_child(theme_box)
-
-	# Player Build Area Info
-	var area_lbl := Label.new()
-	area_lbl.text = "玩家允许建造区域 (可在关卡编辑器内直接按住鼠标框选设定):"
-	form_vbox.add_child(area_lbl)
-
-	build_area_summary_lbl = Label.new()
-	build_area_summary_lbl.add_theme_color_override("font_color", Color(0.4, 0.9, 0.6))
-	form_vbox.add_child(build_area_summary_lbl)
-
 	var btn_spacer := Control.new()
 	btn_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	form_vbox.add_child(btn_spacer)
@@ -281,22 +288,6 @@ func _select_level(idx: int) -> void:
 	desc_edit.text = lvl.description
 	author_edit.text = lvl.author
 
-	# Match theme
-	match lvl.cg_theme:
-		"cyan_core": theme_opt.selected = 0
-		"purple_synapse": theme_opt.selected = 1
-		"azure_cilia": theme_opt.selected = 2
-		"toxic_magenta": theme_opt.selected = 3
-		_: theme_opt.selected = 0
-
-	if lvl.player_build_area.size == Vector2i.ZERO:
-		build_area_summary_lbl.text = "当前设定: 【全图允许建造】（进入编辑器后可随时框选限定区域）"
-	else:
-		build_area_summary_lbl.text = "当前设定: 起点 (%d, %d)，尺寸 %d × %d（在编辑器顶部点击【框选建造区】可鼠标重划）" % [
-			lvl.player_build_area.position.x, lvl.player_build_area.position.y,
-			lvl.player_build_area.size.x, lvl.player_build_area.size.y
-		]
-
 func _on_save_properties() -> void:
 	if selected_index < 0 or selected_index >= levels.size():
 		return
@@ -304,10 +295,6 @@ func _on_save_properties() -> void:
 	lvl.level_name = name_edit.text.strip_edges()
 	lvl.description = desc_edit.text.strip_edges()
 	lvl.author = author_edit.text.strip_edges()
-
-	var themes := ["cyan_core", "purple_synapse", "azure_cilia", "toxic_magenta"]
-	var s_idx := clampi(theme_opt.selected, 0, themes.size() - 1)
-	lvl.cg_theme = themes[s_idx]
 
 	SaveManager.save_level(lvl)
 	_refresh_list()
@@ -373,3 +360,146 @@ func _on_open_level_editor() -> void:
 	editor_instance.load_level(lvl)
 	get_tree().current_scene = editor_instance
 	queue_free()
+
+# -------------------------------------------------------------
+# Level Import / Export (JSON)
+# -------------------------------------------------------------
+
+func _build_file_dialogs() -> void:
+	export_file_dialog = FileDialog.new()
+	export_file_dialog.theme = UI.get_theme()
+	export_file_dialog.title = "导出关卡文件 (JSON)"
+	export_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	export_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	export_file_dialog.filters = PackedStringArray(["*.json ; 关卡文件 (JSON)"])
+	export_file_dialog.use_native_dialog = false
+	export_file_dialog.file_selected.connect(_on_export_path_selected)
+	add_child(export_file_dialog)
+
+	import_file_dialog = FileDialog.new()
+	import_file_dialog.theme = UI.get_theme()
+	import_file_dialog.title = "导入关卡文件 (JSON)"
+	import_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	import_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	import_file_dialog.filters = PackedStringArray(["*.json ; 关卡文件 (JSON)"])
+	import_file_dialog.use_native_dialog = false
+	import_file_dialog.file_selected.connect(_on_import_path_selected)
+	add_child(import_file_dialog)
+
+func _set_io_status(text: String, is_error := false) -> void:
+	if io_status_lbl == null:
+		return
+	io_status_lbl.text = text
+	io_status_lbl.add_theme_color_override("font_color", Color(0.95, 0.5, 0.5) if is_error else Color(0.5, 0.85, 0.7))
+
+func _on_export_level() -> void:
+	if selected_index < 0 or selected_index >= levels.size():
+		_set_io_status("请先选择一个关卡。", true)
+		return
+	var lvl := levels[selected_index]
+	var filename := "%s.json" % lvl.level_id
+	if OS.has_feature("web"):
+		_download_in_browser(filename, SaveManager.export_level_text(lvl))
+	else:
+		export_file_dialog.current_file = filename
+		export_file_dialog.popup_centered(Vector2i(760, 520))
+
+func _on_export_path_selected(path: String) -> void:
+	if selected_index < 0 or selected_index >= levels.size():
+		return
+	var lvl := levels[selected_index]
+	if SaveManager.export_level_file(lvl, path):
+		_set_io_status("已导出「%s」→ %s" % [lvl.level_name, path])
+	else:
+		_set_io_status("导出失败，请检查目标路径是否可写。", true)
+
+func _on_import_level() -> void:
+	if OS.has_feature("web"):
+		_pick_file_in_browser()
+	else:
+		import_file_dialog.popup_centered(Vector2i(760, 520))
+
+func _on_import_path_selected(path: String) -> void:
+	var lvl := SaveManager.import_level_file(path)
+	_apply_imported_level(lvl)
+
+func _apply_imported_level(lvl: LevelData) -> void:
+	if lvl == null:
+		_set_io_status("导入失败：文件不是有效的关卡 JSON。", true)
+		return
+	var existing_ids := []
+	for l in levels:
+		existing_ids.append(l.level_id)
+	var original_id := lvl.level_id
+	lvl.level_id = SaveManager.make_unique_level_id(lvl.level_id, existing_ids)
+	if lvl.level_name.strip_edges().is_empty():
+		lvl.level_name = "导入关卡"
+	lvl.order_index = levels.size()
+	if not SaveManager.save_level(lvl):
+		_set_io_status("导入失败：无法保存到本地关卡库。", true)
+		return
+	levels = SaveManager.get_all_levels()
+	var note := "" if lvl.level_id == original_id else "（标识 %s 已存在，改用 %s）" % [original_id, lvl.level_id]
+	_refresh_list()
+	for i in range(levels.size()):
+		if levels[i].level_id == lvl.level_id:
+			_select_level(i)
+			break
+	_set_io_status("已导入关卡「%s」%s" % [lvl.level_name, note])
+
+# -------------------------------------------------------------
+# Browser (Web export) file exchange via JavaScriptBridge
+# -------------------------------------------------------------
+
+func _download_in_browser(filename: String, text: String) -> void:
+	var js := """
+	(function() {
+		try {
+			var data = %s;
+			var blob = new Blob([data], {type: 'application/json'});
+			var url = URL.createObjectURL(blob);
+			var a = document.createElement('a');
+			a.href = url;
+			a.download = %s;
+			document.body.appendChild(a);
+			a.click();
+			setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+		} catch (e) {
+			console.warn('[LevelExport] failed:', e);
+		}
+	})();
+	""" % [JSON.stringify(text), JSON.stringify(filename)]
+	JavaScriptBridge.eval(js)
+	_set_io_status("已开始下载关卡文件：%s" % filename)
+
+func _pick_file_in_browser() -> void:
+	if _web_import_cb == null:
+		_web_import_cb = JavaScriptBridge.create_callback(_on_web_file_read)
+	JavaScriptBridge.get_interface("window").__gestalt_level_import_cb = _web_import_cb
+	var js := """
+	(function() {
+		var input = document.createElement('input');
+		input.type = 'file';
+		input.accept = '.json,application/json';
+		input.style.display = 'none';
+		document.body.appendChild(input);
+		input.addEventListener('change', function() {
+			var file = input.files && input.files[0];
+			if (!file) { document.body.removeChild(input); return; }
+			var reader = new FileReader();
+			reader.onload = function() {
+				try { window.__gestalt_level_import_cb(String(reader.result)); }
+				finally { document.body.removeChild(input); }
+			};
+			reader.onerror = function() { document.body.removeChild(input); };
+			reader.readAsText(file);
+		});
+		input.click();
+	})();
+	"""
+	JavaScriptBridge.eval(js)
+
+func _on_web_file_read(args: Array) -> void:
+	if args.is_empty():
+		return
+	_apply_imported_level(SaveManager.parse_level_text(str(args[0])))

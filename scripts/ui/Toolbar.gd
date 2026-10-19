@@ -1,6 +1,7 @@
 class_name Toolbar
 extends PanelContainer
 const UI = preload("res://scripts/ui/UIStyle.gd")
+const UI_ANIMATED_ICON = preload("res://scripts/ui/UIAnimatedIcon.gd")
 
 signal block_type_selected(btype: int)
 signal variant_changed(variant_idx: int)
@@ -31,6 +32,7 @@ var rotate_btn: Button
 var pointer_btn: Button
 var description_label: Label
 var editing_enabled := true
+var allowed_types: Array = []
 var group_button: Button
 
 func setup(p_is_editor_mode: bool) -> void:
@@ -103,13 +105,22 @@ func _build_ui() -> void:
 			icon_path = "res://assets/textures/blocks/basic_ui.tres"
 		elif t == BlockData.Type.PUSHER:
 			icon_path = "res://assets/textures/blocks/pusher_ui.svg"
-		elif t == BlockData.Type.POLLUTION:
-			icon_path = "res://assets/textures/blocks/monster_ui.tres"
 		else:
 			icon_path = "res://assets/textures/blocks/" + icon_name + ".svg"
-		btn.icon = load(icon_path)
-		btn.expand_icon = true
-		btn.add_theme_constant_override("icon_max_width", 20 if is_editor_mode else 22)
+		var animated_icon_data: Dictionary = _get_animated_icon(t)
+		if animated_icon_data.is_empty():
+			btn.icon = load(icon_path)
+			btn.expand_icon = true
+			btn.add_theme_constant_override("icon_max_width", 20 if is_editor_mode else 22)
+		else:
+			btn.icon = null
+			btn.text = "   %s %s" % [bname, short_lbl]
+			var animated_icon := UI_ANIMATED_ICON.new()
+			animated_icon.configure(animated_icon_data["path"], animated_icon_data["frames"], 8.0, animated_icon_data.get("tint", Color.WHITE))
+			animated_icon.position = Vector2(4, 5)
+			animated_icon.size = Vector2(24, 24)
+			animated_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(animated_icon)
 		btn.toggle_mode = true
 		btn.button_group = btn_group
 		btn.focus_mode = Control.FOCUS_NONE
@@ -200,8 +211,35 @@ func _build_ui() -> void:
 	# Default to selection mode (no tool selected)
 	deselect_tool()
 
+func _get_animated_icon(type_val: int) -> Dictionary:
+	if is_editor_mode:
+		return {}
+	match type_val:
+		BlockData.Type.INHIBITOR:
+			return {"path": "res://scenes/animation/Invalidate_idle(1).png", "frames": 8}
+		BlockData.Type.PUSHER:
+			return {"path": "res://scenes/animation/push(2).png", "frames": 15, "tint": Color(1.0, 0.82, 0.035, 1.0)}
+		BlockData.Type.REPLICATOR:
+			return {"path": "res://scenes/animation/breed.png", "frames": 12, "tint": Color(0.86, 0.89, 0.93, 1.0)}
+		BlockData.Type.DESTROYER:
+			return {"path": "res://scenes/animation/eating(1).png", "frames": 16, "tint": Color(1.0, 0.035, 0.035, 1.0)}
+		BlockData.Type.ROTATOR:
+			return {"path": "res://scenes/animation/turn_around_CW.png", "frames": 16, "tint": Color(0.72, 0.34, 0.12, 1.0)}
+		BlockData.Type.HARD:
+			return {"path": "res://scenes/animation/block(1).png", "frames": 8}
+		BlockData.Type.WANDERER:
+			return {"path": "res://scenes/animation/monster_idle(2).png", "frames": 8}
+		BlockData.Type.TREASURE:
+			return {"path": "res://scenes/animation/treasure(1).png", "frames": 8}
+		BlockData.Type.POLLUTION:
+			return {"path": "res://scenes/animation/Pollution source(1).png", "frames": 8}
+		_:
+			return {}
+
 func select_type(type_val: int) -> void:
+	if not direct_placement_enabled: return
 	if not editing_enabled: return
+	if not allowed_types.is_empty() and type_val not in allowed_types: return
 	current_type = type_val
 	is_placing = true
 	if type_buttons.has(type_val):
@@ -221,7 +259,13 @@ func select_pointer() -> void:
 	deselect_tool()
 
 func cycle_tool(step: int) -> void:
+	if not direct_placement_enabled: return
 	if not editing_enabled: return
+	if not allowed_types.is_empty():
+		var index := allowed_types.find(current_type)
+		if index < 0: index = -1 if step > 0 else 0
+		select_type(int(allowed_types[posmod(index + step, allowed_types.size())]))
+		return
 	var max_type := BlockData.Type.PROTECTED if is_editor_mode else BlockData.Type.ROTATOR
 	var next_type: int
 	if not is_placing or current_type < 0:
@@ -256,6 +300,8 @@ func _describe_selection() -> void:
 	if description_label == null: return
 	if not editing_enabled:
 		description_label.text = "模拟后暂停也不能编辑 · 点击「重置」恢复构装"
+	elif not direct_placement_enabled:
+		description_label.text = "本幕只使用场上细胞 · 单选 / 框选 · 右键菜单 · F1 操作手册"
 	elif not is_placing or current_type < 0:
 		description_label.text = "选择模式 · 框选/单选方块 · 右键菜单 · 按 1~6 建造"
 	else:
@@ -266,6 +312,25 @@ func _describe_selection() -> void:
 func set_editable(enabled: bool) -> void:
 	if editing_enabled == enabled: return
 	editing_enabled = enabled
-	for button in type_buttons.values(): button.disabled = not enabled
+	for type in type_buttons: type_buttons[type].disabled = not enabled or not direct_placement_enabled or (not allowed_types.is_empty() and type not in allowed_types)
 	for button in [pointer_btn, variant_btn, mode_btn, rotate_btn, group_button]: button.disabled = not enabled
+	_describe_selection()
+
+func set_allowed_types(types: Array) -> void:
+	allowed_types = types
+	for type in type_buttons:
+		type_buttons[type].visible = types.is_empty() or type in types
+		type_buttons[type].disabled = not editing_enabled or not direct_placement_enabled or (not types.is_empty() and type not in types)
+	if not types.is_empty() and current_type not in types: deselect_tool()
+
+var direct_placement_enabled := true
+var placement_tooltips: Dictionary = {}
+
+func set_direct_placement_enabled(enabled: bool) -> void:
+	direct_placement_enabled = enabled
+	if not enabled: deselect_tool()
+	set_allowed_types(allowed_types)
+	for button in type_buttons.values():
+		if not placement_tooltips.has(button): placement_tooltips[button] = button.tooltip_text
+		button.tooltip_text = "本幕请移动或复制场上的细胞，不能直接放置。" if not enabled else placement_tooltips[button]
 	_describe_selection()

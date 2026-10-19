@@ -6,6 +6,12 @@ const USER_MACHINES_DIR = "user://machines"
 const RES_LEVELS_DIR = "res://assets/levels"
 const DELETED_LEVELS_PATH = "user://deleted_levels.json"
 
+# Development builds (editor runs and debug exports) mirror level edits back to
+# the project's own asset folder / dev server. Official release exports must NOT
+# touch the developer's local assets: player levels then live only in user://.
+static func is_dev_sync_enabled() -> bool:
+	return not OS.has_feature("release")
+
 static func init_directories() -> void:
 	if not DirAccess.dir_exists_absolute(USER_LEVELS_DIR):
 		DirAccess.make_dir_recursive_absolute(USER_LEVELS_DIR)
@@ -58,7 +64,7 @@ static func get_all_levels() -> Array[LevelData]:
 				if not deleted_ids.has(lvl_id):
 					var lvl := load_level_from_path(USER_LEVELS_DIR + "/" + file_name)
 					if lvl != null and not deleted_ids.has(lvl.level_id):
-						levels_dict[lvl.level_id] = lvl
+						levels_dict[lvl.level_id] = _prefer_current_tutorial(lvl, levels_dict.get(lvl.level_id))
 			file_name = user_dir.get_next()
 
 	var result: Array[LevelData] = []
@@ -91,19 +97,21 @@ static func save_level(level_data: LevelData) -> bool:
 	file.store_string(JSON.stringify(dict_data, "\t"))
 	file.close()
 
-	# 3. Synchronize to source disk (local PC direct write or Dev Server API)
-	if OS.has_feature("web"):
-		_send_dev_server_request("/api/levels/save", {
-			"level_id": level_id,
-			"data": dict_data
-		})
-	else:
-		# Local Godot development: write directly to res://assets/levels/
-		var res_path := "%s/%s.json" % [RES_LEVELS_DIR, level_id]
-		var rf := FileAccess.open(res_path, FileAccess.WRITE)
-		if rf != null:
-			rf.store_string(JSON.stringify(dict_data, "\t"))
-			rf.close()
+	# 3. Mirror to the project source only while developing.
+	#    Release builds never link player edits back to the local assets.
+	if is_dev_sync_enabled():
+		if OS.has_feature("web"):
+			_send_dev_server_request("/api/levels/save", {
+				"level_id": level_id,
+				"data": dict_data
+			})
+		elif OS.has_feature("editor"):
+			# Running from the editor maps res:// to the on-disk project folder.
+			var res_path := "%s/%s.json" % [RES_LEVELS_DIR, level_id]
+			var rf := FileAccess.open(res_path, FileAccess.WRITE)
+			if rf != null:
+				rf.store_string(JSON.stringify(dict_data, "\t"))
+				rf.close()
 
 	return true
 
@@ -113,12 +121,22 @@ static func load_level(level_id: String) -> LevelData:
 	if deleted_ids.has(level_id):
 		return null
 	var user_path := "%s/%s.json" % [USER_LEVELS_DIR, level_id]
-	if FileAccess.file_exists(user_path):
-		return load_level_from_path(user_path)
 	var res_path := "%s/%s.json" % [RES_LEVELS_DIR, level_id]
-	if FileAccess.file_exists(res_path):
-		return load_level_from_path(res_path)
-	return null
+	var authored := load_level_from_path(res_path) if FileAccess.file_exists(res_path) else null
+	if FileAccess.file_exists(user_path):
+		return _prefer_current_tutorial(load_level_from_path(user_path), authored)
+	return authored
+
+static func _prefer_current_tutorial(saved: LevelData, authored: LevelData) -> LevelData:
+	if saved == null: return authored
+	if authored != null and authored.level_id.begins_with("tutorial_"):
+		# Local editor saves are also synchronized to res://. At the same
+		# revision, the shipped/source lesson is authoritative: dialogue and
+		# input-guide updates must not be hidden by an older user:// copy.
+		# Preserve a genuinely newer saved lesson and normal custom overrides.
+		if int(authored.tutorial.get("revision", 0)) >= int(saved.tutorial.get("revision", 0)):
+			return authored
+	return saved
 
 static func load_level_from_path(path: String) -> LevelData:
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -146,17 +164,18 @@ static func delete_level(level_id: String) -> bool:
 			deleted_something = true
 
 	# 3. Synchronize deletion to source disk (local PC or Dev Server)
-	if OS.has_feature("web"):
-		_send_dev_server_request("/api/levels/delete", {
-			"level_id": level_id
-		})
-		deleted_something = true
-	else:
-		var res_path := "%s/%s.json" % [RES_LEVELS_DIR, level_id]
-		if FileAccess.file_exists(res_path):
-			var err := DirAccess.remove_absolute(res_path)
-			if err == OK:
-				deleted_something = true
+	if is_dev_sync_enabled():
+		if OS.has_feature("web"):
+			_send_dev_server_request("/api/levels/delete", {
+				"level_id": level_id
+			})
+			deleted_something = true
+		elif OS.has_feature("editor"):
+			var res_path := "%s/%s.json" % [RES_LEVELS_DIR, level_id]
+			if FileAccess.file_exists(res_path):
+				var err := DirAccess.remove_absolute(res_path)
+				if err == OK:
+					deleted_something = true
 
 	return deleted_something or true
 
@@ -168,10 +187,59 @@ static func reorder_levels(level_ids: Array) -> void:
 			lvl.order_index = idx
 			save_level(lvl)
 
-	if OS.has_feature("web"):
+	if OS.has_feature("web") and is_dev_sync_enabled():
 		_send_dev_server_request("/api/levels/reorder", {
 			"order": level_ids
 		})
+
+# -------------------------------------------------------------
+# Level Import / Export (JSON files exchanged between players)
+# -------------------------------------------------------------
+
+static func export_level_text(level_data: LevelData) -> String:
+	return JSON.stringify(level_data.to_dict(), "\t")
+
+static func export_level_file(level_data: LevelData, path: String) -> bool:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		push_error("无法写入关卡导出文件: " + path)
+		return false
+	file.store_string(export_level_text(level_data))
+	file.close()
+	return true
+
+static func parse_level_text(text: String) -> LevelData:
+	var parsed = JSON.parse_string(text)
+	if parsed is Dictionary:
+		return LevelData.from_dict(parsed)
+	return null
+
+static func import_level_file(path: String) -> LevelData:
+	if not FileAccess.file_exists(path):
+		return null
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return null
+	var text := file.get_as_text()
+	file.close()
+	return parse_level_text(text)
+
+# Keep imported level_id safe (filename-safe) and unique against the existing library.
+# A conflicting or invalid id is replaced with a freshly generated custom id.
+static func make_unique_level_id(preferred_id: String, existing_ids: Array) -> String:
+	var taken := {}
+	for id in existing_ids:
+		taken[str(id)] = true
+	var candidate := preferred_id.strip_edges()
+	var valid := not candidate.is_empty() and candidate == candidate.validate_filename()
+	if not valid or taken.has(candidate):
+		var stamp := int(Time.get_unix_time_from_system()) % 100000
+		candidate = "custom_level_%d" % stamp
+		var suffix := 1
+		while taken.has(candidate):
+			candidate = "custom_level_%d_%d" % [stamp, suffix]
+			suffix += 1
+	return candidate
 
 # -------------------------------------------------------------
 # Tombstone Helpers (Client Deletion Persistence)

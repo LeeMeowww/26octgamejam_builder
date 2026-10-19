@@ -4,14 +4,10 @@ extends Node2D
 const CELL_SIZE: float = 64.0
 const HALF_CELL: float = CELL_SIZE * 0.5
 const SoundManager = preload("res://scripts/core/SoundManager.gd")
-const BACKGROUND_VIEW_SCRIPT = preload("res://scripts/view/BackgroundView.gd")
+const BACKGROUND_VIEW: PackedScene = preload("res://scenes/animation/BackgroundView.tscn")
+var background_view: BackgroundView
 var grid_world: GridWorld
-var player_build_area: Rect2i = Rect2i(0, 0, 0, 0):
-	set(value):
-		player_build_area = value
-		if background_view != null:
-			background_view.set_bounds(grid_world, player_build_area)
-		queue_redraw()
+var player_build_area: Rect2i = Rect2i(0, 0, 0, 0)
 var is_level_editor_mode: bool = false # If true, can place anywhere regardless of build area
 var tutorial_target: Dictionary = {}
 var blocks_outside_build_area: Array[Vector2i] = []
@@ -21,7 +17,6 @@ var _views: Dictionary = {}
 # Destroyer id -> last target id already used to trigger an eat animation.
 # This prevents a repeated simulation refresh from rewinding the same action.
 var _destroyer_eat_targets: Dictionary = {}
-var background_view: BackgroundView
 
 # Ghost preview for placing
 var preview_active: bool = false
@@ -48,10 +43,8 @@ var multi_ghost_mouse_pos: Vector2i = Vector2i.ZERO
 var multi_ghost_has_conflict: bool = false
 
 func _ready() -> void:
-	background_view = BACKGROUND_VIEW_SCRIPT.new()
-	background_view.name = "Background"
+	background_view = BACKGROUND_VIEW.instantiate() as BackgroundView
 	add_child(background_view)
-	background_view.set_bounds(grid_world, player_build_area)
 	_ensure_preview_block_view()
 	_ensure_multi_ghost_root()
 
@@ -79,10 +72,10 @@ func set_world(p_world: GridWorld) -> void:
 			grid_world.block_moved.disconnect(_on_block_moved)
 
 	grid_world = p_world
+	if background_view != null:
+		background_view.set_world(grid_world, player_build_area)
 	_clear_all_views()
 	_destroyer_eat_targets.clear()
-	if background_view != null:
-		background_view.set_bounds(grid_world, player_build_area)
 
 	if grid_world != null:
 		grid_world.block_added.connect(_on_block_added)
@@ -141,8 +134,7 @@ func _refresh_neighbor_borders(pos: Vector2i) -> void:
 			nv.update_appearance()
 
 func get_view(block_id: int) -> BlockView:
-	var block_view: BlockView = _views.get(block_id, null)
-	return block_view
+	return _views.get(block_id, null)
 
 # Coordinate conversion
 func world_to_grid(world_pos: Vector2) -> Vector2i:
@@ -165,24 +157,26 @@ func is_in_build_area(grid_pos: Vector2i) -> bool:
 # Drawing Grid & Build Area & Selection
 # -------------------------------------------------------------
 func _draw() -> void:
+	if background_view != null:
+		background_view.set_build_area(player_build_area)
 	# Subtle grid lines around the visible area
 	var grid_range := 40
-	var line_color := Color("21343e")
-	var origin_color := Color("3c5b6b")
+	var line_color := Color(0.129, 0.204, 0.243, 0.7)
+	var origin_color := Color(0.235, 0.357, 0.420, 0.7)
 
 	for x in range(-grid_range, grid_range + 1):
 		var start := Vector2(x * CELL_SIZE, -grid_range * CELL_SIZE)
 		var end := Vector2(x * CELL_SIZE, grid_range * CELL_SIZE)
 		var col := origin_color if x == 0 else line_color
 		var width := 1.5 if x == 0 else 1.0
-		draw_line(start, end, col, width)
+		draw_dashed_line(start, end, col, width, 8.0, true)
 
 	for y in range(-grid_range, grid_range + 1):
 		var start := Vector2(-grid_range * CELL_SIZE, y * CELL_SIZE)
 		var end := Vector2(grid_range * CELL_SIZE, y * CELL_SIZE)
 		var col := origin_color if y == 0 else line_color
 		var width := 1.5 if y == 0 else 1.0
-		draw_line(start, end, col, width)
+		draw_dashed_line(start, end, col, width, 8.0, true)
 
 	# Draw player build area (if active)
 	if player_build_area.size != Vector2i.ZERO:
@@ -192,9 +186,9 @@ func _draw() -> void:
 			player_build_area.size.x * CELL_SIZE,
 			player_build_area.size.y * CELL_SIZE
 		)
-		# Orange is complementary to the blue background, keeping the build area visible.
-		draw_rect(area_rect, Color(1.0, 0.45, 0.05, 0.08), true)
-		draw_rect(area_rect, Color(1.0, 0.62, 0.08, 0.85), false, 2.5)
+		# Soft green/cyan tinted zone
+		draw_rect(area_rect, Color(1.0, 0.48, 0.08, 0.12), true)
+		draw_rect(area_rect, Color(1.0, 0.68, 0.18, 0.9), false, 2.5)
 
 	# Draw warning highlight for player blocks outside build area
 	if not blocks_outside_build_area.is_empty():
@@ -416,19 +410,43 @@ func get_multi_ghost_blocks_to_place(mouse_grid: Vector2i) -> Array[BlockData]:
 # Tick Animation Player
 # -------------------------------------------------------------
 func play_tick_animation(result: SimulationEngine.TickResult, duration: float, on_finish: Callable) -> void:
-	# 1. Play rotators first. The target blocks are rotated after this phase.
-	var rotator_views: Array[BlockView] = []
-	for rotator_id in result.active_rotator_ids:
-		var rotator_view := get_view(rotator_id)
-		if rotator_view != null:
-			rotator_views.append(rotator_view)
-			SoundManager.play_block_rotator(rotator_view.global_position)
-	for rotator_view in rotator_views:
-		rotator_view.play_rotator_turn()
+	# Keep one tick's total duration unchanged, but reserve its first part for
+	# rotator animation. Movement starts only after that visual phase ends.
+	var has_rotation := not result.rotated_blocks.is_empty()
+	var rotation_duration := duration * 0.4 if has_rotation else 0.0
+	var movement_duration := maxf(duration - rotation_duration, 0.0)
 
-	# The rotator and the block directly in front of it rotate together.
-	_play_target_rotations(result, duration)
+	# 1. Rotations: only targets actually affected by a rotator are animated.
+	for rot in result.rotated_blocks:
+		var v := get_view(rot["id"])
+		if v != null:
+			v.animate_rotation(rot["new_dir"], rotation_duration)
+			SoundManager.play_block_rotator(v.global_position)
+	for action in result.rotator_actions:
+		var source_view := get_view(action["id"])
+		if source_view != null:
+			source_view.play_rotator_turn(rotation_duration)
 
+	var start_movement := func() -> void:
+		_play_movement_and_effects(result, movement_duration)
+	if rotation_duration > 0.0:
+		var gate := create_tween()
+		gate.tween_interval(rotation_duration)
+		gate.tween_callback(start_movement)
+	else:
+		start_movement.call()
+
+	# Wait duration then call on_finish
+	var t := create_tween()
+	t.tween_interval(duration)
+	t.tween_callback(func():
+		# Refresh borders after animations complete
+		for v: BlockView in _views.values():
+			v.border_node.queue_redraw()
+		on_finish.call()
+	)
+
+func _play_movement_and_effects(result: SimulationEngine.TickResult, duration: float) -> void:
 	# 2. Movements
 	for mov in result.moved_blocks:
 		var v := get_view(mov["id"])
@@ -446,31 +464,20 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 		if v != null:
 			v.animate_damage(duration)
 
-	# 4. Inhibitions
-	for v in _views.values():
-		var was_inhibited: bool = v.inhibited_sprite.visible
-		var is_now_inhibited: bool = v.block_data.is_inhibited
-		v.inhibited_sprite.visible = is_now_inhibited
-		if not was_inhibited and is_now_inhibited:
-			SoundManager.play_block_inhibitor_engage(v.global_position)
-		elif was_inhibited and not is_now_inhibited:
-			SoundManager.play_block_inhibitor_release(v.global_position)
-
-	# 5. Spawns
+	# 4. Spawns
 	for spawned_block in result.spawned_blocks:
 		var v := get_view(spawned_block.block_id)
 		if v == null:
 			v = _create_view_for_block(spawned_block)
 		v.animate_spawn(duration)
 		SoundManager.play_block_replicator(v.global_position)
+		for source in grid_world.get_all_blocks():
+			if source.block_type == BlockData.Type.REPLICATOR and source.grid_pos + source.get_forward_vec() == spawned_block.grid_pos:
+				var source_view := get_view(source.block_id)
+				if source_view != null:
+					source_view.play_replicator_breed()
 
-	for action in result.replicator_actions:
-		var replicator_view := get_view(action["id"])
-		var spawned_view := get_view(action["spawned_id"])
-		if replicator_view != null and spawned_view != null:
-			replicator_view.play_replicator_breed(spawned_view.block_data)
-
-	# 6. Destructions & Collections
+	# 5. Destructions & Collections
 	for action in result.destroyer_actions:
 		var destroyer_id: int = action["id"]
 		var target_id: int = action["target_id"]
@@ -501,21 +508,14 @@ func play_tick_animation(result: SimulationEngine.TickResult, duration: float, o
 			)
 			_views.erase(tr_block.block_id)
 
-	# Wait until both the rotator artwork and the target rotation are complete.
-	var rotation_duration := 1.0 if not rotator_views.is_empty() else 0.0
-	var t := create_tween()
-	t.tween_interval(maxf(rotation_duration, duration))
-	t.tween_callback(func():
-		# Refresh borders after animations complete
-		for v: BlockView in _views.values():
-			v.border_node.queue_redraw()
-		on_finish.call()
-	)
-
-func _play_target_rotations(result: SimulationEngine.TickResult, duration: float) -> void:
-	for rot in result.rotated_blocks:
-		var v := get_view(rot["id"])
-		if v != null:
-			v.animate_rotation(rot["new_dir"], duration)
-			SoundManager.play_block_rotator(v.global_position)
-
+	# 6. Inhibitions: refresh only after every other machine result has been
+	# scheduled, matching the post-action simulation order.
+	for v in _views.values():
+		var was_inhibited: bool = v.inhibited_sprite.visible
+		var is_now_inhibited: bool = v.block_data.is_inhibited
+		v.inhibited_sprite.visible = is_now_inhibited
+		v._refresh_inhibitor_state()
+		if not was_inhibited and is_now_inhibited:
+			SoundManager.play_block_inhibitor_engage(v.global_position)
+		elif was_inhibited and not is_now_inhibited:
+			SoundManager.play_block_inhibitor_release(v.global_position)
