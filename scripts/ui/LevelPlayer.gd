@@ -5,12 +5,25 @@ const Campaign = preload("res://scripts/core/Campaign.gd")
 const UI = preload("res://scripts/ui/UIStyle.gd")
 var status_label: Label
 var clear_confirm: ConfirmationDialog
-var help_dialog: AcceptDialog
+var edit_move_origin: Array[Vector2i] = []
 var clear_button: Button
 var load_button: Button
 
 const TutorialGuideScript = preload("res://scripts/ui/TutorialGuide.gd")
+const TutorialRules = preload("res://scripts/core/TutorialRules.gd")
+const DialogueScript = preload("res://scripts/ui/TutorialDialogue.gd")
+var tutorial_dialogue: DialogueScript
 var tutorial_guide: TutorialGuideScript
+const TutorialActs = preload("res://scripts/core/TutorialActs.gd")
+var tutorial_root: LevelData
+var tutorial_act := 0
+var tutorial_transition := ""
+var tutorial_transition_pending := false
+var tutorial_first_ticks := 0
+var tutorial_camera_tween: Tween
+var tutorial_departure: GridView
+var tutorial_pan_blocker: Control
+var tick_generation := 0
 
 signal back_to_menu_requested()
 
@@ -92,7 +105,9 @@ func undo() -> void:
 	var prev_world: GridWorld = undo_stack.pop_back()
 	world = prev_world.clone()
 	initial_snapshot = world.clone()
-	sim_engine = SimulationEngine.new(world)
+	sim_engine = SimulationEngine.new(world, current_level_data.player_build_area if current_level_data else Rect2i())
+	sim_engine.construction_inspection = current_level_data != null and current_level_data.tutorial.get("goal", "") == "connect"
+	sim_engine.level_won.connect(_on_level_won)
 	_clear_selection()
 	if grid_view != null:
 		grid_view.cancel_multi_ghost()
@@ -106,7 +121,9 @@ func redo() -> void:
 	var next_world: GridWorld = redo_stack.pop_back()
 	world = next_world.clone()
 	initial_snapshot = world.clone()
-	sim_engine = SimulationEngine.new(world)
+	sim_engine = SimulationEngine.new(world, current_level_data.player_build_area if current_level_data else Rect2i())
+	sim_engine.construction_inspection = current_level_data != null and current_level_data.tutorial.get("goal", "") == "connect"
+	sim_engine.level_won.connect(_on_level_won)
 	_clear_selection()
 	if grid_view != null:
 		grid_view.cancel_multi_ghost()
@@ -134,13 +151,25 @@ func _ready() -> void:
 
 func load_level_by_index(idx: int) -> void:
 	if idx >= 0 and idx < all_levels.size():
+		if not Campaign.is_unlocked(all_levels[idx].level_id): return
 		current_level_index = idx
 		load_level_data(all_levels[idx])
 
 func load_level_data(lvl_data: LevelData) -> void:
+	_cancel_tutorial_transition()
+	tutorial_root = lvl_data
+	tutorial_act = 0
+	tutorial_first_ticks = 0
+	_apply_level_data(lvl_data)
+
+func _apply_level_data(lvl_data: LevelData, show_intro: bool = true) -> void:
+	edit_move_origin.clear()
+	tick_generation += 1
 	undo_stack.clear()
 	redo_stack.clear()
 	MusicManager.play_ambient()
+	grid_view.cancel_multi_ghost()
+	toolbar.deselect_tool()
 	selected_blocks.clear()
 	if victory_dialog != null: victory_dialog.hide()
 	current_level_data = lvl_data
@@ -160,6 +189,7 @@ func load_level_data(lvl_data: LevelData) -> void:
 
 	# Setup simulation engine
 	sim_engine = SimulationEngine.new(world, lvl_data.player_build_area)
+	sim_engine.construction_inspection = lvl_data.tutorial.get("goal", "") == "connect"
 	sim_engine.level_won.connect(_on_level_won)
 
 	# Setup grid view
@@ -183,6 +213,17 @@ func load_level_data(lvl_data: LevelData) -> void:
 	has_simulated = false
 	if tutorial_guide != null:
 		tutorial_guide.configure(lvl_data.tutorial)
+		if lvl_data.tutorial.has("act_title"):
+			tutorial_guide.restart_button.text = "重来当前幕"
+			level_title_label.text = lvl_data.level_name + " · " + str(lvl_data.tutorial.act_title)
+	var types: Array = []
+	for key in lvl_data.tutorial.get("equipment", {}): types.append(int(key))
+	toolbar.set_allowed_types(types)
+	toolbar.set_direct_placement_enabled(not lvl_data.tutorial.get("no_direct_placement", false))
+	if lvl_data.tutorial.get("edit_sequence", "") == "move_then_copy": EditorClipboard.clear()
+	tutorial_dialogue.hide()
+	camera.set_process(true)
+	if show_intro: _show_tutorial_dialogue()
 	_refresh_tutorial()
 	_update_sim_buttons()
 	_update_goal_display()
@@ -251,7 +292,7 @@ func _build_ui_layout() -> void:
 	frame_btn.pressed.connect(frame_board)
 	row1_hbox.add_child(frame_btn)
 	var help_btn := Button.new()
-	help_btn.text = "操作帮助"
+	help_btn.text = "操作手册 · F1"
 	help_btn.focus_mode = Control.FOCUS_NONE
 	help_btn.pressed.connect(show_help)
 	row1_hbox.add_child(help_btn)
@@ -387,12 +428,7 @@ func _build_ui_layout() -> void:
 	clear_confirm.cancel_button_text = "保留构装"
 	clear_confirm.confirmed.connect(clear_player_blocks)
 	add_child(clear_confirm)
-	help_dialog = AcceptDialog.new()
-	help_dialog.theme = UI.get_theme()
-	help_dialog.title = "构装操作指南"
-	help_dialog.dialog_text = "搭建\n左键放置 · 右键擦除 · 1—6 选择方块\nQ / E 调整朝向 · F 切换旋转模式\nV 进入选择模式 · 拖框多选 · G 编组 · Delete 删除\n\n观察\n空格运行或暂停 · 单步逐拍观察 · R 重置并恢复编辑\n暂停用于观察，重置才会回到构装状态。\n\n视野\n滚轮缩放 · 中键拖动或 WASD 平移 · Home 全景\n\n重置保留构装；清空构装会删除自建方块。"
-	help_dialog.ok_button_text = "回到构装"
-	add_child(help_dialog)
+
 
 	# 3. Bottom Toolbar
 	toolbar = Toolbar.new()
@@ -433,8 +469,10 @@ func _build_ui_layout() -> void:
 	tutorial_guide.offset_top = 148
 	tutorial_guide.offset_bottom = 148
 	tutorial_guide.restart_requested.connect(func():
-		if not is_animating_tick: load_level_data(current_level_data)
+		if not is_animating_tick and tutorial_transition.is_empty(): _apply_level_data(current_level_data)
 	)
+
+	tutorial_guide.dialogue_requested.connect(_show_tutorial_dialogue)
 
 	# 4. Victory Dialog (Hidden initially)
 	var victory_scrim := ColorRect.new()
@@ -456,6 +494,21 @@ func _build_ui_layout() -> void:
 	victory_dialog.level_select_pressed.connect(func():
 		get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn")
 	)
+
+	tutorial_dialogue = DialogueScript.new()
+	ui_layer.add_child(tutorial_dialogue)
+	tutorial_dialogue.closed.connect(func():
+		if tutorial_transition == "briefing":
+			_travel_to_tutorial_followup()
+			return
+		camera.set_process(not victory_dialog.visible and tutorial_transition.is_empty())
+		_update_sim_buttons()
+	)
+	tutorial_pan_blocker = Control.new()
+	tutorial_pan_blocker.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	tutorial_pan_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
+	tutorial_pan_blocker.hide()
+	ui_layer.add_child(tutorial_pan_blocker)
 
 # -------------------------------------------------------------
 # Simulation Flow
@@ -498,6 +551,8 @@ func step_single_tick() -> void:
 	_execute_tick()
 
 func reset_simulation() -> void:
+	if not tutorial_transition.is_empty() or tutorial_transition_pending: return
+	tick_generation += 1
 	is_simulating = false
 	is_animating_tick = false
 	has_simulated = false
@@ -508,6 +563,7 @@ func reset_simulation() -> void:
 	world = initial_snapshot.clone()
 	var b_area := current_level_data.player_build_area if current_level_data else Rect2i()
 	sim_engine = SimulationEngine.new(world, b_area)
+	sim_engine.construction_inspection = current_level_data != null and current_level_data.tutorial.get("goal", "") == "connect"
 	sim_engine.level_won.connect(_on_level_won)
 	grid_view.set_world(world)
 
@@ -524,33 +580,135 @@ func _run_sim_loop() -> void:
 
 func _execute_tick() -> void:
 	is_animating_tick = true
+	var generation := tick_generation
 	var res := sim_engine.step_tick()
 	_update_goal_display()
 
 	var duration := base_tick_duration / sim_speed_multiplier
 	grid_view.play_tick_animation(res, duration, func():
+		if generation != tick_generation: return
 		is_animating_tick = false
 		if res.is_victory:
 			pause_simulation()
+			if tutorial_transition_pending: _begin_tutorial_transition()
 		elif is_simulating:
 			_run_sim_loop()
 	)
 
 func _on_level_won() -> void:
 	pause_simulation()
+	if tutorial_act == 0 and current_level_data.tutorial.has("followup"):
+		tutorial_transition_pending = true
+		_update_sim_buttons()
+		return
 	SoundManager.play_level_victory()
-	Campaign.mark_completed(current_level_data.level_id, sim_engine.step_count)
+	Campaign.mark_completed(current_level_data.level_id, tutorial_first_ticks + sim_engine.step_count)
 	var has_next := Campaign.next_index(current_level_data.level_id, all_levels) >= 0
-	victory_dialog.show_victory(sim_engine.step_count, has_next)
+	victory_dialog.show_victory(tutorial_first_ticks + sim_engine.step_count, has_next)
 	if not current_level_data.tutorial.is_empty():
-		victory_dialog.details_label.text = str(current_level_data.tutorial.get("success", "学会了！继续下一课吧。"))
+		var lesson := current_level_data.tutorial
+		if not lesson.get("success_dialogues", []).is_empty():
+			victory_dialog.details_label.text = "教学完成 · " + current_level_data.level_name
+			var completion := lesson.duplicate(true)
+			completion.dialogues = lesson.success_dialogues
+			completion.dialogue_portraits = lesson.get("success_portraits", [])
+			completion.dialogue_label = "培养皿通讯 · 完成"
+			completion.dialogue_start_text = "查看教学结果 →"
+			completion.dialogue_skip_text = "结束通讯"
+			tutorial_dialogue.open(completion)
+		else:
+			victory_dialog.details_label.text = str(lesson.get("success", "学会了！继续下一课吧。"))
 	_center_victory_dialog.call_deferred()
+
+func _cancel_tutorial_transition() -> void:
+	if tutorial_camera_tween != null and tutorial_camera_tween.is_valid(): tutorial_camera_tween.kill()
+	if is_instance_valid(tutorial_departure): tutorial_departure.queue_free()
+	tutorial_departure = null
+	tutorial_transition = ""
+	tutorial_transition_pending = false
+	if tutorial_pan_blocker != null: tutorial_pan_blocker.hide()
+	if camera != null:
+		camera.set_process_unhandled_input(true)
+		camera.is_dragging = false
+		camera.active_touches.clear()
+
+func _begin_tutorial_transition() -> void:
+	tutorial_transition_pending = false
+	tutorial_transition = "briefing"
+	tutorial_first_ticks = sim_engine.step_count
+	camera.set_process(false)
+	var briefing := tutorial_root.tutorial.duplicate(true)
+	briefing.dialogues = tutorial_root.tutorial.get("transition_dialogues", ["练习完成。跟我去看看新的警报。"])
+	briefing.dialogue_portraits = tutorial_root.tutorial.get("transition_portraits", [])
+	briefing.dialogue_label = "培养皿通讯"
+	briefing.dialogue_start_text = "移向另一片区域 →"
+	briefing.dialogue_skip_text = "移动视角"
+	tutorial_dialogue.open(briefing)
+	_update_sim_buttons()
+
+func _travel_to_tutorial_followup() -> void:
+	var followup := TutorialActs.followup_level(tutorial_root)
+	if followup == null:
+		_cancel_tutorial_transition()
+		return
+	tutorial_transition = "panning"
+	var previous_position := camera.position
+	var previous_zoom := camera.zoom
+	tutorial_departure = GridView.new()
+	tutorial_departure.player_build_area = current_level_data.player_build_area
+	grid_view.get_parent().add_child(tutorial_departure)
+	tutorial_departure.set_world(world.clone())
+	tutorial_act = 1
+	_apply_level_data(followup, false)
+	var destination := camera.position
+	var destination_zoom := camera.zoom
+	camera.position = previous_position
+	camera.zoom = previous_zoom
+	camera.set_process(false)
+	camera.set_process_unhandled_input(false)
+	tutorial_pan_blocker.show()
+	var generation := tick_generation
+	tutorial_camera_tween = create_tween().set_parallel(true)
+	tutorial_camera_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tutorial_camera_tween.tween_property(camera, "position", destination, 1.2)
+	tutorial_camera_tween.tween_property(camera, "zoom", destination_zoom, 1.2)
+	tutorial_camera_tween.finished.connect(func():
+		if generation != tick_generation: return
+		if is_instance_valid(tutorial_departure): tutorial_departure.queue_free()
+		tutorial_departure = null
+		tutorial_transition = ""
+		tutorial_pan_blocker.hide()
+		camera.set_process_unhandled_input(true)
+		_show_tutorial_dialogue()
+		_update_sim_buttons()
+	)
 
 func _center_victory_dialog() -> void:
 	victory_dialog.reset_size()
 	victory_dialog.position = (get_viewport_rect().size - victory_dialog.size) * 0.5
 
+func _show_tutorial_dialogue() -> void:
+	if not tutorial_transition.is_empty() or tutorial_transition_pending: return
+	if current_level_data == null or not current_level_data.tutorial.has("dialogues"): return
+	if is_animating_tick: return
+	is_simulating = false
+	tutorial_dialogue.open(current_level_data.tutorial)
+	camera.set_process(false)
+	_update_sim_buttons()
+
+func _tutorial_moves_allowed(moves: Array[Dictionary]) -> bool:
+	if not current_level_data.tutorial.get("experiment", false): return true
+	for move in moves:
+		if not current_level_data.player_build_area.has_point(move.new_pos): return false
+		var occupant := world.get_block(move.new_pos)
+		if occupant != null and occupant.is_world_block: return false
+	return true
+
 func _tutorial_can_run() -> bool:
+	if not tutorial_transition.is_empty() or tutorial_transition_pending: return false
+	if tutorial_dialogue != null and tutorial_dialogue.visible: return false
+	if current_level_data != null and not has_simulated:
+		if not TutorialRules.check_world(world, current_level_data.tutorial, current_level_data.player_build_area).is_empty(): return false
 	return tutorial_guide == null or tutorial_guide.can_run(world, sim_engine.step_count)
 
 func _refresh_tutorial() -> void:
@@ -610,11 +768,15 @@ func _flash_outside_warning() -> void:
 	tween.tween_property(build_area_warning_panel, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.25)
 
 func _update_sim_buttons() -> void:
-	if toolbar != null: toolbar.set_editable(not has_simulated and not is_simulating)
-	if clear_button != null: clear_button.disabled = is_simulating or is_animating_tick
-	if load_button != null: load_button.disabled = has_simulated or is_simulating
+	var transitioning := not tutorial_transition.is_empty() or tutorial_transition_pending
+	if toolbar != null: toolbar.set_editable(not has_simulated and not is_simulating and not transitioning)
+	if reset_btn != null: reset_btn.disabled = transitioning
+	if clear_button != null: clear_button.disabled = is_simulating or is_animating_tick or transitioning
+	if load_button != null: load_button.disabled = has_simulated or is_simulating or current_level_data.tutorial.get("experiment", false)
 	if status_label != null and sim_engine != null:
-		if is_simulating:
+		if transitioning:
+			status_label.text = "收到塔洛斯的通讯" if tutorial_transition != "panning" else "视角正在移向培养皿另一片区域…"
+		elif is_simulating:
 			status_label.text = "运行中 · 第 %d 步 · 空格暂停观察" % sim_engine.step_count
 		elif has_simulated:
 			status_label.text = "已暂停 · 第 %d 步 · 点击「重置」恢复编辑，构装会保留" % sim_engine.step_count
@@ -631,7 +793,7 @@ func _update_sim_buttons() -> void:
 			if outside_blocked:
 				play_btn.tooltip_text = "建造区外存在方块，无法启动模拟"
 			elif not tutorial_ready:
-				play_btn.tooltip_text = "请按照教学指引放置方块"
+				play_btn.tooltip_text = "请先完成右侧操作练习、结束讲解，并检查实验器材"
 			else:
 				play_btn.tooltip_text = ""
 		else:
@@ -643,7 +805,7 @@ func _update_sim_buttons() -> void:
 		if outside_blocked:
 			step_btn.tooltip_text = "建造区外存在方块，无法启动模拟"
 		elif not tutorial_ready:
-			step_btn.tooltip_text = "请按照教学指引放置方块"
+			step_btn.tooltip_text = "请先完成右侧操作练习、结束讲解，并检查实验器材"
 		else:
 			step_btn.tooltip_text = ""
 
@@ -652,6 +814,9 @@ func _update_sim_buttons() -> void:
 
 func _update_goal_display() -> void:
 	if goal_label != null and sim_engine != null:
+		if sim_engine.construction_inspection:
+			goal_label.text = "搭建检查：用普通方块连通所有晶胚端点，再单步验收"
+			return
 		var parts: Array[String] = []
 		var p := sim_engine.get_remaining_pollution()
 		var tr_col := sim_engine.get_collected_treasure_lineage_count()
@@ -700,6 +865,8 @@ func _process(_delta: float) -> void:
 			grid_view.update_preview(false, 0, 0, 0, 0, grid_pos)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not tutorial_transition.is_empty() or tutorial_transition_pending: return
+	if tutorial_dialogue != null and tutorial_dialogue.visible: return
 	if victory_dialog.visible: return
 	if event is InputEventKey and event.pressed:
 		var key: int = event.keycode if event.keycode != 0 else event.physical_keycode
@@ -829,6 +996,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
 		if not player_blocks.is_empty():
 			EditorClipboard.copy(player_blocks)
+			_note_edit_action("copy")
 			get_viewport().set_input_as_handled()
 			return
 
@@ -993,6 +1161,7 @@ func _on_context_menu_action(action: String) -> void:
 			var player_blocks := selected_blocks.filter(func(b): return not b.is_world_block)
 			if not player_blocks.is_empty():
 				EditorClipboard.copy(player_blocks)
+				_note_edit_action("copy")
 		"cut":
 			cut_selected_blocks()
 		"paste":
@@ -1010,6 +1179,7 @@ func _on_context_menu_action(action: String) -> void:
 			_flip_selected_blocks_v()
 
 func _start_paste_preview(blocks: Array[BlockData]) -> void:
+	edit_move_origin.clear()
 	if blocks.is_empty() or is_simulating or has_simulated: return
 	_clear_selection()
 	if toolbar != null:
@@ -1023,8 +1193,18 @@ func _try_place_ghost_blocks(mouse_grid: Vector2i) -> void:
 	var new_blocks := grid_view.get_multi_ghost_blocks_to_place(mouse_grid)
 	if new_blocks.is_empty():
 		return
+	if current_level_data.tutorial.get("edit_sequence", "") == "move_then_copy":
+		# No imported clipboard or premature copies before the seed is moved.
+		if tutorial_guide.edit_progress == 0 and edit_move_origin.is_empty(): return
+		if tutorial_guide.edit_progress == 1 and edit_move_origin.is_empty(): return
 	record_undo()
 
+	var candidate := world.clone()
+	for b in new_blocks:
+		var copy := b.duplicate_block(false)
+		copy.is_world_block = false
+		candidate.add_block(copy)
+	if not TutorialRules.check_world(candidate, current_level_data.tutorial, current_level_data.player_build_area).is_empty(): return
 	var sid_map: Dictionary = {}
 	for b in new_blocks:
 		if b.structure_id > 0:
@@ -1036,6 +1216,15 @@ func _try_place_ghost_blocks(mouse_grid: Vector2i) -> void:
 		b.is_world_block = false
 		world.add_block(b)
 
+	if edit_move_origin.is_empty():
+		_note_edit_action("paste")
+	elif current_level_data.tutorial.get("edit_sequence", "") == "move_then_copy":
+		var target: Array = current_level_data.tutorial.get("edit_move_target", [0, 1])
+		if new_blocks.size() == 1 and new_blocks[0].grid_pos == Vector2i(int(target[0]), int(target[1])) and new_blocks[0].grid_pos not in edit_move_origin:
+			_note_edit_action("move")
+	elif edit_move_origin.size() >= 2 and new_blocks.any(func(b): return b.grid_pos not in edit_move_origin):
+		_note_edit_action("move")
+	edit_move_origin.clear()
 	grid_view.cancel_multi_ghost()
 	initial_snapshot = world.clone()
 	SoundManager.play_cell_place(grid_view.grid_to_world(mouse_grid))
@@ -1057,6 +1246,7 @@ func _rotate_selected_blocks_cw() -> void:
 		var new_rel := Vector2i(-rel.y, rel.x)
 		moves.append({ "block": b, "old_pos": b.grid_pos, "new_pos": anchor + new_rel, "new_dir": (b.direction + 1) % 4 })
 
+	if not _tutorial_moves_allowed(moves): return
 	for m in moves:
 		world._cells.erase(m["old_pos"])
 
@@ -1094,6 +1284,7 @@ func _rotate_selected_blocks_ccw() -> void:
 		var new_rel := Vector2i(rel.y, -rel.x)
 		moves.append({ "block": b, "old_pos": b.grid_pos, "new_pos": anchor + new_rel, "new_dir": (b.direction + 3) % 4 })
 
+	if not _tutorial_moves_allowed(moves): return
 	for m in moves:
 		world._cells.erase(m["old_pos"])
 
@@ -1138,6 +1329,7 @@ func _flip_selected_blocks_h() -> void:
 			new_sub = 1 - b.sub_mode
 		moves.append({ "block": b, "old_pos": b.grid_pos, "new_pos": anchor + new_rel, "new_dir": new_dir, "new_sub": new_sub })
 
+	if not _tutorial_moves_allowed(moves): return
 	for m in moves:
 		world._cells.erase(m["old_pos"])
 
@@ -1183,6 +1375,7 @@ func _flip_selected_blocks_v() -> void:
 			new_sub = 1 - b.sub_mode
 		moves.append({ "block": b, "old_pos": b.grid_pos, "new_pos": anchor + new_rel, "new_dir": new_dir, "new_sub": new_sub })
 
+	if not _tutorial_moves_allowed(moves): return
 	for m in moves:
 		world._cells.erase(m["old_pos"])
 
@@ -1210,6 +1403,7 @@ func _flip_selected_blocks_v() -> void:
 # Block Placement & Erasure
 # -------------------------------------------------------------
 func _try_place_block(grid_pos: Vector2i) -> void:
+	if not TutorialRules.can_place(world, current_level_data.tutorial, current_level_data.player_build_area, toolbar.current_type, grid_pos): return
 	if is_simulating or has_simulated:
 		return
 
@@ -1313,6 +1507,7 @@ func cut_selected_blocks() -> void:
 	var blocks_to_paste := EditorClipboard.get_blocks()
 	delete_selected_blocks()
 	_start_paste_preview(blocks_to_paste)
+	for block in player_blocks: edit_move_origin.append(block.grid_pos)
 
 func delete_selected_blocks() -> void:
 	if is_simulating or has_simulated:
@@ -1367,7 +1562,7 @@ func _apply_selection_drag(delta: Vector2i) -> void:
 	for b in selected_blocks:
 		var target_p: Vector2i = new_positions[b]
 		var occ := world.get_block(target_p)
-		if occ != null and occ.is_world_block:
+		if (occ != null and occ.is_world_block) or (current_level_data.tutorial.get("experiment", false) and not current_level_data.player_build_area.has_point(target_p)):
 			can_move = false
 			break
 
@@ -1448,6 +1643,7 @@ func _on_save_machine_pressed() -> void:
 	)
 
 func _on_load_machine_pressed() -> void:
+	if current_level_data.tutorial.get("experiment", false): return
 	if is_simulating:
 		return
 	var target_parent: Node = self
@@ -1509,11 +1705,10 @@ func _on_toolbar_direction_changed(_dir: int) -> void:
 	pass
 
 func show_help() -> void:
-	pause_simulation()
-	help_dialog.popup_centered(Vector2i(560, 440))
+	get_node("/root/OperationManual").open()
 
 func _mouse_over_interface() -> bool:
-	if help_dialog != null and help_dialog.visible: return true
+	if get_node("/root/OperationManual").dialog.visible: return true
 	if clear_confirm != null and clear_confirm.visible: return true
 	var point := get_viewport().get_mouse_position()
 	for child in ui_layer.get_children():
@@ -1532,3 +1727,11 @@ func frame_board() -> void:
 	var scale_value := clampf(minf(available.x / maxf(64, bounds.size.x * 64 + 128), available.y / maxf(64, bounds.size.y * 64 + 128)), 0.25, 1.0)
 	camera.zoom = Vector2.ONE * scale_value
 	camera.position = (bounds.position + bounds.size * 0.5) * 64 + Vector2(side / (2 * scale_value), 0)
+
+func _note_edit_action(action: String) -> void:
+	if tutorial_guide != null:
+		if current_level_data.tutorial.get("edit_sequence", "") == "move_then_copy" and action == "copy" and tutorial_guide.edit_progress == 1:
+			var target: Array = current_level_data.tutorial.get("edit_move_target", [0, 1])
+			if selected_blocks.size() != 1 or selected_blocks[0].grid_pos != Vector2i(int(target[0]), int(target[1])): return
+		tutorial_guide.record_edit_action(action)
+		_refresh_tutorial()

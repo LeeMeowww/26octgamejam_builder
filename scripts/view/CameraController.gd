@@ -41,7 +41,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_zoom_at_point(zoom_step, get_global_mouse_position())
 			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 				_zoom_at_point(1.0 / zoom_step, get_global_mouse_position())
-		elif event.button_index == MOUSE_BUTTON_MIDDLE:
+		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			if event.pressed:
 				is_dragging = true
 				drag_start_mouse = get_viewport().get_mouse_position()
