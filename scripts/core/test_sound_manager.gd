@@ -111,6 +111,17 @@ func run_tests() -> void:
 
 	check(test_slider.has_meta(&"sfx_hooked"), "Slider automatically hooked for scroll SFX")
 
+	# Test ScrollBar and ProgressBar are NOT hooked as sliders (eliminating scroll-loop bug)
+	var test_scrollbar := HScrollBar.new()
+	var test_progressbar := ProgressBar.new()
+	root.add_child(test_scrollbar)
+	root.add_child(test_progressbar)
+	await process_frame
+	check(not test_scrollbar.has_meta(&"sfx_hooked"), "ScrollBar is NOT hooked as Slider (no multi-fire on scroll)")
+	check(not test_progressbar.has_meta(&"sfx_hooked"), "ProgressBar is NOT hooked as Slider")
+	test_scrollbar.queue_free()
+	test_progressbar.queue_free()
+
 	# Test slider change triggers sound
 	test_slider.value = 60
 	await process_frame
@@ -174,6 +185,40 @@ func run_tests() -> void:
 	check(absf(SoundManager.get_volume() - 1.0) < 0.001, "Reset defaults restored SFX volume to 100%")
 	check(settings_menu.bgm_slider.value == 100, "Reset defaults set BGM slider value to 100")
 	check(settings_menu.sfx_slider.value == 100, "Reset defaults set SFX slider value to 100")
+
+	# Settings page must list undo/redo keybindings (编辑操作分类自动出现在设置页)
+	var undo_display: String = KeybindManager.get_action_display_name("undo")
+	var redo_display: String = KeybindManager.get_action_display_name("redo")
+	var found_undo_btn := false
+	var found_redo_btn := false
+	var search_stack: Array = [settings_menu]
+	while not search_stack.is_empty():
+		var n: Node = search_stack.pop_back()
+		if n is Button:
+			if (n as Button).text == undo_display:
+				found_undo_btn = true
+			elif (n as Button).text == redo_display:
+				found_redo_btn = true
+		for c in n.get_children():
+			search_stack.append(c)
+	check(found_undo_btn, "Settings page lists undo binding button (%s)" % undo_display)
+	check(found_redo_btn, "Settings page lists redo binding button (%s)" % redo_display)
+
+	# Settings overlay must fill the viewport and truly center its panel (regression)
+	var test_view := SubViewport.new()
+	test_view.size = Vector2i(1280, 720)
+	root.add_child(test_view)
+	var centered_menu: SettingsMenu = load("res://scripts/ui/SettingsMenu.gd").new()
+	test_view.add_child(centered_menu)
+	await process_frame
+	var view_rect := Rect2(Vector2.ZERO, Vector2(test_view.size))
+	var menu_rect: Rect2 = centered_menu.get_global_rect()
+	check(menu_rect.position.is_equal_approx(view_rect.position) and menu_rect.size.is_equal_approx(view_rect.size), "Settings overlay fills the viewport (got %s)" % menu_rect)
+	check(centered_menu.main_panel != null, "Settings overlay exposes main_panel reference")
+	var panel_center: Vector2 = centered_menu.main_panel.get_global_rect().get_center()
+	check(panel_center.distance_to(view_rect.get_center()) < 2.0, "Settings panel is centered (panel_center=%s expected=%s)" % [panel_center, view_rect.get_center()])
+	centered_menu.queue_free()
+	test_view.queue_free()
 
 	# 7. Test Spatial Cell Sound Calls
 	SoundManager.play_cell_place(Vector2(500, 500))

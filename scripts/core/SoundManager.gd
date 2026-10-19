@@ -356,7 +356,7 @@ static func play_ui_slider() -> void:
 		instance._play_ui_slider_internal()
 
 # -------------------------------------------------------------
-# 全局 UI 自动挂接机制 (BaseButton, Range, TabContainer, TabBar, ItemList, PopupMenu)
+# 全局 UI 自动挂接机制 (BaseButton, Slider, TabContainer, TabBar, ItemList, PopupMenu)
 # -------------------------------------------------------------
 func _on_node_added(node: Node) -> void:
 	_hook_node(node)
@@ -372,7 +372,8 @@ func _hook_existing_ui(root_node: Node) -> void:
 func _hook_node(node: Node) -> void:
 	if node is BaseButton:
 		_hook_button(node)
-	elif node is Range:
+	elif node is Slider:
+		# 仅挂接真正可交互的滑动条（如音量、模拟速度），坚决不挂接 ScrollBar/ProgressBar，杜绝滚动时连发
 		_hook_slider(node)
 	elif node is TabContainer:
 		_hook_tab_container(node)
@@ -383,28 +384,34 @@ func _hook_node(node: Node) -> void:
 	elif node is PopupMenu:
 		_hook_popup_menu(node)
 
-## 按钮挂接：button_down（按下瞬间发声）+ pressed（键盘/快捷键兜底，避免与button_down双发）
+## 按钮挂接：button_down（按下瞬间零延迟发声）+ pressed（键盘/快捷键兜底）。
+## 防连发：每个按钮自带冷却窗口（BUTTON_SFX_COOLDOWN_MS），同一按钮在窗口内
+## 无论收到多少信号（button_down / pressed / 重复的输入事件循环 / 触摸+鼠标
+## 合成事件 / 远程桌面重复派发），最多只发声一次。
+const BUTTON_SFX_COOLDOWN_MS := 200
+
 func _hook_button(btn: BaseButton) -> void:
 	if btn.has_meta(&"sfx_hooked"):
 		return
 	btn.set_meta(&"sfx_hooked", true)
+	btn.set_meta(&"sfx_last_ms", -100000)
 	btn.button_down.connect(_on_button_down.bind(btn))
-	btn.button_up.connect(_on_button_up.bind(btn))
 	btn.pressed.connect(_on_button_pressed.bind(btn))
 
-func _on_button_down(btn: BaseButton) -> void:
-	btn.set_meta(&"sfx_down_active", true)
+func _button_try_play(btn: BaseButton) -> void:
+	var now := Time.get_ticks_msec()
+	if now - int(btn.get_meta(&"sfx_last_ms", -100000)) < BUTTON_SFX_COOLDOWN_MS:
+		return
+	btn.set_meta(&"sfx_last_ms", now)
 	play_ui_click()
 
-func _on_button_up(btn: BaseButton) -> void:
-	# 延迟重置，确保当前点击周期的 pressed 事件能够正确识别已由 button_down 处理
-	btn.set_deferred("metadata/sfx_down_active", false)
+func _on_button_down(btn: BaseButton) -> void:
+	_button_try_play(btn)
 
 func _on_button_pressed(btn: BaseButton) -> void:
-	# 仅当 button_down 未曾发声时（如快捷键/纯代码/键盘聚焦回车触发）才播放，彻底杜绝双发
-	if not btn.get_meta(&"sfx_down_active", false):
-		play_ui_click()
-	btn.set_meta(&"sfx_down_active", false)
+	# 正常物理点击时 pressed 紧随 button_down 到达（冷却窗口内，自动去重）；
+	# 键盘聚焦回车 / 快捷键 / 代码触发时没有 button_down，此处兜底发声。
+	_button_try_play(btn)
 
 func _hook_slider(slider: Range) -> void:
 	if slider.has_meta(&"sfx_hooked"):
@@ -423,10 +430,10 @@ func _hook_tab_container(tc: TabContainer) -> void:
 	if tc.has_meta(&"sfx_hooked"):
 		return
 	tc.set_meta(&"sfx_hooked", true)
+	# TabContainer 内部的 TabBar 是实际接收点击的控件，委托给 TabBar 处理，自身不重复监听
 	var internal_tb := tc.get_tab_bar()
 	if internal_tb != null:
-		internal_tb.set_meta(&"sfx_hooked", true)
-	tc.tab_clicked.connect(func(_idx: int): play_ui_click())
+		_hook_tab_bar(internal_tb)
 
 func _hook_tab_bar(tab_bar: TabBar) -> void:
 	if tab_bar.has_meta(&"sfx_hooked"):

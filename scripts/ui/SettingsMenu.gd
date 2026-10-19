@@ -6,6 +6,7 @@ const UI = preload("res://scripts/ui/UIStyle.gd")
 signal closed()
 
 var tab_container: TabContainer
+var main_panel: PanelContainer
 var key_buttons: Dictionary = {} # action_id -> Button
 var listening_action: String = ""
 var listening_button: Button = null
@@ -17,6 +18,9 @@ var bgm_val_lbl: Label
 var sfx_val_lbl: Label
 
 func _ready() -> void:
+	# 整屏弹层：自身必须先铺满视口，内部 CenterContainer 才能把设置面板真正居中，
+	# 同时让半透明背板完整覆盖屏幕并拦截点击。
+	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	theme = UI.get_theme()
 	_build_ui()
 
@@ -39,7 +43,7 @@ func _build_ui() -> void:
 	center.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(center)
 
-	var main_panel := PanelContainer.new()
+	main_panel = PanelContainer.new()
 	main_panel.custom_minimum_size = Vector2(680, 560)
 	main_panel.add_theme_stylebox_override("panel", UI.box(UI.PANEL, UI.BORDER, 16, 24))
 	center.add_child(main_panel)

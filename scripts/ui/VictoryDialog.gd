@@ -68,7 +68,7 @@ func _init() -> void:
 
 	next_btn = Button.new()
 	UI.primary(next_btn)
-	next_btn.text = "继续主线 →"
+	next_btn.text = "继续下一关 →"
 	next_btn.custom_minimum_size = Vector2(130, 42)
 	next_btn.pressed.connect(func():
 		visible = false

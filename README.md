@@ -76,11 +76,53 @@
 
 ## 启动与调试
 
-在终端运行根目录启动脚本：
+调试（开发）流程使用根目录的 `start.sh`：默认导出 Web **调试** 构建并启动带 COOP/COEP 隔离的本地服务器。此模式下浏览器里编辑的关卡会实时同步回本项目的 `assets/levels/`，方便边改边看。
+
 ```bash
-./start_web.sh
+./start.sh                # 导出调试 Web 构建并启动 (http://localhost:8060)
+./start.sh --release      # 改用发布模板导出后预览
+./start.sh --no-export    # 跳过导出，仅启动服务器
 ```
-该脚本会自动检测 Godot 4 引擎、构建 Web 导出产物，并启动带有 COOP/COEP 隔离的本地 Web 服务器。启动后访问 `http://localhost:8060` 即可在浏览器游玩。
+启动后访问 `http://localhost:8060` 即可在浏览器游玩。
+
+> 只有调试流程会回写项目资源；正式版（见下方「正式版打包与发布」）不会。
+
+教学验证：在 Godot 导入项目后，用 `--headless --path <项目目录> --script res://scripts/core/test_tutorials.gd` 运行通关与状态测试。图形交互测试使用 `--path <项目目录> --script res://scripts/core/test_tutorial_ui.gd`（不加 headless），通过引擎视口注入鼠标和键盘事件，默认将截图与结果写入 `build/tutorial-tests`，可用 `BLOCKBOUND_TEST_OUTPUT` 指定输出目录。测试请使用独立的用户存档目录。
+
+---
+
+## 正式版打包与发布
+
+正式版统一使用发布模板（`--export-release`）构建，产物位于 `build/release/`。**正式版中玩家的关卡编辑只写入本机用户目录（`user://levels`），不会回写作者的 `assets/levels/`，也不会同步到调试服务器。**
+
+### 桌面端 (Windows / Linux)
+
+```bash
+./build_release.sh                    # 同时构建 Windows 与 Linux 并打包
+./build_release.sh linux              # 只构建 Linux
+./build_release.sh windows            # 只构建 Windows
+./build_release.sh all --no-package   # 只导出二进制，不打压缩包
+GODOT_BIN=/path/to/godot ./build_release.sh
+```
+
+产物：
+
+- `build/release/windows/Gestalt.exe` 与 `build/release/Gestalt-<版本>-windows-x86_64.zip`
+- `build/release/linux/Gestalt.x86_64` 与 `build/release/Gestalt-<版本>-linux-x86_64.tar.gz`
+
+### 网页端
+
+```bash
+./publish_web.sh              # 构建正式 Web 包并生成 zip
+./publish_web.sh --serve      # 构建后启动本地预览 (http://localhost:8061)
+./publish_web.sh --zip-only   # 仅用现有产物打包
+```
+
+产物：`build/web-release/` 与 `build/release/Gestalt-<版本>-web.zip`。上传到静态托管时需保留 COOP/COEP 隔离标头（`Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`）。
+
+### 关卡导入 / 导出
+
+在「创作工坊 / 关卡管理」左侧可「导出关卡 / 导入关卡」JSON 文件：桌面端使用系统文件对话框，网页端在浏览器中直接下载 / 选择文件。导入时若关卡标识与现有库冲突，会自动分配新的唯一标识，避免覆盖已有内容。
 
 ---
 
@@ -88,8 +130,11 @@
 
 ```
 res://
+├── build_release.sh    # 正式版桌面端 (Windows/Linux) 编译打包脚本
+├── publish_web.sh      # 正式版网页端发布脚本
+├── start.sh            # 调试用 Web 构建 / 本地服务器脚本
 ├── assets/
-│   ├── levels/          # 内置关卡配置 JSON (关卡 1 ~ 4)
+│   ├── levels/          # 内置关卡配置 JSON
 │   └── textures/
 │       ├── blocks/      # 矢量的生物主题 SVG 纹理 (inner, border, overlay, variants)
 │       └── ui/          # 统一风格的矢量 UI 图标 (Play, Step, Reset, Save, Load 等)
@@ -98,7 +143,7 @@ res://
 │       ├── MainMenu.tscn     # 主界面
 │       ├── LevelSelect.tscn  # 关卡目录与选关卡片
 │       ├── LevelPlayer.tscn  # 核心游玩与机械工坊界面
-│       ├── LevelManager.tscn # 关卡管理器 (顺序调整/属性配置)
+│       ├── LevelManager.tscn # 关卡管理器 (顺序调整/属性配置/导入导出)
 │       └── LevelEditor.tscn  # 全功能关卡编辑器 (支持放置世界方块与测试)
 └── scripts/
 	├── core/

@@ -58,8 +58,8 @@ func play_push() -> void:
 	if _pushing:
 		return
 	_pushing = true
-	_push_time = 0.0
-	body.frame = 0
+	if body != null:
+		body.frame = 0
 
 func set_direction(direction: int) -> void:
 	rotation = posmod(direction, 4) * (PI / 2.0)

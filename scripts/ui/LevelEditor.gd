@@ -23,6 +23,10 @@ var clear_level_btn: Button
 var clear_confirm: ConfirmationDialog
 var save_machine_btn: Button
 var load_machine_btn: Button
+var speed_slider: HSlider
+var speed_label: Label
+var sim_speed_multiplier: float = 1.0 # 0.2x ~ 20.0x
+var base_tick_duration: float = 0.35 # seconds
 
 # Build area visual editor controls
 var set_build_area_btn: Button
@@ -53,10 +57,10 @@ var is_right_panning: bool = false
 var right_mouse_down_pos: Vector2 = Vector2.ZERO
 var right_pan_drag_threshold: float = 6.0
 
-# Undo / Redo history
+# Undo / Redo history（至少保留最近 100 步，超出后仅丢弃更早的记录）
 var undo_stack: Array[GridWorld] = []
 var redo_stack: Array[GridWorld] = []
-const MAX_UNDO_STACK := 50
+const MAX_UNDO_STACK := 100
 
 func record_undo() -> void:
 	if is_simulating or is_animating_tick:
@@ -318,6 +322,36 @@ func _build_ui() -> void:
 	reset_btn.pressed.connect(reset_simulation)
 	row2_hbox.add_child(reset_btn)
 
+	var sep_speed := VSeparator.new()
+	row2_hbox.add_child(sep_speed)
+
+	# Speed slider: 0.2x to 20.0x (Logarithmic scale)
+	var speed_hbox := HBoxContainer.new()
+	speed_hbox.add_theme_constant_override("separation", 6)
+	row2_hbox.add_child(speed_hbox)
+
+	var speed_title := Label.new()
+	speed_title.text = "速度:"
+	speed_hbox.add_child(speed_title)
+
+	speed_slider = HSlider.new()
+	speed_slider.focus_mode = Control.FOCUS_NONE
+	speed_slider.min_value = 0.2
+	speed_slider.max_value = 20.0
+	speed_slider.step = 0.05
+	speed_slider.exp_edit = true
+	speed_slider.value = 1.0
+	speed_slider.custom_minimum_size = Vector2(80, 20)
+	speed_slider.value_changed.connect(func(val: float):
+		sim_speed_multiplier = val
+		speed_label.text = "%.1fx" % val
+	)
+	speed_hbox.add_child(speed_slider)
+
+	speed_label = Label.new()
+	speed_label.text = "1.0x"
+	speed_hbox.add_child(speed_label)
+
 	# Bottom Toolbar (with all 10 blocks)
 	toolbar = Toolbar.new()
 	toolbar.name = "Toolbar"
@@ -366,7 +400,8 @@ func step_tick() -> void:
 	MusicManager.play_running()
 	is_animating_tick = true
 	var res := sim_engine.step_tick()
-	grid_view.play_tick_animation(res, 0.3, func():
+	var duration := base_tick_duration / sim_speed_multiplier
+	grid_view.play_tick_animation(res, duration, func():
 		is_animating_tick = false
 	)
 
@@ -385,7 +420,8 @@ func _run_sim_loop() -> void:
 		return
 	is_animating_tick = true
 	var res := sim_engine.step_tick()
-	grid_view.play_tick_animation(res, 0.35, func():
+	var duration := base_tick_duration / sim_speed_multiplier
+	grid_view.play_tick_animation(res, duration, func():
 		is_animating_tick = false
 		if is_simulating:
 			_run_sim_loop()
@@ -531,12 +567,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Undo / Redo Shortcuts
 	if KeybindManager.is_action_just_pressed(event, "undo"):
 		undo()
-		get_viewport().set_input_as_handled()
+		if get_viewport() != null:
+			get_viewport().set_input_as_handled()
 		return
 
 	if KeybindManager.is_action_just_pressed(event, "redo"):
 		redo()
-		get_viewport().set_input_as_handled()
+		if get_viewport() != null:
+			get_viewport().set_input_as_handled()
 		return
 
 	# Simulation Controls
@@ -1139,26 +1177,56 @@ func _on_toolbar_block_selected(btype: int) -> void:
 			grid_view.cancel_multi_ghost()
 
 func _on_toolbar_variant_changed(variant_idx: int) -> void:
-	if not selected_blocks.is_empty():
-		for b in selected_blocks:
-			b.texture_variant = variant_idx
-			var v := grid_view.get_view(b.block_id)
-			if v != null:
-				v.update_appearance()
+	if selected_blocks.is_empty():
+		return
+	var any_changed := false
+	for b in selected_blocks:
+		if b.texture_variant != variant_idx:
+			any_changed = true
+			break
+	if not any_changed:
+		return
+	record_undo()
+	for b in selected_blocks:
+		b.texture_variant = variant_idx
+		var v := grid_view.get_view(b.block_id)
+		if v != null:
+			v.update_appearance()
+	initial_snapshot = world.clone()
 
 func _on_toolbar_sub_mode_toggled(mode: int) -> void:
-	if not selected_blocks.is_empty():
-		for b in selected_blocks:
-			b.sub_mode = mode
-			var v := grid_view.get_view(b.block_id)
-			if v != null:
-				v.update_appearance()
+	if selected_blocks.is_empty():
+		return
+	var any_changed := false
+	for b in selected_blocks:
+		if b.sub_mode != mode:
+			any_changed = true
+			break
+	if not any_changed:
+		return
+	record_undo()
+	for b in selected_blocks:
+		b.sub_mode = mode
+		var v := grid_view.get_view(b.block_id)
+		if v != null:
+			v.update_appearance()
+	initial_snapshot = world.clone()
 
 func _on_toolbar_direction_changed(dir: int) -> void:
-	if not selected_blocks.is_empty():
-		for b in selected_blocks:
-			b.direction = dir
-			var v := grid_view.get_view(b.block_id)
-			if v != null:
-				v.update_appearance()
+	if selected_blocks.is_empty():
+		return
+	var any_changed := false
+	for b in selected_blocks:
+		if b.direction != dir:
+			any_changed = true
+			break
+	if not any_changed:
+		return
+	record_undo()
+	for b in selected_blocks:
+		b.direction = dir
+		var v := grid_view.get_view(b.block_id)
+		if v != null:
+			v.update_appearance()
+	initial_snapshot = world.clone()
 
