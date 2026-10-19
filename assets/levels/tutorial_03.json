@@ -1,0 +1,248 @@
+{
+	"author": "塔洛斯博士",
+	"blocks": [
+		{
+			"dir": 3.0,
+			"hp": 2.0,
+			"id": 902000.0,
+			"is_world_block": true,
+			"max_hp": 2.0,
+			"origin_id": 902000.0,
+			"pos_x": 0.0,
+			"pos_y": 0.0,
+			"structure_id": 0.0,
+			"sub_mode": 0.0,
+			"texture_variant": 0.0,
+			"type": 4.0
+		},
+		{
+			"dir": 0.0,
+			"hp": 2.0,
+			"id": 902001.0,
+			"is_world_block": true,
+			"max_hp": 2.0,
+			"origin_id": 902001.0,
+			"pos_x": 2.0,
+			"pos_y": -1.0,
+			"structure_id": 0.0,
+			"sub_mode": 0.0,
+			"texture_variant": 0.0,
+			"type": 9.0
+		}
+	],
+	"cg_theme": "cyan_core",
+	"description": "清除污染。",
+	"level_id": "tutorial_03",
+	"level_name": "教学 03：复制",
+	"order_index": -80,
+	"player_build_area": {
+		"h": 8,
+		"w": 11,
+		"x": -4,
+		"y": -3
+	},
+	"tutorial": {
+		"act_title": "第一幕 · 我家门口有两棵树",
+		"camera_offset_x": 180.0,
+		"camera_zoom": 0.85,
+		"dialogue_label": "培养皿通讯",
+		"dialogue_skip_text": "结束通讯",
+		"dialogue_start_text": "开始尝试 →",
+		"dialogues": [
+			"就是这里。现有的摧毁细胞样本朝上，污染也在上方，可惜中间隔了一段距离，直接够不着。",
+			"这次试试“复制器”。它会读取身后紧邻的细胞样本，在箭头前方的空格里长出一枚一模一样的副本。",
+			"把复制器放在样本右侧，箭头朝右。这样它长出来的新摧毁细胞，刚好就会落在污染正下方。",
+			"刚才的复制粘贴，是你在准备阶段手动布置的；而复制器会在运行过程中自己持续增殖。放好之后，你只需要静静看着它把新的身体长出来。"
+		],
+		"equipment": {
+			"3": 1.0
+		},
+		"experiment": true,
+		"followup": {
+			"author": "塔洛斯博士",
+			"blocks": [
+				{
+					"dir": 3.0,
+					"hp": 2.0,
+					"id": 902100.0,
+					"is_world_block": true,
+					"max_hp": 2.0,
+					"origin_id": 902100.0,
+					"pos_x": -2.0,
+					"pos_y": 0.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"texture_variant": 0.0,
+					"type": 4.0
+				},
+				{
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 902101.0,
+					"is_world_block": true,
+					"max_hp": 2.0,
+					"origin_id": 902101.0,
+					"pos_x": 0.0,
+					"pos_y": -1.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"texture_variant": 0.0,
+					"type": 9.0
+				},
+				{
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 902102.0,
+					"is_world_block": true,
+					"max_hp": 2.0,
+					"origin_id": 902102.0,
+					"pos_x": 2.0,
+					"pos_y": -1.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"texture_variant": 0.0,
+					"type": 9.0
+				},
+				{
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 902103.0,
+					"is_world_block": true,
+					"max_hp": 2.0,
+					"origin_id": 902103.0,
+					"pos_x": 4.0,
+					"pos_y": -1.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"texture_variant": 0.0,
+					"type": 9.0
+				}
+			],
+			"cg_theme": "cyan_core",
+			"description": "全部清理三处污染。",
+			"level_id": "tutorial_03",
+			"level_name": "教学 03：复制",
+			"order_index": -80.0,
+			"player_build_area": {
+				"h": 8.0,
+				"w": 11.0,
+				"x": -4.0,
+				"y": -3.0
+			},
+			"tutorial": {
+				"act_title": "第二幕 · 从前有座山，山里有座庙",
+				"camera_offset_x": 180.0,
+				"camera_zoom": 0.85,
+				"dialogue_label": "培养皿通讯",
+				"dialogue_skip_text": "结束通讯",
+				"dialogue_start_text": "开始尝试 →",
+				"dialogues": [
+					"你手头有三枚复制器，目标是让朝上的摧毁细胞依次生长出来，刚好落到三处污染下方。",
+					"让第一枚复制器先长出副本，再让下一枚复制器去读取那枚新副本。注意中间需要给新长出来的细胞留出空位。放好之后可以先点单步看看，你要是急性子直接点击开始也没问题。",
+					"这些细胞就像锁链一样，一环扣着一环往外长。……我也挺好奇的，你的意识链条到底能像这样延伸到多远的地方。"
+				],
+				"equipment": {
+					"3": 3.0
+				},
+				"experiment": true,
+				"group_reference": false,
+				"hints": [
+					"两枚复制器之间留一格，前一枚生成的副本才能成为后一枚的样本。",
+					"样本朝上，副本也朝上。将输出位置对准污染下方。",
+					"一种参考摆法：复制器 (-1,0) 朝右；复制器 (1,0) 朝右；复制器 (3,0) 朝右。"
+				],
+				"intro": "全部清理三处污染。",
+				"mechanism": "复制",
+				"portrait": "res://assets/portraits/doctor_normal.png",
+				"reference": [
+					[
+						3.0,
+						-1.0,
+						0.0,
+						0.0,
+						0.0
+					],
+					[
+						3.0,
+						1.0,
+						0.0,
+						0.0,
+						0.0
+					],
+					[
+						3.0,
+						3.0,
+						0.0,
+						0.0,
+						0.0
+					]
+				],
+				"revision": 8,
+				"run_text": "全部清理三处污染。",
+				"speaker": "塔洛斯",
+				"steps": [],
+				"success": "三处都清干净了。你倒是学得挺快，有点出乎我的意料了。……Umm，我得对原本的假设做出一些调整了。",
+				"title": "第二幕 · 从前有座山，山里有座庙",
+				"dialogue_portraits": [
+					"res://assets/portraits/doctor_normal.png",
+					"res://assets/portraits/doctor_teaching.png",
+					"res://assets/portraits/doctor_thinking.png"
+				],
+				"success_dialogues": [
+					"三处都清干净了。你倒是学得挺快，有点出乎我的意料了。……Umm，我得对原本的假设做出一些调整了。"
+				],
+				"success_portraits": [
+					"res://assets/portraits/doctor_surprised.png"
+				],
+				"story_revision": 2
+			}
+		},
+		"followup_offset_x": 18.0,
+		"group_reference": false,
+		"hints": [
+			"样本紧贴复制器背面，箭头前方留空。副本会沿用样本朝向。",
+			"一种参考摆法：复制器 (1,0) 朝右。"
+		],
+		"intro": "清除污染。",
+		"mechanism": "复制",
+		"portrait": "res://assets/portraits/doctor_normal.png",
+		"reference": [
+			[
+				3.0,
+				1.0,
+				0.0,
+				0.0,
+				0.0
+			]
+		],
+		"revision": 8,
+		"run_text": "清除污染。",
+		"speaker": "塔洛斯",
+		"steps": [],
+		"success": "做得不错。",
+		"title": "第一幕 · 我家门口有两棵树",
+		"transition_dialogues": [
+			"做得不错。",
+			"唔，分裂的时候，你的意识究竟是留在原本那枚细胞里，还是同时落在了新生的那枚上？……算了，先继续实验。",
+			"前面还有三处污染，但是摧毁细胞样本只有一枚。不过，刚长出来的新细胞也能接着当下一级的样本。来试试看。"
+		],
+		"story_revision": 2,
+		"dialogue_portraits": [
+			"res://assets/portraits/doctor_normal.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_normal.png"
+		],
+		"transition_portraits": [
+			"res://assets/portraits/doctor_smile.png",
+			"res://assets/portraits/doctor_thinking.png",
+			"res://assets/portraits/doctor_normal.png"
+		],
+		"success_dialogues": [
+			"做得不错。"
+		],
+		"success_portraits": [
+			"res://assets/portraits/doctor_smile.png"
+		]
+	}
+}

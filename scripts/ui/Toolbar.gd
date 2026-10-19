@@ -31,6 +31,7 @@ var rotate_btn: Button
 var pointer_btn: Button
 var description_label: Label
 var editing_enabled := true
+var allowed_types: Array = []
 var group_button: Button
 
 func setup(p_is_editor_mode: bool) -> void:
@@ -199,7 +200,9 @@ func _build_ui() -> void:
 	deselect_tool()
 
 func select_type(type_val: int) -> void:
+	if not direct_placement_enabled: return
 	if not editing_enabled: return
+	if not allowed_types.is_empty() and type_val not in allowed_types: return
 	current_type = type_val
 	is_placing = true
 	if type_buttons.has(type_val):
@@ -219,7 +222,13 @@ func select_pointer() -> void:
 	deselect_tool()
 
 func cycle_tool(step: int) -> void:
+	if not direct_placement_enabled: return
 	if not editing_enabled: return
+	if not allowed_types.is_empty():
+		var index := allowed_types.find(current_type)
+		if index < 0: index = -1 if step > 0 else 0
+		select_type(int(allowed_types[posmod(index + step, allowed_types.size())]))
+		return
 	var max_type := BlockData.Type.PROTECTED if is_editor_mode else BlockData.Type.ROTATOR
 	var next_type: int
 	if not is_placing or current_type < 0:
@@ -254,6 +263,8 @@ func _describe_selection() -> void:
 	if description_label == null: return
 	if not editing_enabled:
 		description_label.text = "模拟后暂停也不能编辑 · 点击「重置」恢复构装"
+	elif not direct_placement_enabled:
+		description_label.text = "本幕只使用场上细胞 · 单选 / 框选 · 右键菜单 · F1 操作手册"
 	elif not is_placing or current_type < 0:
 		description_label.text = "选择模式 · 框选/单选方块 · 右键菜单 · 按 1~6 建造"
 	else:
@@ -264,6 +275,25 @@ func _describe_selection() -> void:
 func set_editable(enabled: bool) -> void:
 	if editing_enabled == enabled: return
 	editing_enabled = enabled
-	for button in type_buttons.values(): button.disabled = not enabled
+	for type in type_buttons: type_buttons[type].disabled = not enabled or not direct_placement_enabled or (not allowed_types.is_empty() and type not in allowed_types)
 	for button in [pointer_btn, variant_btn, mode_btn, rotate_btn, group_button]: button.disabled = not enabled
+	_describe_selection()
+
+func set_allowed_types(types: Array) -> void:
+	allowed_types = types
+	for type in type_buttons:
+		type_buttons[type].visible = types.is_empty() or type in types
+		type_buttons[type].disabled = not editing_enabled or not direct_placement_enabled or (not types.is_empty() and type not in types)
+	if not types.is_empty() and current_type not in types: deselect_tool()
+
+var direct_placement_enabled := true
+var placement_tooltips: Dictionary = {}
+
+func set_direct_placement_enabled(enabled: bool) -> void:
+	direct_placement_enabled = enabled
+	if not enabled: deselect_tool()
+	set_allowed_types(allowed_types)
+	for button in type_buttons.values():
+		if not placement_tooltips.has(button): placement_tooltips[button] = button.tooltip_text
+		button.tooltip_text = "本幕请移动或复制场上的细胞，不能直接放置。" if not enabled else placement_tooltips[button]
 	_describe_selection()

@@ -2,6 +2,7 @@ extends PanelContainer
 const UI = preload("res://scripts/ui/UIStyle.gd")
 
 signal restart_requested()
+signal dialogue_requested()
 
 var lesson: Dictionary = {}
 var active_step := -1
@@ -13,6 +14,9 @@ var reminder: Label
 var restart_button: Button
 var hint_button: Button
 var hint_index := 0
+var replay_button: Button
+var inventory_label: Label
+var edit_progress := 0
 
 func _init() -> void:
 	theme = UI.get_theme()
@@ -52,6 +56,11 @@ func _init() -> void:
 		_show_hint()
 	)
 	box.add_child(hint_button)
+	replay_button = Button.new()
+	replay_button.text = "重听博士讲解"
+	replay_button.pressed.connect(func(): dialogue_requested.emit())
+	box.add_child(replay_button)
+	inventory_label = _label(box, 14, UI.ACCENT)
 
 func _label(parent: Node, font_size: int, color: Color) -> Label:
 	var label := Label.new()
@@ -63,11 +72,18 @@ func _label(parent: Node, font_size: int, color: Color) -> Label:
 
 func configure(data: Dictionary) -> void:
 	lesson = data.duplicate(true)
-	active_step = -1
+	edit_progress = 0
+	hint_button.disabled = false
+	active_step = -999
+	task.text = ""
 	visible = not lesson.is_empty()
 	heading.text = str(lesson.get("title", "母巢教学"))
 	dialogue.text = str(lesson.get("intro", ""))
-	hint_index = 0
+	hint_index = -1 if lesson.get("experiment", false) else 0
+	replay_button.visible = lesson.has("dialogues")
+	inventory_label.visible = lesson.get("experiment", false)
+	reminder.visible = not lesson.get("experiment", false)
+	reminder.text = "先运行观察，再重置调整。\n器材配额不会因复制品而扣减。" if lesson.get("experiment", false) else "左键放置 · 右键擦除\nQ / E 调整箭头 · 单步观察结果\n放错了可以擦除；重置保留你的构装。"
 	hint_button.visible = lesson.has("hints")
 	restart_button.text = "还原预设" if lesson.has("hints") else "重新教学"
 	_fit_height.call_deferred()
@@ -94,11 +110,24 @@ func next_step(world: GridWorld, ticks: int) -> int:
 	return steps.size()
 
 func can_run(world: GridWorld, ticks: int) -> bool:
+	if lesson.get("edit_practice", false) and edit_progress < 3: return false
+	if lesson.get("experiment", false): return true
 	return lesson.is_empty() or next_step(world, ticks) == lesson.get("steps", []).size()
 
 func refresh(world: GridWorld, ticks: int, animating: bool) -> Dictionary:
 	if lesson.is_empty(): return {}
 	restart_button.disabled = animating
+	if lesson.get("experiment", false):
+		if ticks == 0:
+			inventory_label.text = preload("res://scripts/core/TutorialRules.gd").inventory(world, lesson).replace("本关器材 · 已用 / 配额", "可布置细胞 · 已用 / 上限")
+		else:
+			inventory_label.text = "培养皿观察 · 第 %d 步\n重置后可继续布置细胞。" % ticks
+	if lesson.get("edit_practice", false) and edit_progress < 3:
+		_show_edit_practice()
+		if lesson.get("edit_sequence", "") == "move_then_copy":
+			var target: Array = lesson.get("edit_move_target", [0, 1])
+			return {"x": int(target[0]), "y": int(target[1]), "type": 0}
+		return {}
 	if lesson.has("hints"):
 		_show_hint()
 		return {}
@@ -106,7 +135,7 @@ func refresh(world: GridWorld, ticks: int, animating: bool) -> Dictionary:
 	var steps: Array = lesson.get("steps", [])
 	if index != active_step:
 		active_step = index
-		progress.text = "母巢导师 · %d / %d" % [index + 1, steps.size() + 1]
+		progress.text = "塔洛斯的通讯 · %d / %d" % [index + 1, steps.size() + 1]
 		if index < steps.size():
 			task.text = str(steps[index].get("text", ""))
 		else:
@@ -116,10 +145,52 @@ func refresh(world: GridWorld, ticks: int, animating: bool) -> Dictionary:
 	return {}
 
 func _show_hint() -> void:
+	if lesson.get("edit_practice", false) and edit_progress < 3:
+		_show_edit_practice()
+		return
 	var hints: Array = lesson.get("hints", [])
 	if hints.is_empty(): return
-	if active_step == hint_index: return
+	if active_step == hint_index and not task.text.is_empty(): return
 	active_step = hint_index
+	if hint_index < 0:
+		progress.text = "当前目标 · 可以先试，再看提示"
+		task.text = str(lesson.get("run_text", "观察目标，尝试构装。"))
+		_fit_height.call_deferred()
+		return
 	progress.text = "可选提示 · %d / %d" % [hint_index + 1, hints.size()]
 	task.text = str(hints[hint_index])
+	_fit_height.call_deferred()
+
+func record_edit_action(action: String) -> void:
+	if not lesson.get("edit_practice", false) or edit_progress >= 3: return
+	var sequence := ["move", "copy", "paste"] if lesson.get("edit_sequence", "") == "move_then_copy" else ["copy", "paste", "move"]
+	if action == sequence[edit_progress]:
+		edit_progress += 1
+		active_step = -999
+		if edit_progress == 3:
+			hint_index = -1
+			hint_button.disabled = false
+			lesson.run_text = str(lesson.get("edit_complete_text", "操作练习完成！现在把三个晶胚端点连接起来，再单步验收。需要复习时按 F1。"))
+
+func _show_edit_practice() -> void:
+	hint_button.disabled = true
+	progress.text = "调配自己的细胞 · %d / 3" % (edit_progress + 1)
+	var copy_key := KeybindManager.get_action_display_name("copy")
+	var paste_key := KeybindManager.get_action_display_name("paste")
+	var cut_key := KeybindManager.get_action_display_name("cut")
+	var cancel_key := KeybindManager.get_action_display_name("cancel_tool")
+	var messages := [
+		"先放一枚普通细胞（普通方块）。按 %s 退出放置，左键选中它，再按 %s 复制。" % [cancel_key, copy_key],
+		"样本已记下。按 %s，把预览移到绿色区域的空格，左键确认。原件会保留，副本也属于你的身体。" % paste_key,
+		"试着移动一小片身体：从空白处拖框选中至少两枚自建细胞，按 %s 剪切，再移动鼠标，左键放到另一处空位。无需再次粘贴。" % cut_key
+	]
+	if lesson.get("edit_sequence", "") == "move_then_copy":
+		var target: Array = lesson.get("edit_move_target", [0, 1])
+		var coordinate := "(%d,%d)" % [int(target[0]), int(target[1])]
+		messages = [
+			"左键选中散落的普通细胞，按 %s 剪切，移到高亮格 %s，左键确认。剪切后无需再按粘贴；本幕不能直接放置新细胞。" % [cut_key, coordinate],
+			"细胞已到位。左键选中 %s 的这枚普通细胞，按 %s 复制，原件会保留。" % [coordinate, copy_key],
+			"按 %s，把副本放在晶胚之间的空格。随后可再次按 %s 继续粘贴，直到三枚晶胚上下左右连通。" % [paste_key, paste_key]
+		]
+	task.text = messages[edit_progress]
 	_fit_height.call_deferred()

@@ -1,0 +1,224 @@
+{
+	"level_id": "tutorial_04",
+	"level_name": "教学 04：转向",
+	"description": "选择逆时针模式，让朝下的摧毁细胞转向右侧污染摧毁它。",
+	"author": "塔洛斯博士",
+	"cg_theme": "cyan_core",
+	"order_index": -70,
+	"player_build_area": {
+		"x": -4,
+		"y": -3,
+		"w": 11,
+		"h": 8
+	},
+	"blocks": [
+		{
+			"type": 4,
+			"pos_x": 0,
+			"pos_y": 0,
+			"dir": 1,
+			"is_world_block": true,
+			"hp": 2,
+			"max_hp": 2,
+			"sub_mode": 0,
+			"structure_id": 0,
+			"texture_variant": 0,
+			"id": 903000,
+			"origin_id": 903000
+		},
+		{
+			"type": 9,
+			"pos_x": 1,
+			"pos_y": 0,
+			"dir": 0,
+			"is_world_block": true,
+			"hp": 2,
+			"max_hp": 2,
+			"sub_mode": 0,
+			"structure_id": 0,
+			"texture_variant": 0,
+			"id": 903001,
+			"origin_id": 903001
+		}
+	],
+	"tutorial": {
+		"equipment": {
+			"5": 1
+		},
+		"speaker": "塔洛斯",
+		"dialogues": [
+			"这里又出现了一处污染，正好它旁边有一个摧毁细胞。但这个摧毁细胞方向朝下，没法直接摧毁右侧污染。",
+			"你可以利用转向细胞让摧毁细胞对准污染。喏，看下面，这个就是“转向器”——也就是转向细胞，它会让前方的细胞原地旋转九十度，方向嘛……你可以自己决定。",
+			"现在，把转向细胞放在样本左侧，箭头朝右对准它，模式调成“逆时针”。原本朝下的摧毁细胞逆时针转九十度，就正好朝右了。",
+			"万一顺逆时针搞反了也没关系，重置一下再改就行。"
+		],
+		"run_text": "选择逆时针模式，让朝下的摧毁细胞转向右侧污染摧毁它。",
+		"title": "第一幕 · 全体目光向我看齐",
+		"camera_zoom": 0.85,
+		"reference": [
+			[
+				5,
+				-1,
+				0,
+				0,
+				1
+			]
+		],
+		"group_reference": false,
+		"hints": [
+			"转向器放在样本左边，指向样本。逆时针把朝下转成朝右；再走一步，删除细胞才会攻击右侧污染。",
+			"一种参考摆法：旋转器 (-1,0) 朝右、逆时针。"
+		],
+		"intro": "选择逆时针模式，让朝下的摧毁细胞转向右侧污染摧毁它。",
+		"steps": [],
+		"success": "你学会了……那我们稍微加点难度。",
+		"camera_offset_x": 180,
+		"experiment": true,
+		"portrait": "res://assets/portraits/doctor_thinking.png",
+		"act_title": "第一幕 · 全体目光向我看齐",
+		"dialogue_label": "培养皿通讯",
+		"dialogue_start_text": "开始尝试 →",
+		"dialogue_skip_text": "结束通讯",
+		"mechanism": "旋转",
+		"transition_dialogues": [
+			"你学会了……那我们稍微加点难度。",
+			"再往旁边看，这次有三个污染要处理。按理说，只靠一枚摧毁细胞应该就够了。"
+		],
+		"followup": {
+			"level_id": "tutorial_04",
+			"level_name": "教学 04：转向",
+			"description": "清除三个方向的污染。",
+			"author": "塔洛斯博士",
+			"cg_theme": "cyan_core",
+			"order_index": -70,
+			"player_build_area": {
+				"x": -4,
+				"y": -3,
+				"w": 11,
+				"h": 8
+			},
+			"blocks": [
+				{
+					"type": 9,
+					"pos_x": 1,
+					"pos_y": 0,
+					"dir": 0,
+					"is_world_block": true,
+					"hp": 2,
+					"max_hp": 2,
+					"sub_mode": 0,
+					"structure_id": 0,
+					"texture_variant": 0,
+					"id": 903100,
+					"origin_id": 903100
+				},
+				{
+					"type": 9,
+					"pos_x": 2,
+					"pos_y": 1,
+					"dir": 0,
+					"is_world_block": true,
+					"hp": 2,
+					"max_hp": 2,
+					"sub_mode": 0,
+					"structure_id": 0,
+					"texture_variant": 0,
+					"id": 903101,
+					"origin_id": 903101
+				},
+				{
+					"type": 9,
+					"pos_x": 1,
+					"pos_y": 2,
+					"dir": 0,
+					"is_world_block": true,
+					"hp": 2,
+					"max_hp": 2,
+					"sub_mode": 0,
+					"structure_id": 0,
+					"texture_variant": 0,
+					"id": 903102,
+					"origin_id": 903102
+				}
+			],
+			"tutorial": {
+				"equipment": {
+					"4": 1,
+					"5": 1
+				},
+				"speaker": "塔洛斯",
+				"dialogues": [
+					"找一个能同时和三处污染相邻的中心格，把摧毁细胞放进去，再把转向细胞放在剩下的那个空位上，箭头对准它。",
+					"顺时针或者逆时针应该都能走通。你来试试吧。"
+				],
+				"run_text": "清除三个方向的污染。",
+				"title": "第二幕 · 爱的魔力转圈圈",
+				"camera_zoom": 0.85,
+				"reference": [
+					[
+						4,
+						1,
+						1,
+						3,
+						0
+					],
+					[
+						5,
+						0,
+						1,
+						0,
+						0
+					]
+				],
+				"group_reference": false,
+				"hints": [
+					"先找同时贴近三处污染的位置，再把转向器放在空着的那一侧。",
+					"删除细胞按每步开始时的朝向攻击。顺时针时从朝上开始；逆时针时从朝下开始，都能在碰到转向器前清完三处污染。",
+					"一种参考摆法：删除 (1,1) 朝上；旋转器 (0,1) 朝右、顺时针。连续运行三步。"
+				],
+				"intro": "清除三个方向的污染。",
+				"steps": [],
+				"success": "很利落。我对你越来越感兴趣了，继续吧。",
+				"camera_offset_x": 180,
+				"experiment": true,
+				"portrait": "res://assets/portraits/doctor_teaching.png",
+				"act_title": "第二幕 · 爱的魔力转圈圈",
+				"dialogue_label": "培养皿通讯",
+				"dialogue_start_text": "开始尝试 →",
+				"dialogue_skip_text": "结束通讯",
+				"mechanism": "旋转",
+				"revision": 9,
+				"dialogue_portraits": [
+					"res://assets/portraits/doctor_teaching.png",
+					"res://assets/portraits/doctor_thinking.png"
+				],
+				"success_dialogues": [
+					"很利落。我对你越来越感兴趣了，继续吧。"
+				],
+				"success_portraits": [
+					"res://assets/portraits/doctor_smile.png"
+				],
+				"story_revision": 2
+			}
+		},
+		"followup_offset_x": 18,
+		"revision": 9,
+		"story_revision": 2,
+		"dialogue_portraits": [
+			"res://assets/portraits/doctor_thinking.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_normal.png"
+		],
+		"transition_portraits": [
+			"res://assets/portraits/doctor_thinking.png",
+			"res://assets/portraits/doctor_normal.png"
+		],
+		"success_dialogues": [
+			"你学会了……那我们稍微加点难度。"
+		],
+		"success_portraits": [
+			"res://assets/portraits/doctor_thinking.png"
+		]
+	}
+}

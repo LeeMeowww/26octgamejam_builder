@@ -26,6 +26,7 @@ class TickResult extends RefCounted:
 var world: GridWorld
 var player_build_area: Rect2i = Rect2i()
 var rng: RandomNumberGenerator
+var construction_inspection: bool = false
 var step_count: int = 0
 var initial_pollution_count: int = 0
 var initial_treasure_count: int = 0
@@ -901,6 +902,7 @@ func _treasure_in_zone(b: BlockData) -> bool:
 	return false
 
 func _check_victory() -> bool:
+	if construction_inspection: return _connected_training_terminals()
 	# 严格胜利判定（所有条件 AND）：
 	# 1. 污染源当前数量必须为 0。
 	# 2. 每个初始宝藏谱系至少有一个副本曾进入建造区。
@@ -918,3 +920,26 @@ func _check_victory() -> bool:
 	# 必须有至少一个初始目标（污染源、宝藏或保护方块）才判定胜利
 	var has_any_objective: bool = (initial_pollution_count > 0 or initial_treasure_origin_ids.size() > 0 or initial_protected_count > 0)
 	return has_any_objective
+
+# Training-only building task. Any orthogonally connected basic-block route is valid.
+func _connected_training_terminals() -> bool:
+	var terminals: Array[Vector2i] = []
+	for block in world.get_all_blocks():
+		if block.block_type == BlockData.Type.PROTECTED: terminals.append(block.grid_pos)
+	if terminals.size() < 2: return false
+	var queue: Array[Vector2i] = [terminals[0]]
+	var seen := {terminals[0]: true}
+	var cursor := 0
+	while cursor < queue.size():
+		var pos := queue[cursor]
+		cursor += 1
+		for direction in BlockData.DIR_VECTORS:
+			var neighbor: Vector2i = pos + direction
+			if seen.has(neighbor): continue
+			var block := world.get_block(neighbor)
+			if block == null or block.block_type not in [BlockData.Type.BASIC, BlockData.Type.PROTECTED]: continue
+			seen[neighbor] = true
+			queue.append(neighbor)
+	for pos in terminals:
+		if not seen.has(pos): return false
+	return true

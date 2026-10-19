@@ -64,7 +64,7 @@ static func get_all_levels() -> Array[LevelData]:
 				if not deleted_ids.has(lvl_id):
 					var lvl := load_level_from_path(USER_LEVELS_DIR + "/" + file_name)
 					if lvl != null and not deleted_ids.has(lvl.level_id):
-						levels_dict[lvl.level_id] = lvl
+						levels_dict[lvl.level_id] = _prefer_current_tutorial(lvl, levels_dict.get(lvl.level_id))
 			file_name = user_dir.get_next()
 
 	var result: Array[LevelData] = []
@@ -121,12 +121,22 @@ static func load_level(level_id: String) -> LevelData:
 	if deleted_ids.has(level_id):
 		return null
 	var user_path := "%s/%s.json" % [USER_LEVELS_DIR, level_id]
-	if FileAccess.file_exists(user_path):
-		return load_level_from_path(user_path)
 	var res_path := "%s/%s.json" % [RES_LEVELS_DIR, level_id]
-	if FileAccess.file_exists(res_path):
-		return load_level_from_path(res_path)
-	return null
+	var authored := load_level_from_path(res_path) if FileAccess.file_exists(res_path) else null
+	if FileAccess.file_exists(user_path):
+		return _prefer_current_tutorial(load_level_from_path(user_path), authored)
+	return authored
+
+static func _prefer_current_tutorial(saved: LevelData, authored: LevelData) -> LevelData:
+	if saved == null: return authored
+	if authored != null and authored.level_id.begins_with("tutorial_"):
+		# Local editor saves are also synchronized to res://. At the same
+		# revision, the shipped/source lesson is authoritative: dialogue and
+		# input-guide updates must not be hidden by an older user:// copy.
+		# Preserve a genuinely newer saved lesson and normal custom overrides.
+		if int(authored.tutorial.get("revision", 0)) >= int(saved.tutorial.get("revision", 0)):
+			return authored
+	return saved
 
 static func load_level_from_path(path: String) -> LevelData:
 	var file := FileAccess.open(path, FileAccess.READ)

@@ -1,0 +1,82 @@
+{
+	"level_id": "tutorial_01",
+	"level_name": "教学 02：清理",
+	"description": "摆好摧毁细胞，检查箭头，再点“单步”清除污染。",
+	"author": "塔洛斯博士",
+	"cg_theme": "cyan_core",
+	"order_index": -90,
+	"player_build_area": {
+		"x": -4,
+		"y": -3,
+		"w": 11,
+		"h": 8
+	},
+	"blocks": [
+		{
+			"type": 9,
+			"pos_x": 1,
+			"pos_y": 0,
+			"dir": 0,
+			"is_world_block": true,
+			"hp": 2,
+			"max_hp": 2,
+			"sub_mode": 0,
+			"structure_id": 0,
+			"texture_variant": 0,
+			"id": 901000,
+			"origin_id": 901000
+		}
+	],
+	"tutorial": {
+		"equipment": {
+			"4": 1
+		},
+		"speaker": "塔洛斯",
+		"dialogues": [
+			"接下来，可以让你尝试更多事情了。看见那团紫色的东西了吗？那是坏死污染，绝对不能让它在培养液里扩散。",
+			"之前都是我来处理掉，现在你试试自己清理干净。选工具栏里的“摧毁器”，也就是负责吞噬清理的摧毁细胞。它会清除箭头正前方紧邻的一格。把它贴着污染放下，记得让箭头朝向污染。",
+			"放置的时候可以用 Q / E 调整朝向。摆好之后先点一次“单步”。"
+		],
+		"run_text": "摆好摧毁细胞，检查箭头，再点“单步”清除污染。",
+		"title": "嘎嘣脆，鸡肉味",
+		"camera_zoom": 0.85,
+		"reference": [
+			[
+				4,
+				0,
+				0,
+				0,
+				0
+			]
+		],
+		"group_reference": false,
+		"hints": [
+			"删除细胞够不到隔着空格的目标。紧贴污染，并让箭头指向它。",
+			"一种参考摆法：删除 (0,0) 朝右。"
+		],
+		"intro": "摆好摧毁细胞，检查箭头，再点“单步”清除污染。",
+		"steps": [],
+		"success": "不错不错，清理干净了。",
+		"camera_offset_x": 180,
+		"experiment": true,
+		"portrait": "res://assets/portraits/doctor_normal.png",
+		"act_title": "嘎嘣脆，鸡肉味",
+		"dialogue_label": "培养皿通讯",
+		"dialogue_start_text": "开始尝试 →",
+		"dialogue_skip_text": "结束通讯",
+		"mechanism": "删除",
+		"revision": 8,
+		"story_revision": 2,
+		"dialogue_portraits": [
+			"res://assets/portraits/doctor_normal.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_teaching.png"
+		],
+		"success_dialogues": [
+			"不错不错，清理干净了。"
+		],
+		"success_portraits": [
+			"res://assets/portraits/doctor_smile.png"
+		]
+	}
+}

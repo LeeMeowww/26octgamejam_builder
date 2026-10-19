@@ -36,9 +36,10 @@ func click(button: Button) -> void:
 
 func run() -> void:
 	var old_progress := FileAccess.get_file_as_bytes(Campaign.PROGRESS_PATH) if FileAccess.file_exists(Campaign.PROGRESS_PATH) else PackedByteArray()
+	ConfigFile.new().save(Campaign.PROGRESS_PATH)
 	Campaign.active_level = ""
 	var levels := SaveManager.get_all_levels()
-	check(levels.size() >= 14, "All 14 levels are discoverable")
+	check(levels.size() >= 21, "All 14 levels are discoverable")
 	var next := Campaign.next_index("custom_level_80400", levels)
 	check(next >= 0 and levels[next].level_id == "custom_level_81906", "Gun 1 leads to Gun 2")
 	next = Campaign.next_index("custom_level_81906", levels)
@@ -76,26 +77,29 @@ func run() -> void:
 	var menu: LevelSelect = load("res://scenes/ui/LevelSelect.tscn").instantiate()
 	root.add_child(menu)
 	await process_frame
-	check(menu.chapter_buttons.size() >= 4, "Four chapter tabs exist")
+	check(menu.chapter_buttons.size() >= 5, "Tutorial and four formal chapter tabs exist")
+	check(menu.node_buttons.size() == 1, "Only first tutorial is initially visible")
+	menu.chapter_buttons[1].pressed.emit()
+	await process_frame
 	check(menu.node_buttons.size() == 3, "Gun chapter contains 3 nodes")
 	check(menu.map.routes.size() == 2, "Gun chapter routes rendered")
 
-	menu.chapter_buttons[1].pressed.emit()
+	menu.chapter_buttons[2].pressed.emit()
 	await process_frame
 	check(menu.node_buttons.size() == 4, "Acquire chapter contains 4 nodes")
 	check(menu.map.routes.size() == 3, "Acquire chapter routes rendered")
 
-	menu.chapter_buttons[2].pressed.emit()
+	menu.chapter_buttons[3].pressed.emit()
 	await process_frame
 	check(menu.node_buttons.size() == 4, "Car chapter contains 4 nodes")
 	check(menu.map.routes.size() == 3, "Car chapter routes rendered")
 
-	menu.chapter_buttons[3].pressed.emit()
+	menu.chapter_buttons[4].pressed.emit()
 	await process_frame
 	check(menu.node_buttons.size() == 3, "Counter chapter contains 3 nodes")
 	check(menu.map.routes.size() == 2, "Counter chapter routes rendered")
 
-	menu.chapter_buttons[0].pressed.emit()
+	menu.chapter_buttons[1].pressed.emit()
 	await process_frame
 	menu.node_buttons["custom_level_80400"].pressed.emit()
 	await process_frame
