@@ -44,6 +44,7 @@ var build_area_warning_label: Label
 var is_simulating: bool = false
 var is_animating_tick: bool = false
 var has_simulated: bool = false
+var tick_generation: int = 0
 var sim_speed_multiplier: float = 1.0 # 0.2x ~ 20.0x
 var base_tick_duration: float = 0.35 # seconds
 var ui_layer: CanvasLayer
@@ -138,6 +139,7 @@ func load_level_by_index(idx: int) -> void:
 		load_level_data(all_levels[idx])
 
 func load_level_data(lvl_data: LevelData) -> void:
+	tick_generation += 1
 	undo_stack.clear()
 	redo_stack.clear()
 	MusicManager.play_ambient()
@@ -498,6 +500,7 @@ func step_single_tick() -> void:
 	_execute_tick()
 
 func reset_simulation() -> void:
+	tick_generation += 1
 	is_simulating = false
 	is_animating_tick = false
 	has_simulated = false
@@ -524,6 +527,7 @@ func _run_sim_loop() -> void:
 
 func _execute_tick() -> void:
 	is_animating_tick = true
+	var generation := tick_generation
 	# One UI click contains both phases: rotation first, then all other
 	# mechanisms. The simulation advances the step counter only once.
 	var rotation_res := sim_engine.step_tick(true, false, true)
@@ -533,6 +537,8 @@ func _execute_tick() -> void:
 	var duration := base_tick_duration / sim_speed_multiplier
 	grid_view.play_tick_animation(rotation_res, duration, func():
 		grid_view.play_tick_animation(movement_res, duration, func():
+			if generation != tick_generation:
+				return
 			is_animating_tick = false
 			if movement_res.is_victory:
 				pause_simulation()
