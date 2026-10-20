@@ -4,12 +4,14 @@ extends Control
 const UI = preload("res://scripts/ui/UIStyle.gd")
 const Campaign = preload("res://scripts/core/Campaign.gd")
 const UI_ANIMATED_ICON = preload("res://scripts/ui/UIAnimatedIcon.gd")
-var title_label: Label
-var subtitle_label: Label
+const MAIN_MENU_FONT = preload("res://assets/fonts/font.ttf")
+
+var title_label: Node
 var settings_menu: SettingsMenu
 
 func _ready() -> void:
-	if title_label != null: return
+	if title_label != null:
+		return
 	KeybindManager.init_keybinds()
 	SaveManager.init_directories()
 	theme = UI.get_theme()
@@ -17,78 +19,171 @@ func _ready() -> void:
 	_build_ui()
 
 func _build_ui() -> void:
-	var bg := ColorRect.new()
-	bg.color = UI.BG
+	var bg := TextureRect.new()
+	bg.texture = load("res://scenes/animation/background/mid.png")
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.stretch_mode = TextureRect.STRETCH_TILE
+	bg.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	add_child(bg)
+	_add_background_frame()
+
+	# Keep the title and the three primary actions centered as one group.
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	center.offset_top = 60.0
 	add_child(center)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 90)
-	center.add_child(row)
-	var intro := VBoxContainer.new()
-	intro.custom_minimum_size.x = 480
-	intro.add_theme_constant_override("separation", 20)
-	row.add_child(intro)
-	UI.label(intro, "G E S T A L T   /   构 装 实 验 室", 15, UI.ACCENT)
-	title_label = UI.label(intro, "格 式 塔", 68)
-	subtitle_label = UI.label(intro, "让简单规则，长成复杂机械。", 24, UI.MUTED)
-	var space := Control.new()
-	space.custom_minimum_size.y = 12
-	intro.add_child(space)
-	var cells := HBoxContainer.new()
-	cells.add_theme_constant_override("separation", 16)
-	intro.add_child(cells)
-	var cover_icons: Array[Dictionary] = [
-		{"path": "res://scenes/animation/Invalidate_idle(1).png", "frames": 8},
-		{"path": "res://scenes/animation/push(2).png", "frames": 15, "tint": Color(1.0, 0.82, 0.035, 1.0)},
-		{"path": "res://scenes/animation/breed.png", "frames": 12, "tint": Color(0.86, 0.89, 0.93, 1.0)},
-		{"path": "res://scenes/animation/eating(1).png", "frames": 16, "tint": Color(1.0, 0.035, 0.035, 1.0)}
-	]
-	for icon_data in cover_icons:
-		var tile := UI_ANIMATED_ICON.new()
-		tile.configure(icon_data["path"], icon_data["frames"], 8.0, icon_data.get("tint", Color.WHITE))
-		tile.custom_minimum_size = Vector2(64, 64)
-		cells.add_child(tile)
-	UI.label(intro, "搭建  →  观察  →  改进", 20, UI.ACCENT)
-	UI.label(intro, "没有唯一答案，只有你创造的下一种可能。", 16, UI.MUTED)
-	var card := PanelContainer.new()
-	card.custom_minimum_size.x = 360
-	card.add_theme_stylebox_override("panel", UI.box(UI.PANEL, UI.BORDER, 16, 28))
-	row.add_child(card)
-	var actions := VBoxContainer.new()
-	actions.add_theme_constant_override("separation", 16)
-	card.add_child(actions)
-	UI.label(actions, "开始一次构装", 24)
-	UI.label(actions, "从第一关出发，随时回访任何章节。", 15, UI.MUTED)
-	var play := _button(actions, "探索章节地图  →")
+	var content := VBoxContainer.new()
+	content.custom_minimum_size = Vector2(360, 0)
+	content.add_theme_constant_override("separation", 16)
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(content)
+
+	var animated_title := UI_ANIMATED_ICON.new()
+	animated_title.name = "TitleAnimation"
+	animated_title.configure("res://scenes/animation/title.png", 8, 8.0)
+	animated_title.custom_minimum_size = Vector2(900, 250)
+	animated_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_label = animated_title
+	content.add_child(animated_title)
+
+	var play := _button(content, "探索章节地图  →")
 	UI.primary(play)
+	_apply_button_skin(play)
 	play.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn"))
-	var learn := _button(actions, "第一次来？从基础开始")
+
+	var learn := _button(content, "第一次来？从基础开始")
 	learn.pressed.connect(func():
 		Campaign.active_level = Campaign.TUTORIAL_ORDER[0]
 		get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn")
 	)
-	actions.add_child(HSeparator.new())
-	var editor := _button(actions, "创作工坊")
+	var common_button_width: float = maxf(play.get_combined_minimum_size().x, learn.get_combined_minimum_size().x)
+	play.custom_minimum_size = Vector2(common_button_width, 46)
+	learn.custom_minimum_size = Vector2(common_button_width, 46)
+
+	var editor := _button(content, "创作工坊")
 	editor.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/ui/LevelManager.tscn"))
-	var settings_btn := _button(actions, "系统设置")
-	settings_btn.pressed.connect(func():
-		settings_menu.visible = true
-	)
-	var manual := _button(actions, "操作手册 · F1")
-	manual.pressed.connect(func(): get_node("/root/OperationManual").open())
-	var quit_button := _button(actions, "退出游戏")
+
+	# Utility actions stay in the upper-right corner as large icon buttons.
+	var top_right := MarginContainer.new()
+	top_right.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	top_right.offset_left = -348.0
+	top_right.offset_top = 24.0
+	top_right.offset_right = -152.0
+	top_right.offset_bottom = 88.0
+	add_child(top_right)
+	var utilities := HBoxContainer.new()
+	utilities.alignment = BoxContainer.ALIGNMENT_END
+	utilities.add_theme_constant_override("separation", 12)
+	top_right.add_child(utilities)
+
+	var settings_button := _icon_button(utilities, "res://assets/ui/icon_settings.png", "系统设置")
+	settings_button.pressed.connect(func(): settings_menu.visible = true)
+	var manual_button := _icon_button(utilities, "res://assets/ui/icon_manual.png", "操作手册 · F1")
+	manual_button.pressed.connect(func(): get_node("/root/OperationManual").open())
+	var quit_button := _icon_button(utilities, "res://assets/ui/icon_exit.png", "退出游戏")
 	quit_button.pressed.connect(func(): get_tree().quit())
 
 	settings_menu = SettingsMenu.new()
 	settings_menu.visible = false
 	add_child(settings_menu)
 
+func _add_background_frame() -> void:
+	# The background art is authored as 128px tiles: keep corners fixed and
+	# repeat the four edge strips so the frame remains correct at any window size.
+	_add_frame_piece("res://scenes/animation/background/left_up.png", 0, 128, 0, 128, false, 0.0, 0.0, 0.0, 0.0)
+	_add_frame_piece("res://scenes/animation/background/right_up.png", -128, 0, 0, 128, false, 1.0, 1.0, 0.0, 0.0)
+	_add_frame_piece("res://scenes/animation/background/left_low.png", 0, 128, -128, 0, false, 0.0, 0.0, 1.0, 1.0)
+	_add_frame_piece("res://scenes/animation/background/right_low.png", -128, 0, -128, 0, false, 1.0, 1.0, 1.0, 1.0)
+	_add_frame_piece("res://scenes/animation/background/horizontal edge_up.png", 128, -128, 0, 128, true, 0.0, 1.0, 0.0, 0.0)
+	_add_frame_piece("res://scenes/animation/background/horizontal edge_low.png", 128, -128, -128, 0, true, 0.0, 1.0, 1.0, 1.0)
+	_add_frame_piece("res://scenes/animation/background/Vertical edge_left.png", 0, 128, 128, -128, true, 0.0, 0.0, 0.0, 1.0)
+	_add_frame_piece("res://scenes/animation/background/Vertical edge_right.png", -128, 0, 128, -128, true, 1.0, 1.0, 0.0, 1.0)
+
+func _add_frame_piece(path: String, left: float, right: float, top: float, bottom: float, tiled: bool, anchor_left: float, anchor_right: float, anchor_top: float, anchor_bottom: float) -> void:
+	var piece := TextureRect.new()
+	piece.texture = load(path)
+	piece.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	piece.stretch_mode = TextureRect.STRETCH_TILE if tiled else TextureRect.STRETCH_SCALE
+	piece.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	piece.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	piece.anchor_left = anchor_left
+	piece.anchor_right = anchor_right
+	piece.anchor_top = anchor_top
+	piece.anchor_bottom = anchor_bottom
+	piece.offset_left = left
+	piece.offset_right = right
+	piece.offset_top = top
+	piece.offset_bottom = bottom
+	add_child(piece)
+
 func _button(parent: Node, text: String) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size.y = 48
+	button.custom_minimum_size = Vector2(0, 46)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.add_theme_font_override("font", MAIN_MENU_FONT)
+	button.add_theme_font_size_override("font_size", 20)
+	button.add_theme_color_override("font_color", Color("#17232b"))
+	button.add_theme_color_override("font_hover_color", Color("#0b151c"))
+	button.add_theme_color_override("font_pressed_color", Color("#071017"))
+	button.add_theme_color_override("font_outline_color", Color("#b9f06a"))
+	button.add_theme_constant_override("outline_size", 2)
+	button.resized.connect(func(): button.pivot_offset = button.size * 0.5)
+	button.button_down.connect(func(): _animate_button_press(button, true))
+	button.button_up.connect(func(): _animate_button_press(button, false))
+	button.mouse_exited.connect(func():
+		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			_animate_button_press(button, false)
+	)
+	_apply_button_skin(button)
+	parent.add_child(button)
+	return button
+
+func _apply_button_skin(button: Button) -> void:
+	var texture: Texture2D = load("res://scenes/animation/button_clean.png")
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		var style := StyleBoxTexture.new()
+		style.texture = texture
+		style.texture_margin_left = 28.0
+		style.texture_margin_right = 28.0
+		style.texture_margin_top = 28.0
+		style.texture_margin_bottom = 28.0
+		style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+		style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+		button.add_theme_stylebox_override(state, style)
+
+func _animate_button_press(button: Button, pressed: bool) -> void:
+	var target_scale := Vector2(0.96, 0.96) if pressed else Vector2.ONE
+	var target_modulate := Color(0.78, 0.78, 0.78, 1.0) if pressed else Color.WHITE
+	var tween := button.create_tween().set_parallel(true)
+	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(button, "scale", target_scale, 0.07 if pressed else 0.12)
+	tween.tween_property(button, "modulate", target_modulate, 0.07 if pressed else 0.12)
+
+func _icon_button(parent: Node, icon_path: String, tooltip: String) -> Button:
+	var button := Button.new()
+	button.icon = load(icon_path)
+	button.expand_icon = true
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.add_theme_constant_override("icon_max_width", 42)
+	button.custom_minimum_size = Vector2(60, 60)
+	button.tooltip_text = tooltip
+	button.focus_mode = Control.FOCUS_NONE
+	var clear_style := StyleBoxFlat.new()
+	clear_style.bg_color = Color.TRANSPARENT
+	clear_style.set_border_width_all(0)
+	clear_style.content_margin_left = 0
+	clear_style.content_margin_right = 0
+	clear_style.content_margin_top = 0
+	clear_style.content_margin_bottom = 0
+	button.add_theme_stylebox_override("normal", clear_style)
+	button.add_theme_stylebox_override("pressed", clear_style)
+	button.add_theme_stylebox_override("disabled", clear_style)
+	var hover_style := clear_style.duplicate()
+	hover_style.bg_color = Color(1.0, 1.0, 1.0, 0.12)
+	button.add_theme_stylebox_override("hover", hover_style)
 	parent.add_child(button)
 	return button

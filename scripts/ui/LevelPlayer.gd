@@ -251,8 +251,9 @@ func _build_ui_layout() -> void:
 	var top_panel := PanelContainer.new()
 	top_panel.theme = UI.get_theme()
 	var top_style := StyleBoxFlat.new()
-	top_style.bg_color = Color(0.07, 0.1, 0.14, 0.9)
-	top_style.border_color = Color(0.18, 0.25, 0.35, 0.8)
+	top_style.bg_color = UI.PANEL
+	top_style.border_color = UI.BORDER
+	top_style.set_corner_radius_all(0)
 	top_style.set_border_width_all(1)
 	top_style.content_margin_left = 16
 	top_style.content_margin_right = 16
@@ -435,8 +436,9 @@ func _build_ui_layout() -> void:
 	toolbar.name = "Toolbar"
 	toolbar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var btm_style := StyleBoxFlat.new()
-	btm_style.bg_color = Color(0.07, 0.1, 0.14, 0.92)
-	btm_style.border_color = Color(0.18, 0.25, 0.35, 0.8)
+	btm_style.bg_color = UI.PANEL
+	btm_style.border_color = UI.BORDER
+	btm_style.set_corner_radius_all(0)
 	btm_style.set_border_width_all(1)
 	btm_style.set_corner_radius_all(8)
 	btm_style.content_margin_left = 12
