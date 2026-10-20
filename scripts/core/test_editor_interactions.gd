@@ -382,7 +382,7 @@ func test_undo_redo() -> void:
 	check(undone_count != 100 or editor_deep.world.get_block(Vector2i(20, 20)) == null, "Only records older than 100 steps get dropped")
 	editor_deep.queue_free()
 
-	# Step 10: 工具栏属性变更（变体/子模式/朝向）也必须入撤销栈
+	# Step 10: 工具栏属性变更（子模式/朝向）也必须入撤销栈
 	var editor_props := LevelEditor.new()
 	editor_props.world = GridWorld.new()
 	editor_props.initial_snapshot = editor_props.world.clone()
@@ -393,27 +393,18 @@ func test_undo_redo() -> void:
 	editor_props.world.add_block(prop_block)
 	editor_props.selected_blocks.append(prop_block)
 
-	editor_props._on_toolbar_variant_changed(2)
-	check(prop_block.texture_variant == 2, "Variant change applied to selected block")
-	check(editor_props.undo_stack.size() == 1, "Variant change recorded one undo step")
-	var prop_snapshot: GridWorld = editor_props.undo_stack.back()
-	check(prop_snapshot.get_block(Vector2i(3, 3)).texture_variant == 0, "Undo snapshot keeps the previous variant")
-
-	editor_props._on_toolbar_variant_changed(2)
-	check(editor_props.undo_stack.size() == 1, "No-op variant change does not pollute the undo stack")
-
 	editor_props._on_toolbar_sub_mode_toggled(1)
 	check(prop_block.sub_mode == 1, "Sub-mode change applied to selected block")
-	check(editor_props.undo_stack.size() == 2, "Sub-mode change recorded one undo step")
+	check(editor_props.undo_stack.size() == 1, "Sub-mode change recorded one undo step")
 
 	editor_props._on_toolbar_direction_changed(BlockData.Direction.UP)
 	check(prop_block.direction == BlockData.Direction.UP, "Direction change applied to selected block")
-	check(editor_props.undo_stack.size() == 3, "Direction change recorded one undo step")
+	check(editor_props.undo_stack.size() == 2, "Direction change recorded one undo step")
 
 	editor_props.undo()
 	var prop_after := editor_props.world.get_block(Vector2i(3, 3))
 	check(prop_after != null and prop_after.direction == BlockData.Direction.RIGHT, "Undo restores the previous direction")
-	check(prop_after != null and prop_after.texture_variant == 2 and prop_after.sub_mode == 1, "Earlier property changes remain until their own undo step")
+	check(prop_after != null and prop_after.texture_variant == 0 and prop_after.sub_mode == 1, "Earlier property changes remain until their own undo step")
 	editor_props.queue_free()
 
 	# Step 11: Ctrl+Z / Ctrl+R 键位链路直达编辑器撤销/重做

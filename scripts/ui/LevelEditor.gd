@@ -373,7 +373,6 @@ func _build_ui() -> void:
 
 	toolbar.setup(true) # Editor mode allows all 10 types
 	toolbar.block_type_selected.connect(_on_toolbar_block_selected)
-	toolbar.variant_changed.connect(_on_toolbar_variant_changed)
 	toolbar.sub_mode_toggled.connect(_on_toolbar_sub_mode_toggled)
 	toolbar.direction_changed.connect(_on_toolbar_direction_changed)
 	toolbar.group_pressed.connect(group_selected_blocks)
@@ -458,7 +457,7 @@ func _process(_delta: float) -> void:
 				true,
 				toolbar.current_type,
 				toolbar.current_dir,
-				toolbar.current_variant,
+				0,
 				toolbar.current_sub_mode,
 				grid_pos
 			)
@@ -998,11 +997,10 @@ func _place_block_editor(grid_pos: Vector2i) -> void:
 		return
 	if world.has_block(grid_pos):
 		var existing := world.get_block(grid_pos)
-		if existing.block_type == toolbar.current_type and existing.direction == toolbar.current_dir and existing.texture_variant == toolbar.current_variant and existing.sub_mode == toolbar.current_sub_mode:
+		if existing.block_type == toolbar.current_type and existing.direction == toolbar.current_dir and existing.sub_mode == toolbar.current_sub_mode:
 			return
 	world.remove_block_at(grid_pos)
 	var new_block := BlockData.new(toolbar.current_type, grid_pos, toolbar.current_dir)
-	new_block.texture_variant = toolbar.current_variant
 	new_block.sub_mode = toolbar.current_sub_mode
 	new_block.is_world_block = true
 	world.add_block(new_block)
@@ -1175,24 +1173,6 @@ func _on_toolbar_block_selected(btype: int) -> void:
 		_clear_selection()
 		if grid_view != null and grid_view.is_multi_ghost_active():
 			grid_view.cancel_multi_ghost()
-
-func _on_toolbar_variant_changed(variant_idx: int) -> void:
-	if selected_blocks.is_empty():
-		return
-	var any_changed := false
-	for b in selected_blocks:
-		if b.texture_variant != variant_idx:
-			any_changed = true
-			break
-	if not any_changed:
-		return
-	record_undo()
-	for b in selected_blocks:
-		b.texture_variant = variant_idx
-		var v := grid_view.get_view(b.block_id)
-		if v != null:
-			v.update_appearance()
-	initial_snapshot = world.clone()
 
 func _on_toolbar_sub_mode_toggled(mode: int) -> void:
 	if selected_blocks.is_empty():

@@ -199,7 +199,8 @@ func _refresh_inhibitor_state() -> void:
 
 func _get_texture_path() -> String:
 	var btype := block_data.block_type
-	var var_idx := posmod(block_data.texture_variant, 3)
+	# 所有砖块只有一种外观变体；忽略历史数据中的 texture_variant。
+	var var_idx := 0
 
 	match btype:
 		BlockData.Type.BASIC:

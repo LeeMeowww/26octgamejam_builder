@@ -795,7 +795,7 @@ func _simulate_replicators(snap: GridWorld, result: TickResult) -> void:
 
 			if src_block != null:
 				if src_block.is_immune():
-					# 坚硬方块未被抑制无法被复制
+					# 坚硬方块未被沉默无法被复制
 					continue
 				if src_block.block_type == BlockData.Type.PROTECTED:
 					# 受保护方块直接不允许复制

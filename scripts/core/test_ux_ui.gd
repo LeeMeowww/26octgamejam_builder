@@ -47,9 +47,7 @@ func run() -> void:
 	player.load_level_data(SaveManager.load_level("custom_level_relay"))
 	player.base_tick_duration = 0.001
 	await click(player.toolbar.type_buttons[2])
-	var variant := player.toolbar.current_variant
 	await click(player.toolbar.type_buttons[2])
-	check(player.toolbar.current_variant == variant, "Repeated tool selection preserves appearance")
 	check(player.toolbar.description_label.text.contains("推动"), "Selected tool explains its function")
 	player._try_place_block(Vector2i(-11, -6))
 	player.clear_button.pressed.emit()

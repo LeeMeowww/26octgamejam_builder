@@ -291,7 +291,7 @@
   {
     "category": "inhibitor_action",
     "name": "inhibitor_engage_sleep",
-    "label": "抑制器 - 阻断生效/休眠 (已选定 ✓ A组对音1)",
+    "label": "沉默器 - 阻断生效/休眠 (已选定 ✓ A组对音1)",
     "desc": "突触阻断信号生效时的温和下行提示音（咪-多~），像给后方方块盖上宁静休眠小被子。",
     "status": "selected",
     "b58": "",
@@ -302,7 +302,7 @@
   {
     "category": "inhibitor_action",
     "name": "inhibitor_release_wake",
-    "label": "抑制器 - 阻断解除/苏醒 (已选定 ✓ A组对音2)",
+    "label": "沉默器 - 阻断解除/苏醒 (已选定 ✓ A组对音2)",
     "desc": "阻断解除时的欢快上行唤醒音（多-唆~），象征后方方块苏醒恢复机能。",
     "status": "selected",
     "b58": "",

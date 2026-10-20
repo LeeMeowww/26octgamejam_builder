@@ -4,7 +4,6 @@ const UI = preload("res://scripts/ui/UIStyle.gd")
 const UI_ANIMATED_ICON = preload("res://scripts/ui/UIAnimatedIcon.gd")
 
 signal block_type_selected(btype: int)
-signal variant_changed(variant_idx: int)
 signal sub_mode_toggled(sub_mode: int)
 signal direction_changed(dir: int)
 signal group_pressed()
@@ -18,7 +17,6 @@ signal load_machine_pressed()
 
 var is_editor_mode: bool = false
 var current_type: int = BlockData.Type.BASIC
-var current_variant: int = 0
 var current_dir: int = BlockData.Direction.RIGHT
 var current_sub_mode: int = 0
 var is_placing: bool = true # If false, select mode
@@ -26,7 +24,6 @@ var is_placing: bool = true # If false, select mode
 # UI node references
 var btn_group: ButtonGroup
 var type_buttons: Dictionary = {} # type -> Button
-var variant_btn: Button
 var mode_btn: Button
 var rotate_btn: Button
 var pointer_btn: Button
@@ -69,7 +66,7 @@ func _build_ui() -> void:
 	left_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	main_hbox.add_child(left_box)
 
-	description_label = UI.label(left_box, "", 14, UI.MUTED)
+	description_label = UI.label(left_box, "", 14, Color.WHITE)
 	description_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	description_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	description_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -128,15 +125,9 @@ func _build_ui() -> void:
 		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		
 		# Set tooltip
-		btn.tooltip_text = "【%s】\n点击选中方块进行放置。\n右键切换外观；重复左键保持选择。\n快捷键: %s" % [full_bname, short_lbl]
+		btn.tooltip_text = "【%s】\n点击选中方块进行放置。\n快捷键: %s" % [full_bname, short_lbl]
 
 		var type_val := t
-		btn.gui_input.connect(func(event: InputEvent):
-			if event is InputEventMouseButton and event.pressed:
-				if event.button_index == MOUSE_BUTTON_RIGHT and editing_enabled:
-					select_type(type_val)
-					cycle_variant()
-		)
 		btn.pressed.connect(func():
 			is_placing = true
 			select_type(type_val)
@@ -150,7 +141,7 @@ func _build_ui() -> void:
 	sep_right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	main_hbox.add_child(sep_right)
 
-	# 3. Right container: 3 remaining buttons (变体, 朝向, 编组 - plus rotator mode when rotator selected)
+	# 3. Right container: remaining controls (朝向, 编组 - plus rotator mode when rotator selected)
 	var right_box := HBoxContainer.new()
 	right_box.name = "RightBox"
 	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -158,16 +149,6 @@ func _build_ui() -> void:
 	right_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right_box.add_theme_constant_override("separation", 6)
 	main_hbox.add_child(right_box)
-
-	# Variant cycling button
-	variant_btn = Button.new()
-	variant_btn.text = "变体: α"
-	variant_btn.focus_mode = Control.FOCUS_NONE
-	variant_btn.custom_minimum_size = Vector2(64, btn_height)
-	variant_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	variant_btn.tooltip_text = "切换方块外观纹理样式 (不影响逻辑功能)"
-	variant_btn.pressed.connect(cycle_variant)
-	right_box.add_child(variant_btn)
 
 	# Submode toggle (for Rotator CW / CCW)
 	mode_btn = Button.new()
@@ -274,12 +255,6 @@ func cycle_tool(step: int) -> void:
 		next_type = posmod(current_type + step, max_type + 1)
 	select_type(next_type)
 
-func cycle_variant() -> void:
-	current_variant = (current_variant + 1) % 3
-	var labels := ["α", "β", "γ"]
-	variant_btn.text = "变体: %s" % labels[current_variant]
-	variant_changed.emit(current_variant)
-
 func toggle_sub_mode() -> void:
 	current_sub_mode = 1 if current_sub_mode == 0 else 0
 	mode_btn.text = "转向: " + ("顺时针" if current_sub_mode == 0 else "逆时针")
@@ -305,7 +280,7 @@ func _describe_selection() -> void:
 	elif not is_placing or current_type < 0:
 		description_label.text = "选择模式 · 框选/单选方块 · 右键菜单 · 按 1~6 建造"
 	else:
-		var descriptions := ["连接并承载其他模块", "前方有方块时，关闭后方模块", "推动前方方块并一起前进", "读取后方，复制到前方", "清除前方的目标", "旋转前方模块", "抵挡攻击，可被抑制", "按规则游荡的敌人", "带回建造区完成回收", "清除全部污染源", "保持完整，不能损毁"]
+		var descriptions := ["连接并承载其他模块", "前方紧邻有方块时，后方方块本回合行动等效于普通方块", "推动前方方块并一起前进", "读取后方，复制到前方", "清除前方的目标", "旋转前方模块", "抵挡攻击，可被沉默", "按规则游荡的敌人", "带回建造区完成回收", "清除全部污染源", "保持完整，不能损毁"]
 		var desc = descriptions[current_type] if current_type >= 0 and current_type < descriptions.size() else ""
 		description_label.text = "%s · %s · 按 ESC 退出建造" % [BlockData.SHORT_NAMES.get(current_type, "方块"), desc]
 
@@ -313,7 +288,7 @@ func set_editable(enabled: bool) -> void:
 	if editing_enabled == enabled: return
 	editing_enabled = enabled
 	for type in type_buttons: type_buttons[type].disabled = not enabled or not direct_placement_enabled or (not allowed_types.is_empty() and type not in allowed_types)
-	for button in [pointer_btn, variant_btn, mode_btn, rotate_btn, group_button]: button.disabled = not enabled
+	for button in [pointer_btn, mode_btn, rotate_btn, group_button]: button.disabled = not enabled
 	_describe_selection()
 
 func set_allowed_types(types: Array) -> void:

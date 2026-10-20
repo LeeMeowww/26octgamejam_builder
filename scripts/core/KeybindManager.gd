@@ -181,7 +181,7 @@ static func get_default_bindings() -> Dictionary:
 			"alt": false
 		},
 		"tool_2": {
-			"label": "方块: 抑制器",
+			"label": "方块: 沉默器",
 			"category": "快捷方块",
 			"key": KEY_2,
 			"ctrl": false,

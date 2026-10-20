@@ -2294,7 +2294,7 @@
       "pos_y": -2.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2308,7 +2308,7 @@
       "pos_y": -4.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2322,7 +2322,7 @@
       "pos_y": -6.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2336,7 +2336,7 @@
       "pos_y": -8.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2350,7 +2350,7 @@
       "pos_y": -10.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2364,7 +2364,7 @@
       "pos_y": -12.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2378,7 +2378,7 @@
       "pos_y": -14.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2392,7 +2392,7 @@
       "pos_y": -16.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2406,7 +2406,7 @@
       "pos_y": -19.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2420,7 +2420,7 @@
       "pos_y": -21.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2434,7 +2434,7 @@
       "pos_y": -23.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2448,7 +2448,7 @@
       "pos_y": -28.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2462,7 +2462,7 @@
       "pos_y": -28.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2476,7 +2476,7 @@
       "pos_y": -30.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2490,7 +2490,7 @@
       "pos_y": -36.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2504,7 +2504,7 @@
       "pos_y": -43.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2518,7 +2518,7 @@
       "pos_y": -40.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2532,7 +2532,7 @@
       "pos_y": -48.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2546,7 +2546,7 @@
       "pos_y": -51.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2560,7 +2560,7 @@
       "pos_y": -56.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2574,7 +2574,7 @@
       "pos_y": -59.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2588,7 +2588,7 @@
       "pos_y": -63.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2602,7 +2602,7 @@
       "pos_y": -2.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2616,7 +2616,7 @@
       "pos_y": -6.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2630,7 +2630,7 @@
       "pos_y": -9.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2644,7 +2644,7 @@
       "pos_y": -12.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2658,7 +2658,7 @@
       "pos_y": -16.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2672,7 +2672,7 @@
       "pos_y": -17.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2686,7 +2686,7 @@
       "pos_y": -21.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2700,7 +2700,7 @@
       "pos_y": -26.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2714,7 +2714,7 @@
       "pos_y": -24.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2728,7 +2728,7 @@
       "pos_y": -28.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2742,7 +2742,7 @@
       "pos_y": -29.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2756,7 +2756,7 @@
       "pos_y": -31.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2770,7 +2770,7 @@
       "pos_y": -32.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2784,7 +2784,7 @@
       "pos_y": -33.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2798,7 +2798,7 @@
       "pos_y": -36.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2812,7 +2812,7 @@
       "pos_y": -40.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2826,7 +2826,7 @@
       "pos_y": -44.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2840,7 +2840,7 @@
       "pos_y": -42.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2854,7 +2854,7 @@
       "pos_y": -47.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2868,7 +2868,7 @@
       "pos_y": -49.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2882,7 +2882,7 @@
       "pos_y": -52.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2896,7 +2896,7 @@
       "pos_y": -54.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2910,7 +2910,7 @@
       "pos_y": -56.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2924,7 +2924,7 @@
       "pos_y": -58.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2938,7 +2938,7 @@
       "pos_y": -60.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2952,7 +2952,7 @@
       "pos_y": -62.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2966,7 +2966,7 @@
       "pos_y": -64.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {
@@ -2980,7 +2980,7 @@
       "pos_y": -62.0,
       "structure_id": 0.0,
       "sub_mode": 0.0,
-      "texture_variant": 1.0,
+      "texture_variant": 0.0,
       "type": 4.0
     },
     {

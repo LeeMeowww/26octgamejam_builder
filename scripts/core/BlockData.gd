@@ -3,7 +3,7 @@ extends RefCounted
 
 enum Type {
 	BASIC = 0,       # 普通方块 / 体细胞
-	INHIBITOR = 1,   # 抑制器 / 突触神经元
+	INHIBITOR = 1,   # 沉默器 / 突触神经元
 	PUSHER = 2,      # 推动器 / 飞虫推进器
 	REPLICATOR = 3,  # 复制器 / 有丝分裂器
 	DESTROYER = 4,   # 摧毁器 / 溶酶噬菌体
@@ -31,7 +31,7 @@ const DIR_VECTORS: Array[Vector2i] = [
 
 const TYPE_NAMES: Dictionary = {
 	Type.BASIC: "普通方块",
-	Type.INHIBITOR: "抑制器",
+	Type.INHIBITOR: "沉默器",
 	Type.PUSHER: "推动器",
 	Type.REPLICATOR: "复制器",
 	Type.DESTROYER: "摧毁器",
@@ -45,7 +45,7 @@ const TYPE_NAMES: Dictionary = {
 
 const SHORT_NAMES: Dictionary = {
 	Type.BASIC: "普通",
-	Type.INHIBITOR: "抑制",
+	Type.INHIBITOR: "沉默",
 	Type.PUSHER: "推动",
 	Type.REPLICATOR: "复制",
 	Type.DESTROYER: "摧毁",
@@ -108,7 +108,7 @@ func is_player_block() -> bool:
 	return block_type >= Type.BASIC and block_type <= Type.ROTATOR
 
 func is_immune() -> bool:
-	# 坚硬方块未被抑制时具有免疫性
+	# 坚硬方块未被沉默时具有免疫性
 	if block_type == Type.HARD and not is_inhibited:
 		return true
 	return false

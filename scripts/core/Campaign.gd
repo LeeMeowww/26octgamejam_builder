@@ -15,7 +15,7 @@ const NODES = {
 	"tutorial_04": [0, "T04", 0, 1, false, 1, "旋转", "tutorial_02"],
 	"tutorial_02": [0, "T05", 1, 1, false, 1, "推进", "tutorial_06"],
 	"tutorial_06": [0, "T06", 2, 1, false, 1, "组合", "tutorial_05"],
-	"tutorial_05": [0, "T07", 0, 2, false, 1, "抑制器", ""],
+	"tutorial_05": [0, "T07", 0, 2, false, 1, "沉默器", ""],
 	# 第 1 章：枪 (Gun) - 3 关 (Chapter 1)
 	"custom_level_80400": [1, "枪-1", 0, 0, false, 4, "自驱枪体 · 定向射击", "custom_level_81906"],
 	"custom_level_81906": [1, "枪-2", 1, 0, false, 4, "连发机制 · 远距突破", "custom_level_33459"],
