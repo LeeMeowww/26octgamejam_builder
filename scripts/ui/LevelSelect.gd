@@ -18,7 +18,6 @@ var chapter_title: Label
 var chapter_description: Label
 var detail_title: Label
 var detail_body: RichTextLabel
-var author_label: Label
 var enter_button: Button
 var map_scroll: ScrollContainer
 
@@ -131,14 +130,6 @@ func _build_ui() -> void:
 	detail_body.add_theme_color_override("default_color", UI.TEXT)
 	detail_body.add_theme_font_size_override("normal_font_size", 16)
 	details.add_child(detail_body)
-	author_label = _label(details, "", 17, UI.MUTED)
-	author_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	author_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var author_font := SystemFont.new()
-	author_font.font_names = PackedStringArray(["KaiTi", "STKaiti", "Noto Serif CJK SC", "serif"])
-	author_font.fallbacks = [UI.get_theme().default_font]
-	author_label.add_theme_font_override("font", author_font)
-	author_label.hide()
 	enter_button = Button.new()
 	enter_button.text = "进入关卡 →"
 	UI.game_primary(enter_button)
@@ -161,7 +152,6 @@ func _show_chapter(index: int) -> void:
 	detail_title.text = "选择一个节点"
 	detail_body.clear()
 	detail_body.add_text("点击地图上的关卡，查看目标与核心机制。\n\n主线帮助你逐步掌握构装，支线可以随时尝试。")
-	author_label.hide()
 	chapter_title.text = Campaign.CHAPTERS[index][1] if index < Campaign.CHAPTERS.size() else "自由工坊"
 	chapter_description.text = Campaign.CHAPTERS[index][2] if index < Campaign.CHAPTERS.size() else "未编入章节的自制关卡也会保留在这里。"
 	for i in range(chapter_buttons.size()):
@@ -255,8 +245,6 @@ func _select_level(index: int) -> void:
 		detail_body.pop()
 		detail_body.pop()
 		detail_body.add_text("\n" + str(section[1]) + "\n\n")
-	author_label.text = "作者  " + (level.author if not level.author.is_empty() else "佚名")
-	author_label.show()
 	enter_button.disabled = not Campaign.is_unlocked(level.level_id)
 	enter_button.text = "进入关卡 →" if not enter_button.disabled else "暂未开放"
 	node_buttons[level.level_id].grab_focus()

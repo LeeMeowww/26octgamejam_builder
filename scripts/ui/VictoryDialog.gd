@@ -50,7 +50,8 @@ func _init() -> void:
 
 	var replay_btn := Button.new()
 	replay_btn.text = "重新调整"
-	replay_btn.custom_minimum_size = Vector2(100, 42)
+	replay_btn.custom_minimum_size = Vector2(100, 40)
+	replay_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	replay_btn.pressed.connect(func():
 		visible = false
 		replay_pressed.emit()
@@ -59,7 +60,8 @@ func _init() -> void:
 
 	var list_btn := Button.new()
 	list_btn.text = "章节地图"
-	list_btn.custom_minimum_size = Vector2(100, 42)
+	list_btn.custom_minimum_size = Vector2(100, 40)
+	list_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	list_btn.pressed.connect(func():
 		visible = false
 		level_select_pressed.emit()
