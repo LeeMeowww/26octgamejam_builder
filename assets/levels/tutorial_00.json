@@ -1,274 +1,274 @@
 {
-	"author": "塔洛斯博士",
-	"blocks": [
-		{
-			"dir": 0.0,
-			"hp": 2.0,
-			"id": 900000.0,
-			"is_world_block": true,
-			"max_hp": 2.0,
-			"origin_id": 900000.0,
-			"pos_x": -1.0,
-			"pos_y": 0.0,
-			"structure_id": 0.0,
-			"sub_mode": 0.0,
-			"texture_variant": 0.0,
-			"type": 10.0
-		},
-		{
-			"dir": 0.0,
-			"hp": 2.0,
-			"id": 900001.0,
-			"is_world_block": true,
-			"max_hp": 2.0,
-			"origin_id": 900001.0,
-			"pos_x": 1.0,
-			"pos_y": 0.0,
-			"structure_id": 0.0,
-			"sub_mode": 0.0,
-			"texture_variant": 0.0,
-			"type": 10.0
-		}
-	],
-	"cg_theme": "cyan_core",
-	"description": "在两枚晶胚中间补一枚普通细胞，再点“单步”检查连接。",
-	"level_id": "tutorial_00",
-	"level_name": "教学 01：初识",
-	"order_index": -100,
-	"player_build_area": {
-		"h": 8,
-		"w": 11,
-		"x": -4,
-		"y": -3
-	},
-	"tutorial": {
-		"act_title": "第一幕 · Hello, World!",
-		"camera_offset_x": 180.0,
-		"camera_zoom": 0.85,
-		"dialogue_label": "培养皿通讯",
-		"dialogue_portraits": [
-			"res://assets/portraits/doctor_normal.png",
-			"res://assets/portraits/doctor_thinking.png",
-			"res://assets/portraits/doctor_normal.png",
-			"res://assets/portraits/doctor_normal.png",
-			"res://assets/portraits/doctor_teaching.png",
-			"res://assets/portraits/doctor_normal.png",
-			"res://assets/portraits/doctor_teaching.png",
-			"res://assets/portraits/doctor_teaching.png"
-		],
-		"dialogue_skip_text": "结束通讯",
-		"dialogue_start_text": "开始尝试 →",
-		"dialogues": [
-			"你们好？你们好？听得见吗？……哦，你们聚成了一团，看来听见我说话了。别害怕。",
-			"之前我把探针移到左边，你们就往对侧逃；我敲了两下皿壁，你们又同时停下了。试了三次都一样，看来不是巧合。",
-			"我叫塔洛斯，是一名研究员。你们现在待的地方是培养皿，你们能感知到一些方块状的活体单元吧？那些都是你们的细胞——也就是你们的身体。",
-			"至于一群细胞为什么会诞生自我意识……我也很困惑。麻烦你们配合我做一些测试，别紧张，我只是想检验一些想法。",
-			"你们先试着把身体连起来吧。绿色区域内可以布置新的细胞。在下方选择“普通方块”——也就是最基础的普通细胞，填在两枚晶胚正中间即可。上下左右紧贴着才算连通，斜角挨着是不算的。",
-			"放好之后点一下“单步”，检查连接状态，我看看结果。",
-			"对了，我已经把观测镜头的控制权共享给你们了。讲解结束后，可以用 W / A / S / D 平移视角，用滚轮缩放画面。这只是移动镜头，不会挪动你们的细胞。",
-			"还有一些操作小技巧，可以按 F1 看看手册。"
-		],
-		"equipment": {
-			"0": 1.0
-		},
-		"experiment": true,
-		"followup": {
-			"author": "塔洛斯博士",
-			"blocks": [
-				{
-					"dir": 0.0,
-					"hp": 2.0,
-					"id": 900100.0,
-					"is_world_block": true,
-					"max_hp": 2.0,
-					"origin_id": 900100.0,
-					"pos_x": -2.0,
-					"pos_y": 0.0,
-					"structure_id": 0.0,
-					"sub_mode": 0.0,
-					"texture_variant": 0.0,
-					"type": 10.0
-				},
-				{
-					"dir": 0.0,
-					"hp": 2.0,
-					"id": 900101.0,
-					"is_world_block": true,
-					"max_hp": 2.0,
-					"origin_id": 900101.0,
-					"pos_x": 2.0,
-					"pos_y": 0.0,
-					"structure_id": 0.0,
-					"sub_mode": 0.0,
-					"texture_variant": 0.0,
-					"type": 10.0
-				},
-				{
-					"dir": 0.0,
-					"hp": 2.0,
-					"id": 900102.0,
-					"is_world_block": true,
-					"max_hp": 2.0,
-					"origin_id": 900102.0,
-					"pos_x": 0.0,
-					"pos_y": 2.0,
-					"structure_id": 0.0,
-					"sub_mode": 0.0,
-					"texture_variant": 0.0,
-					"type": 10.0
-				},
-				{
-					"dir": 0.0,
-					"hp": 2.0,
-					"id": 900103.0,
-					"is_world_block": false,
-					"max_hp": 2.0,
-					"origin_id": 900103.0,
-					"pos_x": -2.0,
-					"pos_y": 2.0,
-					"structure_id": 0.0,
-					"sub_mode": 0.0,
-					"texture_variant": 0.0,
-					"type": 0.0
-				}
-			],
-			"cg_theme": "cyan_core",
-			"description": "先把细胞移动到目标位置，再复制这枚细胞，连接三个晶胚。",
-			"level_id": "tutorial_00",
-			"level_name": "教学 01：初识",
-			"order_index": -100.0,
-			"player_build_area": {
-				"h": 8.0,
-				"w": 11.0,
-				"x": -4.0,
-				"y": -3.0
-			},
-			"tutorial": {
-				"act_title": "第二幕 · 一生二，二生三",
-				"camera_offset_x": 180.0,
-				"camera_zoom": 0.85,
-				"dialogue_label": "培养皿通讯",
-				"dialogue_portraits": [
-					"res://assets/portraits/doctor_normal.png",
-					"res://assets/portraits/doctor_teaching.png",
-					"res://assets/portraits/doctor_teaching.png",
-					"res://assets/portraits/doctor_normal.png"
-				],
-				"dialogue_skip_text": "结束通讯",
-				"dialogue_start_text": "开始尝试 →",
-				"dialogues": [
-					"看见那个落单的普通细胞了吗？你需要先把它接回来。我放了些沉默剂，你现在不能直接生成新细胞。",
-					"用左键选中它，按下 Ctrl+X 就可以移动了。你把它移到目标位置，左键放下就行。目标位置我用荧光剂染色了，应该很明显。哦对了，当前的快捷键会标在屏幕右侧。",
-					"归位之后，再次选中这枚细胞，按 Ctrl+C，再按 Ctrl+V。这样你可以直接多出一枚对应细胞的副本。还需要更多的话，继续按 Ctrl+V 就能接着分裂铺设。",
-					"用复制出来的细胞把三枚晶胚连起来吧。先移动，再复制。慢一点也没关系，你现在是我最感兴趣的研究。"
-				],
-				"edit_complete_text": "已经放好一个副本。继续粘贴，连通三个晶胚后点“单步”。",
-				"edit_move_target": [
-					0.0,
-					1.0
-				],
-				"edit_practice": true,
-				"edit_sequence": "move_then_copy",
-				"equipment": {
-					"0": 7.0
-				},
-				"experiment": true,
-				"goal": "connect",
-				"group_reference": false,
-				"hints": [
-					"保留 (0,1) 的细胞，往上接一格，再向左右连接两枚晶胚。",
-					"一种参考：原细胞位于 (0,1)，将副本分别粘贴到 (0,0)、(-1,0)、(1,0)，再点“单步”。"
-				],
-				"intro": "先把细胞移动到目标位置，再复制这枚细胞，连接三个晶胚。",
-				"mechanism": "普通",
-				"no_direct_placement": true,
-				"portrait": "res://assets/portraits/doctor_normal.png",
-				"reference": [
-					[
-						0.0,
-						-1.0,
-						0.0,
-						0.0,
-						0.0
-					],
-					[
-						0.0,
-						0.0,
-						0.0,
-						0.0,
-						0.0
-					],
-					[
-						0.0,
-						1.0,
-						0.0,
-						0.0,
-						0.0
-					],
-					[
-						0.0,
-						0.0,
-						1.0,
-						0.0,
-						0.0
-					]
-				],
-				"revision": 8.0,
-				"run_text": "先把细胞移动到目标位置，再复制这枚细胞，连接三个晶胚。",
-				"speaker": "塔洛斯",
-				"steps": [],
-				"story_revision": 2.0,
-				"success": "Well done！好孩子。顺便教你个省事的办法：你可以按住左键一次框选多枚细胞，整片一起复制、粘贴或者剪切移动。以后你或许会经常用上的。",
-				"success_dialogues": [
-					"Well done！好孩子。顺便教你个省事的办法：你可以按住左键一次框选多枚细胞，整片一起复制、粘贴或者剪切移动。以后你或许会经常用上的。"
-				],
-				"success_portraits": [
-					"res://assets/portraits/doctor_smile.png"
-				],
-				"title": "第二幕 · 一生二，二生三"
-			}
-		},
-		"followup_offset_x": 0.0,
-		"goal": "connect",
-		"group_reference": false,
-		"hints": [
-			"两枚晶胚中间空着一格。放入普通细胞，让它同时贴住两侧。",
-			"一种参考摆法：普通 (0,0)。"
-		],
-		"intro": "在两枚晶胚中间补一枚普通细胞，再点“单步”检查连接。",
-		"mechanism": "普通",
-		"portrait": "res://assets/portraits/doctor_normal.png",
-		"reference": [
-			[
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0
-			]
-		],
-		"revision": 8.0,
-		"run_text": "在两枚晶胚中间补一枚普通细胞，再点“单步”检查连接。",
-		"speaker": "塔洛斯",
-		"steps": [],
-		"story_revision": 2.0,
-		"success": "……真的接上了。",
-		"success_dialogues": [
-			"……真的接上了。"
-		],
-		"success_portraits": [
-			"res://assets/portraits/doctor_surprised.png"
-		],
-		"title": "第一幕 · Hello, World!",
-		"transition_dialogues": [
-			"……真的接上了。",
-			"看起来你不仅听得见，还能理解我的意思。你们似乎共用同一个意识，那我直接叫“你”吧。",
-			"附近还有三枚晶胚。旁边那枚散落的普通细胞，应该也是你身体的一部分。我们就从它开始。"
-		],
-		"transition_portraits": [
-			"res://assets/portraits/doctor_surprised.png",
-			"res://assets/portraits/doctor_thinking.png",
-			"res://assets/portraits/doctor_normal.png"
-		]
-	}
+  "author": "塔洛斯博士",
+  "blocks": [
+    {
+      "dir": 0.0,
+      "hp": 2.0,
+      "id": 900000.0,
+      "is_world_block": true,
+      "max_hp": 2.0,
+      "origin_id": 900000.0,
+      "pos_x": -1.0,
+      "pos_y": 0.0,
+      "structure_id": 0.0,
+      "sub_mode": 0.0,
+      "texture_variant": 0.0,
+      "type": 10.0
+    },
+    {
+      "dir": 0.0,
+      "hp": 2.0,
+      "id": 900001.0,
+      "is_world_block": true,
+      "max_hp": 2.0,
+      "origin_id": 900001.0,
+      "pos_x": 1.0,
+      "pos_y": 0.0,
+      "structure_id": 0.0,
+      "sub_mode": 0.0,
+      "texture_variant": 0.0,
+      "type": 10.0
+    }
+  ],
+  "cg_theme": "cyan_core",
+  "description": "在两枚晶胚中间补一枚普通细胞，再点“单步”检查连接。",
+  "level_id": "tutorial_00",
+  "level_name": "教学 01：初识",
+  "order_index": -100,
+  "player_build_area": {
+    "h": 8,
+    "w": 11,
+    "x": -4,
+    "y": -3
+  },
+  "tutorial": {
+    "act_title": "第一幕 · Hello, World!",
+    "camera_offset_x": 180.0,
+    "camera_zoom": 0.85,
+    "dialogue_label": "培养皿通讯",
+    "dialogue_portraits": [
+      "res://assets/portraits/doctor_normal.png",
+      "res://assets/portraits/doctor_thinking.png",
+      "res://assets/portraits/doctor_normal.png",
+      "res://assets/portraits/doctor_normal.png",
+      "res://assets/portraits/doctor_teaching.png",
+      "res://assets/portraits/doctor_normal.png",
+      "res://assets/portraits/doctor_teaching.png",
+      "res://assets/portraits/doctor_teaching.png"
+    ],
+    "dialogue_skip_text": "结束通讯",
+    "dialogue_start_text": "开始尝试 →",
+    "dialogues": [
+      "你们好？你们好？听得见吗？……哦，你们聚成了一团，看来听见我说话了。别害怕。",
+      "之前我把探针移到左边，你们就往对侧逃；我敲了两下皿壁，你们又同时停下了。试了三次都一样，看来不是巧合。",
+      "我叫塔洛斯，是一名研究员。你们现在待的地方是培养皿，你们能感知到一些方块状的活体单元吧？那些都是你们的细胞——也就是你们的身体。",
+      "至于一群细胞为什么会诞生自我意识……我也很困惑。麻烦你们配合我做一些测试，别紧张，我只是想检验一些想法。",
+      "你们先试着把身体连起来吧。绿色区域内可以布置新的细胞。在下方选择“普通方块”——也就是最基础的普通细胞，填在两枚晶胚正中间即可。上下左右紧贴着才算连通，斜角挨着是不算的。",
+      "放好之后点一下“单步”，检查连接状态，我看看结果。",
+      "对了，我已经把观测镜头的控制权共享给你们了。讲解结束后，可以用 W / A / S / D 平移视角，用滚轮缩放画面。这只是移动镜头，不会挪动你们的细胞。",
+      "还有一些操作小技巧，可以按 F1 看看手册。"
+    ],
+    "equipment": {
+      "0": 1.0
+    },
+    "experiment": true,
+    "followup": {
+      "author": "塔洛斯博士",
+      "blocks": [
+        {
+          "dir": 0.0,
+          "hp": 2.0,
+          "id": 900100.0,
+          "is_world_block": true,
+          "max_hp": 2.0,
+          "origin_id": 900100.0,
+          "pos_x": -2.0,
+          "pos_y": 0.0,
+          "structure_id": 0.0,
+          "sub_mode": 0.0,
+          "texture_variant": 0.0,
+          "type": 10.0
+        },
+        {
+          "dir": 0.0,
+          "hp": 2.0,
+          "id": 900101.0,
+          "is_world_block": true,
+          "max_hp": 2.0,
+          "origin_id": 900101.0,
+          "pos_x": 2.0,
+          "pos_y": 0.0,
+          "structure_id": 0.0,
+          "sub_mode": 0.0,
+          "texture_variant": 0.0,
+          "type": 10.0
+        },
+        {
+          "dir": 0.0,
+          "hp": 2.0,
+          "id": 900102.0,
+          "is_world_block": true,
+          "max_hp": 2.0,
+          "origin_id": 900102.0,
+          "pos_x": 0.0,
+          "pos_y": 2.0,
+          "structure_id": 0.0,
+          "sub_mode": 0.0,
+          "texture_variant": 0.0,
+          "type": 10.0
+        },
+        {
+          "dir": 0.0,
+          "hp": 2.0,
+          "id": 900103.0,
+          "is_world_block": false,
+          "max_hp": 2.0,
+          "origin_id": 900103.0,
+          "pos_x": -2.0,
+          "pos_y": 2.0,
+          "structure_id": 0.0,
+          "sub_mode": 0.0,
+          "texture_variant": 0.0,
+          "type": 0.0
+        }
+      ],
+      "cg_theme": "cyan_core",
+      "description": "先把细胞移动到目标位置，再复制这枚细胞，连接三个晶胚。",
+      "level_id": "tutorial_00",
+      "level_name": "教学 01：初识",
+      "order_index": -100.0,
+      "player_build_area": {
+        "h": 8.0,
+        "w": 11.0,
+        "x": -4.0,
+        "y": -3.0
+      },
+      "tutorial": {
+        "act_title": "第二幕 · 一生二，二生三",
+        "camera_offset_x": 180.0,
+        "camera_zoom": 0.85,
+        "dialogue_label": "培养皿通讯",
+        "dialogue_portraits": [
+          "res://assets/portraits/doctor_normal.png",
+          "res://assets/portraits/doctor_teaching.png",
+          "res://assets/portraits/doctor_teaching.png",
+          "res://assets/portraits/doctor_normal.png"
+        ],
+        "dialogue_skip_text": "结束通讯",
+        "dialogue_start_text": "开始尝试 →",
+        "dialogues": [
+          "看见那个落单的普通细胞了吗？你需要先把它接回来。我放了些沉默剂，你现在不能直接生成新细胞。",
+          "用左键选中它，按下 Ctrl+X 就可以移动了。你把它移到目标位置，左键放下就行。目标位置我用荧光剂染色了，应该很明显。哦对了，当前的快捷键会标在屏幕右侧。",
+          "归位之后，再次选中这枚细胞，按 Ctrl+C，再按 Ctrl+V。这样你可以直接多出一枚对应细胞的副本。还需要更多的话，继续按 Ctrl+V 就能接着分裂铺设。",
+          "用复制出来的细胞把三枚晶胚连起来吧。先移动，再复制。慢一点也没关系，你现在是我最感兴趣的研究。"
+        ],
+        "edit_complete_text": "已经放好一个副本。继续粘贴，连通三个晶胚后点“单步”。",
+        "edit_move_target": [
+          0.0,
+          1.0
+        ],
+        "edit_practice": true,
+        "edit_sequence": "move_then_copy",
+        "equipment": {
+          "0": 7.0
+        },
+        "experiment": true,
+        "goal": "connect",
+        "group_reference": false,
+        "hints": [
+          "保留 (0,1) 的细胞，往上接一格，再向左右连接两枚晶胚。",
+          "一种参考：原细胞位于 (0,1)，将副本分别粘贴到 (0,0)、(-1,0)、(1,0)，再点“单步”。"
+        ],
+        "intro": "先把细胞移动到目标位置，再复制这枚细胞，连接三个晶胚。",
+        "mechanism": "普通",
+        "no_direct_placement": true,
+        "portrait": "res://assets/portraits/doctor_normal.png",
+        "reference": [
+          [
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "revision": 8.0,
+        "run_text": "先把细胞移动到目标位置，再复制这枚细胞，连接三个晶胚。",
+        "speaker": "塔洛斯",
+        "steps": [],
+        "story_revision": 2.0,
+        "success": "Well done！好孩子。顺便教你个省事的办法：你可以按住左键一次框选多枚细胞，整片一起复制、粘贴或者剪切移动。以后你或许会经常用上的。",
+        "success_dialogues": [
+          "Well done！好孩子。顺便教你个省事的办法：你可以按住左键一次框选多枚细胞，整片一起复制、粘贴或者剪切移动。以后你或许会经常用上的。"
+        ],
+        "success_portraits": [
+          "res://assets/portraits/doctor_smile.png"
+        ],
+        "title": "第二幕 · 一生二，二生三"
+      }
+    },
+    "followup_offset_x": 0.0,
+    "goal": "connect",
+    "group_reference": false,
+    "hints": [
+      "两枚晶胚中间空着一格。放入普通细胞，让它同时贴住两侧。",
+      "一种参考摆法：普通 (0,0)。"
+    ],
+    "intro": "在两枚晶胚中间补一枚普通细胞，再点“单步”检查连接。",
+    "mechanism": "普通",
+    "portrait": "res://assets/portraits/doctor_normal.png",
+    "reference": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "revision": 8.0,
+    "run_text": "在两枚晶胚中间补一枚普通细胞，再点“单步”检查连接。",
+    "speaker": "塔洛斯",
+    "steps": [],
+    "story_revision": 2.0,
+    "success": "……真的接上了。",
+    "success_dialogues": [
+      "……真的接上了。"
+    ],
+    "success_portraits": [
+      "res://assets/portraits/doctor_surprised.png"
+    ],
+    "title": "第一幕 · Hello, World!",
+    "transition_dialogues": [
+      "……真的接上了。",
+      "看起来你不仅听得见，还能理解我的意思。你们似乎共用同一个意识，那我直接叫“你”吧。",
+      "附近还有三枚晶胚。旁边那枚散落的普通细胞，应该也是你身体的一部分。我们就从它开始。"
+    ],
+    "transition_portraits": [
+      "res://assets/portraits/doctor_surprised.png",
+      "res://assets/portraits/doctor_thinking.png",
+      "res://assets/portraits/doctor_normal.png"
+    ]
+  }
 }

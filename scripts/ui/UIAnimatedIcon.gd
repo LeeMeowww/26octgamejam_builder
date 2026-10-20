@@ -37,11 +37,22 @@ func _process(delta: float) -> void:
 func _update_frame() -> void:
 	if _texture == null:
 		return
-	var frame_width := _texture.get_width() / _columns
-	var frame_height := _texture.get_height() / _rows
-	var frame := int(_time * _fps) % _frames
-	var row := frame / _columns
-	var column := frame % _columns
+	# 单行布局保持原始逻辑：帧宽 = 图宽 / 帧数。
+	# 网格布局（columns>1）：帧宽 = 图宽 / 列数，帧高 = 图高 / 行数。
+	var frame_width: float
+	var frame_height: float
+	var row := 0
+	var column: int
+	if _columns <= 1:
+		frame_width = _texture.get_width() / float(_frames)
+		frame_height = _texture.get_height()
+		column = int(_time * _fps) % _frames
+	else:
+		frame_width = _texture.get_width() / float(_columns)
+		frame_height = _texture.get_height() / float(_rows)
+		var frame := int(_time * _fps) % _frames
+		row = frame / _columns
+		column = frame % _columns
 	var atlas := AtlasTexture.new()
 	atlas.atlas = _texture
 	atlas.region = Rect2(column * frame_width, row * frame_height, frame_width, frame_height)

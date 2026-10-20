@@ -93,7 +93,8 @@ func _build_ui() -> void:
 		var short_lbl = shortcuts_labels[t] if t < shortcuts_labels.size() else ""
 		var bname = BlockData.SHORT_NAMES.get(t, "方块")
 		var full_bname = BlockData.TYPE_NAMES.get(t, "方块")
-		btn.text = "%s %s" % [bname, short_lbl]
+		# 编辑器（创意工坊）模式：11 个方块按钮 + 动画图标空间紧张，不显示快捷键数字。
+		btn.text = bname if is_editor_mode else "%s %s" % [bname, short_lbl]
 		var icon_name: String = ["basic_0", "inhibitor_0", "pusher_0", "replicator_0", "destroyer_0", "rotator_cw_0", "hard_0", "wanderer_0", "treasure_0", "pollution_0", "protected_0"][t]
 		var icon_path: String
 		if t == BlockData.Type.DESTROYER:
@@ -111,21 +112,31 @@ func _build_ui() -> void:
 			btn.add_theme_constant_override("icon_max_width", 20 if is_editor_mode else 22)
 		else:
 			btn.icon = null
-			btn.text = "   %s %s" % [bname, short_lbl]
+			if is_editor_mode:
+				# 编辑器 11 按钮空间紧张：不带快捷键数字，改用样式盒左边距给动画图标留位。
+				var game_theme: Theme = UI.get_game_theme()
+				for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+					var base_sb: StyleBox = game_theme.get_stylebox(state, "Button")
+					if base_sb == null: continue
+					var sb: StyleBoxFlat = base_sb.duplicate()
+					sb.content_margin_left = 34.0
+					btn.add_theme_stylebox_override(state, sb)
+			else:
+				btn.text = "   " + btn.text
 			var animated_icon := UI_ANIMATED_ICON.new()
 			animated_icon.configure(animated_icon_data["path"], animated_icon_data["frames"], 8.0, animated_icon_data.get("tint", Color.WHITE))
-			animated_icon.position = Vector2(4, 5)
+			animated_icon.position = Vector2(6, 5) if is_editor_mode else Vector2(4, 5)
 			animated_icon.size = Vector2(24, 24)
 			animated_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			btn.add_child(animated_icon)
 		btn.toggle_mode = true
 		btn.button_group = btn_group
 		btn.focus_mode = Control.FOCUS_NONE
-		btn.custom_minimum_size = Vector2(72 if is_editor_mode else 88, btn_height)
+		btn.custom_minimum_size = Vector2(76 if is_editor_mode else 88, btn_height)
 		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		
+
 		# Set tooltip
-		btn.tooltip_text = "【%s】\n点击选中方块进行放置。\n快捷键: %s" % [full_bname, short_lbl]
+		btn.tooltip_text = "【%s】\n点击选中方块进行放置。\n%s快捷键: %s" % [full_bname, "" if is_editor_mode else "右键切换外观；重复左键保持选择。\n", short_lbl]
 
 		var type_val := t
 		btn.pressed.connect(func():
@@ -193,8 +204,6 @@ func _build_ui() -> void:
 	deselect_tool()
 
 func _get_animated_icon(type_val: int) -> Dictionary:
-	if is_editor_mode:
-		return {}
 	match type_val:
 		BlockData.Type.INHIBITOR:
 			return {"path": "res://scenes/animation/Invalidate_idle(1).png", "frames": 8}
@@ -280,7 +289,7 @@ func _describe_selection() -> void:
 	elif not is_placing or current_type < 0:
 		description_label.text = "选择模式 · 框选/单选方块 · 右键菜单 · 按 1~6 建造"
 	else:
-		var descriptions := ["连接并承载其他模块", "前方紧邻有方块时，后方方块本回合行动等效于普通方块", "推动前方方块并一起前进", "读取后方，复制到前方", "清除前方的目标", "旋转前方模块", "抵挡攻击，可被沉默", "按规则游荡的敌人", "带回建造区完成回收", "清除全部污染源", "保持完整，不能损毁"]
+		var descriptions := ["连接并承载其他模块", "前方有方块时后方方块视为普通", "推动前方方块并一起前进", "读取后方，复制到前方", "清除前方的目标", "旋转前方模块", "抵挡攻击，可被沉默", "按规则游荡的敌人", "带回建造区完成回收", "清除全部污染源", "保持完整，不能损毁"]
 		var desc = descriptions[current_type] if current_type >= 0 and current_type < descriptions.size() else ""
 		description_label.text = "%s · %s · 按 ESC 退出建造" % [BlockData.SHORT_NAMES.get(current_type, "方块"), desc]
 
