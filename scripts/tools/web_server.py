@@ -232,12 +232,12 @@ class GestaltServer(ThreadingHTTPServer):
             return
         super().handle_error(request, client_address)
 
-def run_server(web_dir, port=8060, use_https=False, open_browser=True):
+def run_server(web_dir, port=8060, use_https=False, open_browser=True, host="0.0.0.0"):
     actual_port = find_available_port(port)
     handler = lambda *args, **kwargs: GodotWebHandler(*args, directory=web_dir, **kwargs)
 
     try:
-        httpd = GestaltServer(('0.0.0.0', actual_port), handler)
+        httpd = GestaltServer((host, actual_port), handler)
     except Exception as e:
         print(f"❌ 启动 Web 服务器失败: {e}")
         return
@@ -256,12 +256,14 @@ def run_server(web_dir, port=8060, use_https=False, open_browser=True):
                 print(f"⚠️ SSL 启用失败，回退至 HTTP 模式: {e}")
                 protocol = "http"
 
-    url = f"{protocol}://localhost:{actual_port}"
+    url_host = host if host not in ("0.0.0.0", "::", "") else "localhost"
+    url = f"{protocol}://{url_host}:{actual_port}"
     print(f"\n=======================================================")
     print(f"  🌿《格式塔》(Gestalt) Web 端调试服务器已启动！")
     print(f"  🌐 访问地址: {url}")
     print(f"  📂 网页目录: {os.path.abspath(web_dir)}")
     print(f"  ⚙  模式: {protocol.upper()} (COOP/COEP 隔离标头已就绪)")
+    print(f"  📡 监听地址: {host}:{actual_port}")
     if protocol == "https":
         print(f"  🔒 HTTPS 原生安全上下文 (Secure Context) 已激活")
     else:
@@ -298,6 +300,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=8060, help="Port to serve on (default: 8060)")
     parser.add_argument("--https", action="store_true", help="Enable HTTPS with self-signed certificate")
     parser.add_argument("--no-browser", action="store_true", help="Do not automatically open browser")
+    parser.add_argument("--host", default="0.0.0.0", help="Address to bind the server on (default: 0.0.0.0)")
     args = parser.parse_args()
 
     web_directory = os.path.abspath(args.dir)
@@ -305,4 +308,4 @@ if __name__ == "__main__":
         print(f"错误: 目录 {web_directory} 不存在，请先执行 Web 导出。")
         sys.exit(1)
 
-    run_server(web_directory, args.port, args.https, not args.no_browser)
+    run_server(web_directory, args.port, args.https, not args.no_browser, args.host)

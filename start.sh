@@ -9,6 +9,7 @@ set -e
 trap 'echo -e "\n已收到中断信号，退出。"; exit 130' INT TERM
 
 PORT=8060
+HOST=""
 USE_HTTPS=false
 NO_EXPORT=false
 RELEASE_MODE=false
@@ -31,6 +32,9 @@ for arg in "$@"; do
             ;;
         --port=*)
             PORT="${arg#*=}"
+            ;;
+        --host=*)
+            HOST="${arg#*=}"
             ;;
         [0-9]*)
             PORT="$arg"
@@ -112,7 +116,16 @@ echo "-------------------------------------------------------"
 echo "  启动本地 Web 调试服务器..."
 echo "-------------------------------------------------------"
 
-SERVER_ARGS=(--dir "$BUILD_DIR" --port "$PORT")
+# 默认绑定蒲公英(oray)虚拟网卡地址（远程调试用），未检测到则回退 0.0.0.0；
+# 可用 --host=IP 显式指定。
+if [ -z "$HOST" ]; then
+    HOST=$(ip -o -4 addr show 2>/dev/null | awk '$NF ~ /oray/ || $2 ~ /oray/ {print $4}' | cut -d'/' -f1 | head -n 1)
+    if [ -z "$HOST" ]; then
+        HOST="0.0.0.0"
+    fi
+fi
+
+SERVER_ARGS=(--dir "$BUILD_DIR" --port "$PORT" --host "$HOST")
 if [ "$USE_HTTPS" = true ]; then
     SERVER_ARGS+=(--https)
 fi

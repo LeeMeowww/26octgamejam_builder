@@ -3,12 +3,18 @@ extends TextureRect
 
 var _texture: Texture2D
 var _frames := 1
+var _columns := 1
+var _rows := 1
 var _fps := 8.0
 var _time := 0.0
 
-func configure(path: String, frame_count: int = 1, fps: float = 8.0, tint: Color = Color.WHITE) -> void:
+# columns > 1 把帧按网格排列（先横向后纵向），用于帧序列总宽超过
+# WebGL MAX_TEXTURE_SIZE（常见 8192/16384）的大图集，避免纹理上传失败变黑块。
+func configure(path: String, frame_count: int = 1, fps: float = 8.0, tint: Color = Color.WHITE, columns: int = 1) -> void:
 	_texture = load(path)
 	_frames = maxi(frame_count, 1)
+	_columns = maxi(columns, 1)
+	_rows = ceili(float(_frames) / float(_columns))
 	_fps = maxf(fps, 0.01)
 	expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -31,8 +37,12 @@ func _process(delta: float) -> void:
 func _update_frame() -> void:
 	if _texture == null:
 		return
-	var frame_width := _texture.get_width() / _frames
+	var frame_width := _texture.get_width() / _columns
+	var frame_height := _texture.get_height() / _rows
+	var frame := int(_time * _fps) % _frames
+	var row := frame / _columns
+	var column := frame % _columns
 	var atlas := AtlasTexture.new()
 	atlas.atlas = _texture
-	atlas.region = Rect2(int(_time * _fps) % _frames * frame_width, 0, frame_width, _texture.get_height())
+	atlas.region = Rect2(column * frame_width, row * frame_height, frame_width, frame_height)
 	texture = atlas

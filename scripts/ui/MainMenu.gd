@@ -42,7 +42,7 @@ func _build_ui() -> void:
 
 	var animated_title := UI_ANIMATED_ICON.new()
 	animated_title.name = "TitleAnimation"
-	animated_title.configure("res://scenes/animation/title.png", 8, 8.0)
+	animated_title.configure("res://scenes/animation/title.png", 8, 8.0, Color.WHITE, 2)
 	animated_title.custom_minimum_size = Vector2(900, 250)
 	animated_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_label = animated_title
