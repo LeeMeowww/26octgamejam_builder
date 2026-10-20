@@ -21,7 +21,7 @@ func _ready() -> void:
 	# 整屏弹层：自身必须先铺满视口，内部 CenterContainer 才能把设置面板真正居中，
 	# 同时让半透明背板完整覆盖屏幕并拦截点击。
 	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	theme = UI.get_theme()
+	theme = UI.get_game_theme()
 	_build_ui()
 
 func _notification(what: int) -> void:
@@ -284,7 +284,7 @@ func _build_ui() -> void:
 	btm_hbox.add_child(btm_spacer)
 
 	var save_btn := Button.new()
-	UI.primary(save_btn)
+	UI.game_primary(save_btn)
 	save_btn.text = "完成并返回"
 	save_btn.focus_mode = FOCUS_NONE
 	save_btn.custom_minimum_size = Vector2(130, 40)

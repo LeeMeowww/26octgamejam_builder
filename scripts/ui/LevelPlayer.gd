@@ -132,7 +132,7 @@ func redo() -> void:
 
 func _ready() -> void:
 	KeybindManager.init_keybinds()
-	theme = UI.get_theme()
+	theme = UI.get_game_theme()
 	RenderingServer.set_default_clear_color(UI.BG)
 	# Let board clicks reach _unhandled_input; UI panels still consume theirs.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -249,10 +249,11 @@ func _build_ui_layout() -> void:
 	add_child(ui_layer)
 
 	var top_panel := PanelContainer.new()
-	top_panel.theme = UI.get_theme()
+	top_panel.theme = UI.get_game_theme()
 	var top_style := StyleBoxFlat.new()
-	top_style.bg_color = Color(0.07, 0.1, 0.14, 0.9)
-	top_style.border_color = Color(0.18, 0.25, 0.35, 0.8)
+	top_style.bg_color = Color("102a35")
+	top_style.border_color = Color("2f7380")
+	top_style.set_corner_radius_all(0)
 	top_style.set_border_width_all(1)
 	top_style.content_margin_left = 16
 	top_style.content_margin_right = 16
@@ -344,7 +345,7 @@ func _build_ui_layout() -> void:
 
 	# Sim control buttons
 	play_btn = Button.new()
-	UI.primary(play_btn)
+	UI.game_primary(play_btn)
 	play_btn.text = "开始 [空格]"
 	play_btn.focus_mode = Control.FOCUS_NONE
 	play_btn.custom_minimum_size = Vector2(96, 32)
@@ -419,9 +420,9 @@ func _build_ui_layout() -> void:
 	row2_hbox.move_child(step_btn, 1)
 	row2_hbox.move_child(reset_btn, 2)
 	row2_hbox.move_child(sep_sim, 3)
-	status_label = UI.label(top_vbox, "构装中 · 在绿色区域内放置方块", 14, UI.MUTED)
+	status_label = UI.label(top_vbox, "构装中 · 在绿色区域内放置方块", 14, Color("9fc4ca"))
 	clear_confirm = ConfirmationDialog.new()
-	clear_confirm.theme = UI.get_theme()
+	clear_confirm.theme = UI.get_game_theme()
 	clear_confirm.title = "清空当前构装？"
 	clear_confirm.dialog_text = "将移除所有自建方块，关卡预设保持不变。\n此操作无法撤销；需要保留时请先保存图纸。"
 	clear_confirm.ok_button_text = "清空自建方块"
@@ -435,8 +436,9 @@ func _build_ui_layout() -> void:
 	toolbar.name = "Toolbar"
 	toolbar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var btm_style := StyleBoxFlat.new()
-	btm_style.bg_color = Color(0.07, 0.1, 0.14, 0.92)
-	btm_style.border_color = Color(0.18, 0.25, 0.35, 0.8)
+	btm_style.bg_color = Color("102a35")
+	btm_style.border_color = Color("2f7380")
+	btm_style.set_corner_radius_all(0)
 	btm_style.set_border_width_all(1)
 	btm_style.set_corner_radius_all(8)
 	btm_style.content_margin_left = 12

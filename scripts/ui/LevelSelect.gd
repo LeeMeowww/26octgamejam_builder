@@ -23,7 +23,7 @@ var enter_button: Button
 var map_scroll: ScrollContainer
 
 func _ready() -> void:
-	theme = UI.get_theme()
+	theme = UI.get_game_theme()
 	MusicManager.play_ambient()
 	if map != null: return
 	levels = SaveManager.get_all_levels()
@@ -122,6 +122,7 @@ func _build_ui() -> void:
 	detail_body = RichTextLabel.new()
 	detail_body.size_flags_vertical = SIZE_EXPAND_FILL
 	detail_body.bbcode_enabled = false
+	detail_body.add_theme_color_override("default_color", Color("ddebe9"))
 	detail_body.add_theme_font_size_override("normal_font_size", 16)
 	details.add_child(detail_body)
 	author_label = _label(details, "", 17, Color("a8bec5"))
@@ -134,7 +135,7 @@ func _build_ui() -> void:
 	author_label.hide()
 	enter_button = Button.new()
 	enter_button.text = "进入关卡 →"
-	UI.primary(enter_button)
+	UI.game_primary(enter_button)
 	enter_button.custom_minimum_size.y = 52
 	enter_button.disabled = true
 	enter_button.text = "进入关卡 →"
@@ -303,6 +304,7 @@ func _configure_folder_node(button: Button, caption: String) -> void:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", Color("dce8ed"))
 	button.add_child(label)
 	button.mouse_entered.connect(func(): icon.texture = open_texture)
 	button.mouse_exited.connect(func(): icon.texture = closed_texture)

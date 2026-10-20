@@ -36,7 +36,7 @@ var allowed_types: Array = []
 var group_button: Button
 
 func setup(p_is_editor_mode: bool) -> void:
-	theme = UI.get_theme()
+	theme = UI.get_game_theme()
 	is_editor_mode = p_is_editor_mode
 	_build_ui()
 

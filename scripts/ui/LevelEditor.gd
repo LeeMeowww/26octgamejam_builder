@@ -103,7 +103,7 @@ func redo() -> void:
 		grid_view.set_world(world)
 
 func _ready() -> void:
-	theme = UI.get_theme()
+	theme = UI.get_game_theme()
 	RenderingServer.set_default_clear_color(UI.BG)
 	# Let board clicks reach _unhandled_input; UI panels still consume theirs.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -170,7 +170,7 @@ func _build_ui() -> void:
 
 	# Top Bar
 	var top_panel := PanelContainer.new()
-	top_panel.theme = UI.get_theme()
+	top_panel.theme = UI.get_game_theme()
 	var top_style := StyleBoxFlat.new()
 	top_style.bg_color = Color(0.08, 0.1, 0.14, 0.95)
 	top_style.border_color = Color(0.2, 0.35, 0.5, 0.8)
@@ -264,7 +264,7 @@ func _build_ui() -> void:
 			clear_confirm.popup_centered(Vector2i(420, 180))
 	)
 	clear_confirm = ConfirmationDialog.new()
-	clear_confirm.theme = UI.get_theme()
+	clear_confirm.theme = UI.get_game_theme()
 	clear_confirm.title = "清空关卡画布？"
 	clear_confirm.dialog_text = "将移除画布中的全部方块。\n如需保留，请取消并先保存关卡。"
 	clear_confirm.ok_button_text = "清空画布"
@@ -290,7 +290,7 @@ func _build_ui() -> void:
 	row2_hbox.add_child(load_machine_btn)
 
 	save_level_btn = Button.new()
-	UI.primary(save_level_btn)
+	UI.game_primary(save_level_btn)
 	save_level_btn.text = "保存关卡"
 	save_level_btn.focus_mode = Control.FOCUS_NONE
 	save_level_btn.custom_minimum_size = Vector2(80, 32)
