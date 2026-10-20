@@ -46,6 +46,16 @@
 		"camera_offset_x": 180.0,
 		"camera_zoom": 0.85,
 		"dialogue_label": "培养皿通讯",
+		"dialogue_portraits": [
+			"res://assets/portraits/doctor_normal.png",
+			"res://assets/portraits/doctor_thinking.png",
+			"res://assets/portraits/doctor_normal.png",
+			"res://assets/portraits/doctor_normal.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_normal.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_teaching.png"
+		],
 		"dialogue_skip_text": "结束通讯",
 		"dialogue_start_text": "开始尝试 →",
 		"dialogues": [
@@ -108,18 +118,18 @@
 					"type": 10.0
 				},
 				{
-					"id": 900103,
-					"origin_id": 900103,
-					"type": 0,
-					"pos_x": -2,
-					"pos_y": 2,
-					"dir": 0,
-					"sub_mode": 0,
-					"structure_id": 0,
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 900103.0,
 					"is_world_block": false,
-					"hp": 2,
-					"max_hp": 2,
-					"texture_variant": 0
+					"max_hp": 2.0,
+					"origin_id": 900103.0,
+					"pos_x": -2.0,
+					"pos_y": 2.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"texture_variant": 0.0,
+					"type": 0.0
 				}
 			],
 			"cg_theme": "cyan_core",
@@ -138,6 +148,12 @@
 				"camera_offset_x": 180.0,
 				"camera_zoom": 0.85,
 				"dialogue_label": "培养皿通讯",
+				"dialogue_portraits": [
+					"res://assets/portraits/doctor_normal.png",
+					"res://assets/portraits/doctor_teaching.png",
+					"res://assets/portraits/doctor_teaching.png",
+					"res://assets/portraits/doctor_normal.png"
+				],
 				"dialogue_skip_text": "结束通讯",
 				"dialogue_start_text": "开始尝试 →",
 				"dialogues": [
@@ -146,6 +162,13 @@
 					"归位之后，再次选中这枚细胞，按 Ctrl+C，再按 Ctrl+V。这样你可以直接多出一枚对应细胞的副本。还需要更多的话，继续按 Ctrl+V 就能接着分裂铺设。",
 					"用复制出来的细胞把三枚晶胚连起来吧。先移动，再复制。慢一点也没关系，你现在是我最感兴趣的研究。"
 				],
+				"edit_complete_text": "已经放好一个副本。继续粘贴，连通三个晶胚后点“单步”。",
+				"edit_move_target": [
+					0.0,
+					1.0
+				],
+				"edit_practice": true,
+				"edit_sequence": "move_then_copy",
 				"equipment": {
 					"0": 7.0
 				},
@@ -158,6 +181,7 @@
 				],
 				"intro": "先把细胞移动到目标位置，再复制这枚细胞，连接三个晶胚。",
 				"mechanism": "普通",
+				"no_direct_placement": true,
 				"portrait": "res://assets/portraits/doctor_normal.png",
 				"reference": [
 					[
@@ -189,36 +213,22 @@
 						0.0
 					]
 				],
-				"revision": 8,
+				"revision": 8.0,
 				"run_text": "先把细胞移动到目标位置，再复制这枚细胞，连接三个晶胚。",
 				"speaker": "塔洛斯",
 				"steps": [],
+				"story_revision": 2.0,
 				"success": "Well done！好孩子。顺便教你个省事的办法：你可以按住左键一次框选多枚细胞，整片一起复制、粘贴或者剪切移动。以后你或许会经常用上的。",
-				"title": "第二幕 · 一生二，二生三",
-				"edit_practice": true,
-				"edit_complete_text": "已经放好一个副本。继续粘贴，连通三个晶胚后点“单步”。",
-				"edit_sequence": "move_then_copy",
-				"edit_move_target": [
-					0,
-					1
-				],
-				"no_direct_placement": true,
-				"dialogue_portraits": [
-					"res://assets/portraits/doctor_normal.png",
-					"res://assets/portraits/doctor_teaching.png",
-					"res://assets/portraits/doctor_teaching.png",
-					"res://assets/portraits/doctor_normal.png"
-				],
 				"success_dialogues": [
 					"Well done！好孩子。顺便教你个省事的办法：你可以按住左键一次框选多枚细胞，整片一起复制、粘贴或者剪切移动。以后你或许会经常用上的。"
 				],
 				"success_portraits": [
 					"res://assets/portraits/doctor_smile.png"
 				],
-				"story_revision": 2
+				"title": "第二幕 · 一生二，二生三"
 			}
 		},
-		"followup_offset_x": 0,
+		"followup_offset_x": 0.0,
 		"goal": "connect",
 		"group_reference": false,
 		"hints": [
@@ -237,38 +247,28 @@
 				0.0
 			]
 		],
-		"revision": 8,
+		"revision": 8.0,
 		"run_text": "在两枚晶胚中间补一枚普通细胞，再点“单步”检查连接。",
 		"speaker": "塔洛斯",
 		"steps": [],
+		"story_revision": 2.0,
 		"success": "……真的接上了。",
+		"success_dialogues": [
+			"……真的接上了。"
+		],
+		"success_portraits": [
+			"res://assets/portraits/doctor_surprised.png"
+		],
 		"title": "第一幕 · Hello, World!",
 		"transition_dialogues": [
 			"……真的接上了。",
 			"看起来你不仅听得见，还能理解我的意思。你们似乎共用同一个意识，那我直接叫“你”吧。",
 			"附近还有三枚晶胚。旁边那枚散落的普通细胞，应该也是你身体的一部分。我们就从它开始。"
 		],
-		"story_revision": 2,
-		"dialogue_portraits": [
-			"res://assets/portraits/doctor_normal.png",
-			"res://assets/portraits/doctor_thinking.png",
-			"res://assets/portraits/doctor_normal.png",
-			"res://assets/portraits/doctor_normal.png",
-			"res://assets/portraits/doctor_teaching.png",
-			"res://assets/portraits/doctor_normal.png",
-			"res://assets/portraits/doctor_teaching.png",
-			"res://assets/portraits/doctor_teaching.png"
-		],
 		"transition_portraits": [
 			"res://assets/portraits/doctor_surprised.png",
 			"res://assets/portraits/doctor_thinking.png",
 			"res://assets/portraits/doctor_normal.png"
-		],
-		"success_dialogues": [
-			"……真的接上了。"
-		],
-		"success_portraits": [
-			"res://assets/portraits/doctor_surprised.png"
 		]
 	}
 }

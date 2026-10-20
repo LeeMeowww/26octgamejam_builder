@@ -1,6 +1,7 @@
 class_name Toolbar
 extends PanelContainer
 const UI = preload("res://scripts/ui/UIStyle.gd")
+const UI_ANIMATED_ICON = preload("res://scripts/ui/UIAnimatedIcon.gd")
 
 signal block_type_selected(btype: int)
 signal variant_changed(variant_idx: int)
@@ -106,9 +107,20 @@ func _build_ui() -> void:
 			icon_path = "res://assets/textures/blocks/pusher_ui.svg"
 		else:
 			icon_path = "res://assets/textures/blocks/" + icon_name + ".svg"
-		btn.icon = load(icon_path)
-		btn.expand_icon = true
-		btn.add_theme_constant_override("icon_max_width", 20 if is_editor_mode else 22)
+		var animated_icon_data: Dictionary = _get_animated_icon(t)
+		if animated_icon_data.is_empty():
+			btn.icon = load(icon_path)
+			btn.expand_icon = true
+			btn.add_theme_constant_override("icon_max_width", 20 if is_editor_mode else 22)
+		else:
+			btn.icon = null
+			btn.text = "   %s %s" % [bname, short_lbl]
+			var animated_icon := UI_ANIMATED_ICON.new()
+			animated_icon.configure(animated_icon_data["path"], animated_icon_data["frames"], 8.0, animated_icon_data.get("tint", Color.WHITE))
+			animated_icon.position = Vector2(4, 5)
+			animated_icon.size = Vector2(24, 24)
+			animated_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(animated_icon)
 		btn.toggle_mode = true
 		btn.button_group = btn_group
 		btn.focus_mode = Control.FOCUS_NONE
@@ -198,6 +210,31 @@ func _build_ui() -> void:
 
 	# Default to selection mode (no tool selected)
 	deselect_tool()
+
+func _get_animated_icon(type_val: int) -> Dictionary:
+	if is_editor_mode:
+		return {}
+	match type_val:
+		BlockData.Type.INHIBITOR:
+			return {"path": "res://scenes/animation/Invalidate_idle(1).png", "frames": 8}
+		BlockData.Type.PUSHER:
+			return {"path": "res://scenes/animation/push(2).png", "frames": 15, "tint": Color(1.0, 0.82, 0.035, 1.0)}
+		BlockData.Type.REPLICATOR:
+			return {"path": "res://scenes/animation/breed.png", "frames": 12, "tint": Color(0.86, 0.89, 0.93, 1.0)}
+		BlockData.Type.DESTROYER:
+			return {"path": "res://scenes/animation/eating(1).png", "frames": 16, "tint": Color(1.0, 0.035, 0.035, 1.0)}
+		BlockData.Type.ROTATOR:
+			return {"path": "res://scenes/animation/turn_around_CW.png", "frames": 16, "tint": Color(0.72, 0.34, 0.12, 1.0)}
+		BlockData.Type.HARD:
+			return {"path": "res://scenes/animation/block(1).png", "frames": 8}
+		BlockData.Type.WANDERER:
+			return {"path": "res://scenes/animation/monster_idle(2).png", "frames": 8}
+		BlockData.Type.TREASURE:
+			return {"path": "res://scenes/animation/treasure(1).png", "frames": 8}
+		BlockData.Type.POLLUTION:
+			return {"path": "res://scenes/animation/Pollution source(1).png", "frames": 8}
+		_:
+			return {}
 
 func select_type(type_val: int) -> void:
 	if not direct_placement_enabled: return

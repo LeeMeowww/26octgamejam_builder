@@ -3,6 +3,7 @@ extends Control
 
 const UI = preload("res://scripts/ui/UIStyle.gd")
 const Campaign = preload("res://scripts/core/Campaign.gd")
+const UI_ANIMATED_ICON = preload("res://scripts/ui/UIAnimatedIcon.gd")
 var title_label: Label
 var subtitle_label: Label
 var settings_menu: SettingsMenu
@@ -39,12 +40,16 @@ func _build_ui() -> void:
 	var cells := HBoxContainer.new()
 	cells.add_theme_constant_override("separation", 16)
 	intro.add_child(cells)
-	for texture in ["inhibitor_0", "pusher_0", "replicator_0", "destroyer_0"]:
-		var tile := TextureRect.new()
-		tile.texture = load("res://assets/textures/blocks/" + texture + ".svg")
+	var cover_icons: Array[Dictionary] = [
+		{"path": "res://scenes/animation/Invalidate_idle(1).png", "frames": 8},
+		{"path": "res://scenes/animation/push(2).png", "frames": 15, "tint": Color(1.0, 0.82, 0.035, 1.0)},
+		{"path": "res://scenes/animation/breed.png", "frames": 12, "tint": Color(0.86, 0.89, 0.93, 1.0)},
+		{"path": "res://scenes/animation/eating(1).png", "frames": 16, "tint": Color(1.0, 0.035, 0.035, 1.0)}
+	]
+	for icon_data in cover_icons:
+		var tile := UI_ANIMATED_ICON.new()
+		tile.configure(icon_data["path"], icon_data["frames"], 8.0, icon_data.get("tint", Color.WHITE))
 		tile.custom_minimum_size = Vector2(64, 64)
-		tile.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tile.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		cells.add_child(tile)
 	UI.label(intro, "搭建  →  观察  →  改进", 20, UI.ACCENT)
 	UI.label(intro, "没有唯一答案，只有你创造的下一种可能。", 16, UI.MUTED)

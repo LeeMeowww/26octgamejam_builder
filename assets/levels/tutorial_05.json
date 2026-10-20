@@ -1,224 +1,189 @@
 {
-	"level_id": "tutorial_05",
-	"level_name": "教学 07：抑制",
-	"description": "利用沉默细胞，清理代谢废物与污染。",
 	"author": "塔洛斯博士",
-	"cg_theme": "cyan_core",
-	"order_index": -40,
-	"player_build_area": {
-		"x": -4,
-		"y": -3,
-		"w": 11,
-		"h": 8
-	},
 	"blocks": [
 		{
-			"type": 2,
-			"pos_x": -2,
-			"pos_y": 0,
-			"dir": 0,
+			"dir": 0.0,
+			"hp": 2.0,
+			"id": 906000.0,
 			"is_world_block": true,
-			"hp": 2,
-			"max_hp": 2,
-			"sub_mode": 0,
-			"structure_id": 0,
-			"texture_variant": 0,
-			"id": 906000,
-			"origin_id": 906000
+			"max_hp": 2.0,
+			"origin_id": 906000.0,
+			"pos_x": -2.0,
+			"pos_y": 0.0,
+			"structure_id": 0.0,
+			"sub_mode": 0.0,
+			"texture_variant": 0.0,
+			"type": 2.0
 		},
 		{
-			"type": 4,
-			"pos_x": -1,
-			"pos_y": 0,
-			"dir": 0,
+			"dir": 0.0,
+			"hp": 2.0,
+			"id": 906001.0,
 			"is_world_block": true,
-			"hp": 2,
-			"max_hp": 2,
-			"sub_mode": 0,
-			"structure_id": 0,
-			"texture_variant": 0,
-			"id": 906001,
-			"origin_id": 906001
+			"max_hp": 2.0,
+			"origin_id": 906001.0,
+			"pos_x": -1.0,
+			"pos_y": 0.0,
+			"structure_id": 0.0,
+			"sub_mode": 0.0,
+			"texture_variant": 0.0,
+			"type": 4.0
 		},
 		{
-			"type": 6,
-			"pos_x": 0,
-			"pos_y": 0,
-			"dir": 0,
+			"dir": 0.0,
+			"hp": 2.0,
+			"id": 906002.0,
 			"is_world_block": true,
-			"hp": 2,
-			"max_hp": 2,
-			"sub_mode": 0,
-			"structure_id": 0,
-			"texture_variant": 0,
-			"id": 906002,
-			"origin_id": 906002
+			"max_hp": 2.0,
+			"origin_id": 906002.0,
+			"pos_x": 0.0,
+			"pos_y": 0.0,
+			"structure_id": 0.0,
+			"sub_mode": 0.0,
+			"texture_variant": 0.0,
+			"type": 6.0
 		},
 		{
-			"type": 9,
-			"pos_x": 2,
-			"pos_y": 0,
-			"dir": 0,
+			"dir": 0.0,
+			"hp": 2.0,
+			"id": 906003.0,
 			"is_world_block": true,
-			"hp": 2,
-			"max_hp": 2,
-			"sub_mode": 0,
-			"structure_id": 0,
-			"texture_variant": 0,
-			"id": 906003,
-			"origin_id": 906003
+			"max_hp": 2.0,
+			"origin_id": 906003.0,
+			"pos_x": 2.0,
+			"pos_y": 0.0,
+			"structure_id": 0.0,
+			"sub_mode": 0.0,
+			"texture_variant": 0.0,
+			"type": 9.0
 		}
 	],
+	"cg_theme": "cyan_core",
+	"description": "利用沉默细胞，清理代谢废物与污染。",
+	"level_id": "tutorial_05",
+	"level_name": "教学 07：抑制",
+	"order_index": -40,
+	"player_build_area": {
+		"h": 8,
+		"w": 11,
+		"x": -4,
+		"y": -3
+	},
 	"tutorial": {
-		"equipment": {
-			"1": 1,
-			"0": 1
-		},
-		"speaker": "塔洛斯",
+		"act_title": "第一幕 · 沉默是今晚的康桥",
+		"camera_offset_x": 180.0,
+		"camera_zoom": 0.85,
+		"dialogue_label": "培养皿通讯",
+		"dialogue_portraits": [
+			"res://assets/portraits/doctor_normal.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_teaching.png",
+			"res://assets/portraits/doctor_normal.png"
+		],
+		"dialogue_skip_text": "结束通讯",
+		"dialogue_start_text": "准备好了 →",
 		"dialogues": [
 			"小心！前面挡路的是代谢废物。在没有受到抑制的时候，这些玩意儿推不动，也没法直接摧毁。别硬往上撞。",
 			"这时候要用另一种特殊细胞——沉默细胞。只要它箭头正前方紧邻的一格有细胞存在，它就会释放信号分子，让自己正后方紧邻的东西暂时失去特殊能力。",
 			"你可以把沉默细胞放在代谢废物上方，箭头朝上，再在它前头摆一枚普通细胞当触发源。信号通路一旦触发，背后的代谢废物就会变成普通障碍，可以被摧毁了。",
 			"到你的回合了，请。"
 		],
-		"run_text": "利用沉默细胞，清理代谢废物与污染。",
-		"title": "第一幕 · 沉默是今晚的康桥",
-		"camera_zoom": 0.85,
-		"reference": [
-			[
-				1,
-				0,
-				-1,
-				3,
-				0
-			],
-			[
-				0,
-				0,
-				-2,
-				0,
-				0
-			]
-		],
-		"group_reference": false,
-		"hints": [
-			"抑制器朝向普通信号细胞，背面对着重甲；前后都要紧邻。",
-			"一种参考摆法：抑制器 (0,-1) 朝上；普通 (0,-2)。"
-		],
-		"intro": "利用沉默细胞，清理代谢废物与污染。",
-		"steps": [],
-		"success": "刚才这边的推进和清理都很顺利。不愧是你。",
-		"camera_offset_x": 180,
+		"equipment": {
+			"0": 1.0,
+			"1": 1.0
+		},
 		"experiment": true,
-		"portrait": "res://assets/portraits/doctor_normal.png",
-		"act_title": "第一幕 · 沉默是今晚的康桥",
-		"dialogue_label": "培养皿通讯",
-		"dialogue_start_text": "准备好了 →",
-		"dialogue_skip_text": "结束通讯",
-		"mechanism": "抑制器",
-		"transition_dialogues": [
-			"刚才这边的推进和清理都很顺利。不愧是你。",
-			"啧，有新情况。你看，那里有污染，旁边有一个摧毁细胞，但它却对着推进细胞。",
-			"这个摧毁细胞失控了，你调不了它的方向。但我们还有别的办法。"
-		],
 		"followup": {
-			"level_id": "tutorial_05",
-			"level_name": "教学 07：抑制",
-			"description": "关闭左侧失控细胞的功能，清理污染。",
 			"author": "塔洛斯博士",
-			"cg_theme": "cyan_core",
-			"order_index": -40,
-			"player_build_area": {
-				"x": -4,
-				"y": -3,
-				"w": 11,
-				"h": 8
-			},
 			"blocks": [
 				{
-					"id": 960000,
-					"origin_id": 960000,
-					"type": 4,
-					"pos_x": -2,
-					"pos_y": 0,
-					"dir": 0,
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 960000.0,
 					"is_world_block": true,
-					"hp": 2,
-					"max_hp": 2,
-					"sub_mode": 0,
-					"structure_id": 0
+					"max_hp": 2.0,
+					"origin_id": 960000.0,
+					"pos_x": -2.0,
+					"pos_y": 0.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"type": 4.0
 				},
 				{
-					"id": 960001,
-					"origin_id": 960001,
-					"type": 2,
-					"pos_x": -1,
-					"pos_y": 0,
-					"dir": 0,
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 960001.0,
 					"is_world_block": true,
-					"hp": 2,
-					"max_hp": 2,
-					"sub_mode": 0,
-					"structure_id": 0
+					"max_hp": 2.0,
+					"origin_id": 960001.0,
+					"pos_x": -1.0,
+					"pos_y": 0.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"type": 2.0
 				},
 				{
-					"id": 960002,
-					"origin_id": 960002,
-					"type": 4,
-					"pos_x": 0,
-					"pos_y": 0,
-					"dir": 0,
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 960002.0,
 					"is_world_block": true,
-					"hp": 2,
-					"max_hp": 2,
-					"sub_mode": 0,
-					"structure_id": 0
+					"max_hp": 2.0,
+					"origin_id": 960002.0,
+					"pos_x": 0.0,
+					"pos_y": 0.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"type": 4.0
 				},
 				{
-					"id": 960003,
-					"origin_id": 960003,
-					"type": 9,
-					"pos_x": 5,
-					"pos_y": 0,
-					"dir": 0,
+					"dir": 0.0,
+					"hp": 2.0,
+					"id": 960003.0,
 					"is_world_block": true,
-					"hp": 2,
-					"max_hp": 2,
-					"sub_mode": 0,
-					"structure_id": 0
+					"max_hp": 2.0,
+					"origin_id": 960003.0,
+					"pos_x": 5.0,
+					"pos_y": 0.0,
+					"structure_id": 0.0,
+					"sub_mode": 0.0,
+					"type": 9.0
 				}
 			],
+			"cg_theme": "cyan_core",
+			"description": "关闭左侧失控细胞的功能，清理污染。",
+			"level_id": "tutorial_05",
+			"level_name": "教学 07：抑制",
+			"order_index": -40.0,
+			"player_build_area": {
+				"h": 8.0,
+				"w": 11.0,
+				"x": -4.0,
+				"y": -3.0
+			},
 			"tutorial": {
-				"equipment": {
-					"1": 1,
-					"0": 1
-				},
-				"speaker": "塔洛斯",
+				"act_title": "第二幕 · 不在沉默中爆发，就在沉默中灭亡",
+				"camera_offset_x": 180.0,
+				"camera_zoom": 0.85,
+				"dialogue_label": "培养皿通讯",
+				"dialogue_portraits": [
+					"res://assets/portraits/doctor_thinking.png",
+					"res://assets/portraits/doctor_thinking.png",
+					"res://assets/portraits/doctor_teaching.png",
+					"res://assets/portraits/doctor_normal.png"
+				],
+				"dialogue_skip_text": "结束通讯",
+				"dialogue_start_text": "准备好了 →",
 				"dialogues": [
 					"嗯……推进细胞朝右，最前面那个摧毁细胞也朝右。只要没有干扰，它们自己就能一路推过去清掉右侧的污染。",
 					"麻烦的是推进细胞左边那枚失控细胞。它也朝右，一旦启动，第一步就会把推进细胞毁掉。前面的细胞没了动力，就只能停在半路。",
 					"但你只要把沉默细胞的背面对准那个失控的摧毁细胞，再在沉默细胞前放个普通细胞作为触发信号，启动后那个失控的摧毁细胞的功能就会休眠了。",
 					"快来吧，我已经迫不及待想看看你的表现了。"
 				],
-				"run_text": "关闭左侧失控细胞的功能，清理污染。",
-				"title": "第二幕 · 不在沉默中爆发，就在沉默中灭亡",
-				"camera_zoom": 0.85,
-				"reference": [
-					[
-						1,
-						-2,
-						-1,
-						3,
-						0
-					],
-					[
-						0,
-						-2,
-						-2,
-						0,
-						0
-					]
-				],
+				"equipment": {
+					"0": 1.0,
+					"1": 1.0
+				},
+				"experiment": true,
 				"group_reference": false,
 				"hints": [
 					"目标是推进器左边的摧毁细胞。右边那枚还要负责清除污染。",
@@ -226,23 +191,30 @@
 					"一种参考：抑制器 (-2,-1) 朝上，普通细胞 (-2,-2)。先单步确认推进细胞存活，再继续运行。"
 				],
 				"intro": "关闭左侧失控细胞的功能，清理污染。",
-				"steps": [],
-				"success": "BRAVO！推进细胞保住了，污染也清干净了！你真是出乎我意料地……太棒了！我的心跳动得好快。……不行，我得赶快把这些记下来。\n该教你的也教得差不多了。接下来，你先自己探索吧。",
-				"camera_offset_x": 180,
-				"experiment": true,
-				"portrait": "res://assets/portraits/doctor_thinking.png",
-				"act_title": "第二幕 · 不在沉默中爆发，就在沉默中灭亡",
-				"dialogue_label": "培养皿通讯",
-				"dialogue_start_text": "准备好了 →",
-				"dialogue_skip_text": "结束通讯",
 				"mechanism": "抑制器",
-				"revision": 9,
-				"dialogue_portraits": [
-					"res://assets/portraits/doctor_thinking.png",
-					"res://assets/portraits/doctor_thinking.png",
-					"res://assets/portraits/doctor_teaching.png",
-					"res://assets/portraits/doctor_normal.png"
+				"portrait": "res://assets/portraits/doctor_thinking.png",
+				"reference": [
+					[
+						1.0,
+						-2.0,
+						-1.0,
+						3.0,
+						0.0
+					],
+					[
+						0.0,
+						-2.0,
+						-2.0,
+						0.0,
+						0.0
+					]
 				],
+				"revision": 9.0,
+				"run_text": "关闭左侧失控细胞的功能，清理污染。",
+				"speaker": "塔洛斯",
+				"steps": [],
+				"story_revision": 2.0,
+				"success": "BRAVO！推进细胞保住了，污染也清干净了！你真是出乎我意料地……太棒了！我的心跳动得好快。……不行，我得赶快把这些记下来。\n该教你的也教得差不多了。接下来，你先自己探索吧。",
 				"success_dialogues": [
 					"BRAVO！推进细胞保住了，污染也清干净了！你真是出乎我意料地……太棒了！我的心跳动得好快。……不行，我得赶快把这些记下来。",
 					"该教你的也教得差不多了。接下来，你先自己探索吧。"
@@ -251,28 +223,56 @@
 					"res://assets/portraits/doctor_smile.png",
 					"res://assets/portraits/doctor_normal.png"
 				],
-				"story_revision": 2
+				"title": "第二幕 · 不在沉默中爆发，就在沉默中灭亡"
 			}
 		},
-		"followup_offset_x": 18,
-		"revision": 9,
-		"story_revision": 2,
-		"dialogue_portraits": [
-			"res://assets/portraits/doctor_normal.png",
-			"res://assets/portraits/doctor_teaching.png",
-			"res://assets/portraits/doctor_teaching.png",
-			"res://assets/portraits/doctor_normal.png"
+		"followup_offset_x": 18.0,
+		"group_reference": false,
+		"hints": [
+			"抑制器朝向普通信号细胞，背面对着重甲；前后都要紧邻。",
+			"一种参考摆法：抑制器 (0,-1) 朝上；普通 (0,-2)。"
 		],
-		"transition_portraits": [
-			"res://assets/portraits/doctor_smile.png",
-			"res://assets/portraits/doctor_surprised.png",
-			"res://assets/portraits/doctor_thinking.png"
+		"intro": "利用沉默细胞，清理代谢废物与污染。",
+		"mechanism": "抑制器",
+		"portrait": "res://assets/portraits/doctor_normal.png",
+		"reference": [
+			[
+				1.0,
+				0.0,
+				-1.0,
+				3.0,
+				0.0
+			],
+			[
+				0.0,
+				0.0,
+				-2.0,
+				0.0,
+				0.0
+			]
 		],
+		"revision": 9.0,
+		"run_text": "利用沉默细胞，清理代谢废物与污染。",
+		"speaker": "塔洛斯",
+		"steps": [],
+		"story_revision": 2.0,
+		"success": "刚才这边的推进和清理都很顺利。不愧是你。",
 		"success_dialogues": [
 			"刚才这边的推进和清理都很顺利。不愧是你。"
 		],
 		"success_portraits": [
 			"res://assets/portraits/doctor_smile.png"
+		],
+		"title": "第一幕 · 沉默是今晚的康桥",
+		"transition_dialogues": [
+			"刚才这边的推进和清理都很顺利。不愧是你。",
+			"啧，有新情况。你看，那里有污染，旁边有一个摧毁细胞，但它却对着推进细胞。",
+			"这个摧毁细胞失控了，你调不了它的方向。但我们还有别的办法。"
+		],
+		"transition_portraits": [
+			"res://assets/portraits/doctor_smile.png",
+			"res://assets/portraits/doctor_surprised.png",
+			"res://assets/portraits/doctor_thinking.png"
 		]
 	}
 }

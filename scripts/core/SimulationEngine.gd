@@ -9,6 +9,8 @@ class TickResult extends RefCounted:
 	var inhibited_blocks: Array[int] = [] # block_ids
 	# Array of { "id": int, "old_dir": int, "new_dir": int }
 	var rotated_blocks: Array[Dictionary] = []
+	# Array of { "id": int, "target_id": int }
+	var rotator_actions: Array[Dictionary] = []
 	# Array of { "id": int, "old_pos": Vector2i, "new_pos": Vector2i }
 	var moved_blocks: Array[Dictionary] = []
 	# Array of { "id": int, "old_hp": int, "new_hp": int }
@@ -113,35 +115,37 @@ func step_tick() -> TickResult:
 	var snap := world.clone()
 
 	# -------------------------------------------------------------
-	# 1. Reset Transient Inhibition & Calculate Active Inhibitors
-	# -------------------------------------------------------------
-	_simulate_inhibitors(snap, result)
-
-	# -------------------------------------------------------------
-	# 2. Rotators (转向器)
+	# 1. Rotators (转向器)
 	# -------------------------------------------------------------
 	_simulate_rotators(snap, result)
 
 	# -------------------------------------------------------------
-	# 3. Pushers (推动器) & Structure Movement
+	# 2. Pushers (推动器) & Structure Movement
 	# -------------------------------------------------------------
 	var consumed_by_destroyer: Dictionary = {}
 	var pusher_destinations := _simulate_pushers(snap, result, consumed_by_destroyer)
 
 	# -------------------------------------------------------------
-	# 4. Wanderers (游荡怪物)
+	# 3. Wanderers (游荡怪物)
 	# -------------------------------------------------------------
 	var wanderers_attacked := _simulate_wanderers(snap, result, pusher_destinations)
 
 	# -------------------------------------------------------------
-	# 5. Replicators (复制器)
+	# 4. Replicators (复制器)
 	# -------------------------------------------------------------
 	_simulate_replicators(snap, result)
 
 	# -------------------------------------------------------------
-	# 6. Destroyers (摧毁器) & Simultaneous Clash Resolution
+	# 5. Destroyers (摧毁器) & Simultaneous Clash Resolution
 	# -------------------------------------------------------------
 	_simulate_destroyers(snap, result, wanderers_attacked, consumed_by_destroyer)
+
+	# -------------------------------------------------------------
+	# 6. Inhibition is evaluated after all other machines have run.
+	# Use the resulting world, rather than the pristine t0 snapshot, so moved,
+	# spawned, and removed blocks are reflected in the detector's final layout.
+	# -------------------------------------------------------------
+	_simulate_inhibitors(world, result)
 
 	# -------------------------------------------------------------
 	# 7. Check Treasure Collection & Victory
@@ -167,8 +171,9 @@ func _simulate_inhibitors(snap: GridWorld, result: TickResult) -> void:
 	for sb in all_snap_blocks:
 		block_by_id[sb.block_id] = sb
 
-	# Key: inhibitor block_id -> target block_id (if front has block and rear has block)
-	# Key: block_id -> Array[int] (ids of sensing inhibitors pointing to this block)
+	# Key: inhibitor block_id -> target block_id (sensed side occupied and
+	# suppression side occupied). The target follows the displayed direction.
+	# Key: block_id -> Array[int] (ids of sensing inhibitors targeting this block)
 	var inhibitor_targets: Dictionary = {} # int -> int
 	var incoming_inhibitors: Dictionary = {} # int -> Array[int]
 
@@ -177,11 +182,11 @@ func _simulate_inhibitors(snap: GridWorld, result: TickResult) -> void:
 
 	for sb in all_snap_blocks:
 		if sb.block_type == BlockData.Type.INHIBITOR:
-			var front_pos := sb.grid_pos + sb.get_forward_vec()
-			# Does this inhibitor detect any block in front at t0?
-			if snap.has_block(front_pos):
-				var rear_pos := sb.grid_pos + sb.get_backward_vec()
-				var target_b := snap.get_block(rear_pos)
+			var sensed_pos := sb.grid_pos + sb.get_backward_vec()
+			# The opposite block is sensed; the forward/displayed direction is suppressed.
+			if snap.has_block(sensed_pos):
+				var suppressed_pos := sb.grid_pos + sb.get_forward_vec()
+				var target_b := snap.get_block(suppressed_pos)
 				if target_b != null:
 					inhibitor_targets[sb.block_id] = target_b.block_id
 					if incoming_inhibitors.has(target_b.block_id):
@@ -279,6 +284,10 @@ func _simulate_rotators(snap: GridWorld, result: TickResult) -> void:
 			var target_snap := snap.get_block(target_pos)
 			if target_snap != null:
 				var delta := 1 if snap_b.sub_mode == 0 else -1
+				result.rotator_actions.append({
+					"id": snap_b.block_id,
+					"target_id": target_snap.block_id
+				})
 				rotation_deltas[target_snap.block_id] = rotation_deltas.get(target_snap.block_id, 0) + delta
 
 	for tid in rotation_deltas.keys():

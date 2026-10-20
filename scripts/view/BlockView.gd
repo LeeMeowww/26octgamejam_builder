@@ -6,12 +6,24 @@ const HALF_CELL: float = CELL_SIZE * 0.5
 const BASIC_ARTWORK: PackedScene = preload("res://scenes/animation/BasicArtwork.tscn")
 const DESTROYER_ARTWORK: PackedScene = preload("res://scenes/animation/DestroyerArtwork.tscn")
 const PUSHER_ARTWORK: PackedScene = preload("res://scenes/animation/PusherArtwork.tscn")
+const MONSTER_ARTWORK: PackedScene = preload("res://scenes/animation/MonsterArtwork.tscn")
+const ROTATOR_ARTWORK: PackedScene = preload("res://scenes/animation/RotatorArtwork.tscn")
+const REPLICATOR_ARTWORK: PackedScene = preload("res://scenes/animation/ReplicatorArtwork.tscn")
+const ANIMATED_CELL_ARTWORK: PackedScene = preload("res://scenes/animation/AnimatedCellArtwork.tscn")
+const INHIBITOR_ARTWORK: PackedScene = preload("res://scenes/animation/InhibitorArtwork.tscn")
 
 ## Disable to compare with the original SVG artwork.
 @export var use_basic_idle: bool = true
 var basic_artwork: Node2D
 var destroyer_artwork: DestroyerArtwork
 var pusher_artwork: PusherArtwork
+var monster_artwork: MonsterArtwork
+var rotator_artwork: RotatorArtwork
+var replicator_artwork: ReplicatorArtwork
+var pollution_artwork: AnimatedCellArtwork
+var hard_artwork: AnimatedCellArtwork
+var treasure_artwork: AnimatedCellArtwork
+var inhibitor_artwork: InhibitorArtwork
 
 var block_data: BlockData
 var grid_world: GridWorld
@@ -24,6 +36,7 @@ var border_node: Node2D
 
 var _current_tween: Tween
 var _pushing := false
+var _inhibit_anim_time := 0.0
 
 # Textures cache
 static var _texture_cache: Dictionary = {}
@@ -55,13 +68,41 @@ func _init(p_block: BlockData, p_world: GridWorld) -> void:
 	pusher_artwork.visible = false
 	pusher_artwork.push_finished.connect(_on_pusher_push_finished)
 	add_child(pusher_artwork)
+	monster_artwork = MONSTER_ARTWORK.instantiate() as MonsterArtwork
+	monster_artwork.visible = false
+	add_child(monster_artwork)
+	rotator_artwork = ROTATOR_ARTWORK.instantiate() as RotatorArtwork
+	rotator_artwork.visible = false
+	add_child(rotator_artwork)
+	replicator_artwork = REPLICATOR_ARTWORK.instantiate() as ReplicatorArtwork
+	replicator_artwork.visible = false
+	add_child(replicator_artwork)
+	pollution_artwork = ANIMATED_CELL_ARTWORK.instantiate() as AnimatedCellArtwork
+	pollution_artwork.visible = false
+	pollution_artwork.configure("res://scenes/animation/Pollution source(1).png")
+	add_child(pollution_artwork)
+	hard_artwork = ANIMATED_CELL_ARTWORK.instantiate() as AnimatedCellArtwork
+	hard_artwork.visible = false
+	hard_artwork.configure("res://scenes/animation/block(1).png")
+	add_child(hard_artwork)
+	treasure_artwork = ANIMATED_CELL_ARTWORK.instantiate() as AnimatedCellArtwork
+	treasure_artwork.visible = false
+	treasure_artwork.configure("res://scenes/animation/treasure(1).png")
+	add_child(treasure_artwork)
 
 	# 3. Inhibited overlay sprite
 	inhibited_sprite = Sprite2D.new()
 	inhibited_sprite.name = "Inhibited"
-	inhibited_sprite.texture = _get_cached_texture("res://assets/textures/blocks/inhibited_overlay.svg")
+	inhibited_sprite.texture = load("res://scenes/animation/Invalidate_affect(1).png")
+	inhibited_sprite.hframes = 2
+	inhibited_sprite.frame = 0
+	inhibited_sprite.z_index = 3
+	inhibited_sprite.modulate = Color(1.0, 1.0, 1.0, 0.7)
 	inhibited_sprite.visible = block_data.is_inhibited
 	add_child(inhibited_sprite)
+	inhibitor_artwork = INHIBITOR_ARTWORK.instantiate() as InhibitorArtwork
+	inhibitor_artwork.visible = false
+	add_child(inhibitor_artwork)
 
 func _ready() -> void:
 	update_appearance()
@@ -83,12 +124,19 @@ func update_appearance() -> void:
 	inner_sprite.rotation = block_data.direction * (PI / 2.0)
 	var show_idle := use_basic_idle and block_data.block_type == BlockData.Type.BASIC
 	var show_destroyer := block_data.block_type == BlockData.Type.DESTROYER
+	var show_inhibitor := block_data.block_type == BlockData.Type.INHIBITOR
 	# Pushers always use the PNG artwork. While idle, PusherArtwork holds
 	# the first push frame; during movement it plays the full sequence.
 	var show_pusher := block_data.block_type == BlockData.Type.PUSHER
+	var show_monster := block_data.block_type == BlockData.Type.WANDERER
+	var show_rotator := block_data.block_type == BlockData.Type.ROTATOR
+	var show_replicator := block_data.block_type == BlockData.Type.REPLICATOR
+	var show_pollution := block_data.block_type == BlockData.Type.POLLUTION
+	var show_hard := block_data.block_type == BlockData.Type.HARD
+	var show_treasure := block_data.block_type == BlockData.Type.TREASURE
 	# Hide only the SVG fallback for the two PNG-driven artworks.
 	# Keep the parent visible so its child artwork remains visible.
-	if show_destroyer:
+	if show_destroyer or show_inhibitor or show_monster or show_rotator or show_replicator or show_pollution or show_hard or show_treasure:
 		inner_sprite.texture = null
 		inner_sprite.scale = Vector2.ONE
 		inner_sprite.self_modulate.a = 1.0
@@ -96,8 +144,24 @@ func update_appearance() -> void:
 		inner_sprite.self_modulate.a = 0.0 if show_idle or show_pusher else 1.0
 	basic_artwork.visible = show_idle
 	destroyer_artwork.visible = show_destroyer
+	inhibitor_artwork.visible = show_inhibitor
+	inhibitor_artwork.set_direction(block_data.direction)
+	_refresh_inhibitor_state()
 	pusher_artwork.visible = show_pusher
 	pusher_artwork.set_direction(block_data.direction)
+	monster_artwork.visible = show_monster
+	monster_artwork.set_direction(block_data.direction)
+	rotator_artwork.visible = show_rotator
+	rotator_artwork.set_direction(block_data.direction)
+	rotator_artwork.set_sub_mode(block_data.sub_mode)
+	replicator_artwork.visible = show_replicator
+	replicator_artwork.set_direction(block_data.direction)
+	pollution_artwork.visible = show_pollution
+	pollution_artwork.set_direction(block_data.direction)
+	hard_artwork.visible = show_hard
+	hard_artwork.set_direction(block_data.direction)
+	treasure_artwork.visible = show_treasure
+	treasure_artwork.rotation = 0.0
 	# Cancel the SVG-dependent scale so PNG pixels fit the cell consistently.
 	basic_artwork.scale = Vector2.ONE * ((CELL_SIZE - 4.0) / 64.0) / inner_sprite.scale
 	# DestroyerArtwork owns the one-cell/two-cell artwork scales internally.
@@ -106,14 +170,32 @@ func update_appearance() -> void:
 	# Inhibited state
 	if inhibited_sprite != null:
 		inhibited_sprite.visible = block_data.is_inhibited
-		if inhibited_sprite.texture != null:
-			var scale_factor := (CELL_SIZE) / inhibited_sprite.texture.get_width()
-			inhibited_sprite.scale = Vector2(scale_factor, scale_factor)
+		inhibited_sprite.scale = Vector2.ONE
 
 	# Redraw custom borders
 	if border_node != null:
 		border_node.queue_redraw()
 	queue_redraw()
+
+func _process(delta: float) -> void:
+	if block_data == null or inhibited_sprite == null:
+		return
+	if block_data.is_inhibited:
+		_inhibit_anim_time += delta
+		inhibited_sprite.frame = int(_inhibit_anim_time * 8.0) % 2
+	else:
+		_inhibit_anim_time = 0.0
+		inhibited_sprite.frame = 0
+
+func _refresh_inhibitor_state() -> void:
+	if inhibitor_artwork == null or block_data.block_type != BlockData.Type.INHIBITOR or grid_world == null:
+		return
+	# The displayed direction is the suppression direction. The inhibitor
+	# senses the opposite side and suppresses the block in its own direction.
+	var suppression_vec := block_data.get_forward_vec()
+	var has_suppressed_block := grid_world.get_block(block_data.grid_pos + suppression_vec) != null
+	var has_sensed_block := grid_world.get_block(block_data.grid_pos - suppression_vec) != null
+	inhibitor_artwork.refresh_state(has_suppressed_block, has_sensed_block, block_data.is_inhibited)
 
 func _get_texture_path() -> String:
 	var btype := block_data.block_type
@@ -165,11 +247,7 @@ func _on_border_draw() -> void:
 	var sid := block_data.structure_id
 	var half := HALF_CELL - 2.0
 	var border_color := Color(0.2, 0.7, 0.9, 0.85) if sid > 0 else Color(0.3, 0.4, 0.5, 0.6)
-	var bg_color := Color(0.12, 0.18, 0.24, 0.35) if sid > 0 else Color(0.08, 0.1, 0.14, 0.2)
 	var width := 3.0 if sid > 0 else 2.0
-
-	# Fill background
-	border_node.draw_rect(Rect2(-half, -half, half * 2.0, half * 2.0), bg_color, true)
 
 	# Check 4 neighbors
 	var right_connected := _is_connected_neighbor(Vector2i(1, 0))
@@ -232,8 +310,22 @@ func animate_rotation(new_dir: int, duration: float) -> void:
 
 	var t := create_tween()
 	t.tween_property(inner_sprite, "rotation", end_angle, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	for artwork in [pusher_artwork, monster_artwork, rotator_artwork, replicator_artwork, pollution_artwork, hard_artwork]:
+		if artwork != null and artwork.visible:
+			var artwork_angle := end_angle
+			if artwork == monster_artwork:
+				artwork_angle = monster_artwork.get_direction_rotation(new_dir)
+			t.tween_property(artwork, "rotation", artwork_angle, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_callback(func():
-		inner_sprite.rotation = posmod(new_dir, 4) * (PI / 2.0)
+		var final_angle := posmod(new_dir, 4) * (PI / 2.0)
+		inner_sprite.rotation = final_angle
+		pusher_artwork.rotation = final_angle
+		monster_artwork.set_direction(new_dir)
+		rotator_artwork.rotation = final_angle
+		replicator_artwork.rotation = final_angle
+		pollution_artwork.rotation = final_angle
+		hard_artwork.rotation = final_angle
+		treasure_artwork.rotation = 0.0
 	)
 
 func animate_spawn(duration: float) -> void:
@@ -263,6 +355,18 @@ func play_pusher_push() -> void:
 	pusher_artwork.set_direction(block_data.direction)
 	update_appearance()
 	pusher_artwork.play_push()
+
+func play_replicator_breed(duration: float = 0.0) -> void:
+	if block_data == null or block_data.block_type != BlockData.Type.REPLICATOR:
+		return
+	replicator_artwork.play_breed(duration)
+
+func play_rotator_turn(duration: float = 1.0) -> void:
+	if block_data == null or block_data.block_type != BlockData.Type.ROTATOR:
+		return
+	rotator_artwork.set_direction(block_data.direction)
+	rotator_artwork.set_sub_mode(block_data.sub_mode)
+	rotator_artwork.play_turn(duration)
 
 func _on_pusher_push_finished() -> void:
 	_pushing = false
