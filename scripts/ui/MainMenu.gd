@@ -55,8 +55,7 @@ func _build_ui() -> void:
 
 	var learn := _button(content, "第一次来？从基础开始")
 	learn.pressed.connect(func():
-		Campaign.active_level = Campaign.TUTORIAL_ORDER[0]
-		get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn")
+		_open_tutorial()
 	)
 	var common_button_width: float = maxf(play.get_combined_minimum_size().x, learn.get_combined_minimum_size().x)
 	play.custom_minimum_size = Vector2(common_button_width, 46)
@@ -161,6 +160,22 @@ func _animate_button_press(button: Button, pressed: bool) -> void:
 	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(button, "scale", target_scale, 0.07 if pressed else 0.12)
 	tween.tween_property(button, "modulate", target_modulate, 0.07 if pressed else 0.12)
+
+func _open_tutorial() -> void:
+	if Campaign.TUTORIAL_ORDER.is_empty():
+		get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn")
+		return
+	var tutorial_id: String = Campaign.TUTORIAL_ORDER[0]
+	var player: LevelPlayer = load("res://scenes/ui/LevelPlayer.tscn").instantiate()
+	get_tree().root.add_child(player)
+	for i in range(player.all_levels.size()):
+		if player.all_levels[i].level_id == tutorial_id:
+			player.load_level_by_index(i)
+			get_tree().current_scene = player
+			queue_free()
+			return
+	player.queue_free()
+	get_tree().change_scene_to_file("res://scenes/ui/LevelSelect.tscn")
 
 func _icon_button(parent: Node, icon_path: String, tooltip: String) -> Button:
 	var button := Button.new()

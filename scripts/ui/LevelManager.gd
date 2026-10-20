@@ -31,7 +31,7 @@ var io_status_lbl: Label
 var _web_import_cb: JavaScriptObject
 
 func _ready() -> void:
-	theme = UI.get_theme()
+	theme = UI.get_game_theme()
 	MusicManager.play_ambient()
 	SaveManager.init_directories()
 	levels = SaveManager.get_all_levels()
@@ -138,7 +138,7 @@ func _build_ui() -> void:
 		delete_confirm.popup_centered(Vector2i(480, 180))
 	)
 	delete_confirm = ConfirmationDialog.new()
-	delete_confirm.theme = UI.get_theme()
+	delete_confirm.theme = UI.get_game_theme()
 	delete_confirm.title = "删除关卡"
 	delete_confirm.ok_button_text = "删除此关卡"
 	delete_confirm.cancel_button_text = "保留关卡"
@@ -367,7 +367,7 @@ func _on_open_level_editor() -> void:
 
 func _build_file_dialogs() -> void:
 	export_file_dialog = FileDialog.new()
-	export_file_dialog.theme = UI.get_theme()
+	export_file_dialog.theme = UI.get_game_theme()
 	export_file_dialog.title = "导出关卡文件 (JSON)"
 	export_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 	export_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -377,7 +377,7 @@ func _build_file_dialogs() -> void:
 	add_child(export_file_dialog)
 
 	import_file_dialog = FileDialog.new()
-	import_file_dialog.theme = UI.get_theme()
+	import_file_dialog.theme = UI.get_game_theme()
 	import_file_dialog.title = "导入关卡文件 (JSON)"
 	import_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	import_file_dialog.access = FileDialog.ACCESS_FILESYSTEM

@@ -7,6 +7,7 @@ const TEXT := Color("151515")
 const MUTED := Color("4b4b4b")
 const ACCENT := Color("202020")
 static var shared_theme: Theme
+static var game_theme: Theme
 
 static func box(fill: Color, border := BORDER, radius := 0, padding := 10) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -56,12 +57,46 @@ static func get_theme() -> Theme:
 	shared_theme.set_stylebox("panel", "TabContainer", box(PANEL, BORDER, 0, 16))
 	return shared_theme
 
+static func get_game_theme() -> Theme:
+	if game_theme != null: return game_theme
+	game_theme = Theme.new()
+	game_theme.default_font = load("res://assets/fonts/font.ttf")
+	game_theme.default_font_size = 16
+	var game_text := Color("d8edf0")
+	for type in ["Label", "Button", "LineEdit", "TextEdit", "RichTextLabel", "CheckButton", "ItemList"]:
+		game_theme.set_color("font_color", type, game_text)
+	game_theme.set_stylebox("normal", "Button", box(Color("17333d"), Color("2f7380"), 4, 10))
+	game_theme.set_stylebox("hover", "Button", box(Color("245263"), Color("63b7c4"), 4, 10))
+	game_theme.set_stylebox("pressed", "Button", box(Color("0f252d"), Color("63b7c4"), 4, 10))
+	game_theme.set_stylebox("disabled", "Button", box(Color("21343a"), Color("3c565d"), 4, 10))
+	game_theme.set_color("font_disabled_color", "Button", Color("759197"))
+	game_theme.set_color("font_hover_color", "Button", game_text)
+	game_theme.set_color("font_pressed_color", "Button", Color.WHITE)
+	var focus := box(Color.TRANSPARENT, Color("80ffd7"), 4, 10)
+	focus.set_border_width_all(2)
+	game_theme.set_stylebox("focus", "Button", focus)
+	for type in ["PanelContainer", "PopupPanel", "PopupMenu", "AcceptDialog"]:
+		game_theme.set_stylebox("panel", type, box(Color("102a35"), Color("2f7380"), 4))
+	for type in ["LineEdit", "TextEdit", "ItemList"]:
+		game_theme.set_stylebox("normal", type, box(Color("102a35"), Color("2f7380"), 4))
+		game_theme.set_stylebox("focus", type, focus)
+	game_theme.set_color("font_color", "TooltipLabel", game_text)
+	game_theme.set_stylebox("panel", "TooltipPanel", box(Color("102a35"), Color("2f7380"), 4))
+	return game_theme
+
 static func primary(button: Button) -> void:
 	button.add_theme_stylebox_override("normal", box(Color("d0d1d1"), BORDER, 0))
 	button.add_theme_stylebox_override("hover", box(Color("e0e1e1"), BORDER, 0))
 	button.add_theme_stylebox_override("pressed", box(Color("969797"), BORDER, 0))
 	for state in ["font_color", "font_hover_color", "font_pressed_color"]:
 		button.add_theme_color_override(state, TEXT)
+
+static func game_primary(button: Button) -> void:
+	button.add_theme_stylebox_override("normal", box(Color("245263"), Color("80ffd7"), 4))
+	button.add_theme_stylebox_override("hover", box(Color("357083"), Color("b0ffe9"), 4))
+	button.add_theme_stylebox_override("pressed", box(Color("173b48"), Color("80ffd7"), 4))
+	for state in ["font_color", "font_hover_color", "font_pressed_color"]:
+		button.add_theme_color_override(state, Color("e9ffff"))
 
 static func label(parent: Node, text: String, size := 16, color := TEXT) -> Label:
 	var node := Label.new()

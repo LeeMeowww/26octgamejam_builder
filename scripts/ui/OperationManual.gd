@@ -9,7 +9,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	dialog = AcceptDialog.new()
 	dialog.title = "博士的操作手册 · F1"
-	dialog.theme = UI.get_theme()
+	dialog.theme = UI.get_game_theme()
 	dialog.ok_button_text = "返回游戏"
 	dialog.min_size = Vector2i(680, 460)
 	add_child(dialog)
